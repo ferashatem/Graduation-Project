@@ -1,0 +1,40 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+.year-chart{
+  width: 150px;
+}
+
+
+
+.header-user{
+  background-color: #fff;
+  height: 10vh;
+  display: flex;
+  justify-content: space-between;
+  /* align-items: flex-end; */
+}
+
+.header-user h1{
+  font-size: 25px;
+  margin-left: 45px;
+}
+
+
+.inputAdd{
+  border: 1px solid #0D1321;
+  border-radius: 5px;
+}
+
+.back{
+  /* background-color: red; */
+  padding: 20px 20px 40px 20px;
+  font-family: stolzl, sans-serif;
+  cursor: pointer;
+  color: #00254A;
+  font-weight: 600;
+  font-size: 20px;
+}
+
