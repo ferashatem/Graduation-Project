@@ -3,12 +3,9 @@ import "../assets/styles/styles.css";
 import { useNavigate } from "react-router-dom";
 import { app } from "../firebase/firebaseConfig";
 import { useAuthState } from "react-firebase-hooks/auth";
-import {
-  getAuth,
-  signInWithEmailAndPassword,
-} from "firebase/auth";
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 
-import BigLogo from '../assets/university-logo.png'
+import BigLogo from "../assets/university-logo.png";
 
 export const auth = getAuth(app);
 
@@ -19,85 +16,160 @@ function SignIn() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // ⬅️ add this right after hooks
-if (pageLoading) {
-  return (
-    <section className="flex h-screen w-screen items-center justify-center bg-gradient-to-b from-[#B0B0B0] to-blue-600">
-      <div className="w-12 h-12 border-4 border-white/40 border-t-white rounded-full animate-spin" />
-    </section>
-  );
-}
-
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  setLoading(true);
-
-  try {
-    const userCred = await signInWithEmailAndPassword(auth, email, password);
-
-    const user = userCred.user;
-    const userName = user.displayName || user.email.split("@")[0];
-
-    // Save locally if you need
-    localStorage.setItem("userName", userName);
-    localStorage.setItem(
-      "user",
-      JSON.stringify({ role: "admin", email: user.email })
+  if (pageLoading) {
+    return (
+      <section className="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-gradient-to-br from-[#f7f1e6] via-[#edf4ff] to-[#c7d7ff]">
+        <div className="pointer-events-none absolute -top-24 -left-20 h-72 w-72 rounded-full bg-[#103c6b]/15 blur-3xl" />
+        <div className="pointer-events-none absolute bottom-0 right-0 h-80 w-80 translate-x-1/3 rounded-full bg-[#ffcf70]/30 blur-3xl" />
+        <div className="relative z-10 flex items-center gap-3 rounded-full bg-white/80 px-5 py-3 text-sm font-semibold text-[#0b2c4a] shadow-lg">
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#0b2c4a]/40 border-t-[#0b2c4a]" />
+          Preparing your portal...
+        </div>
+      </section>
     );
-
-    // Always redirect to admin
-    navigate("/admin", { replace: true });
-  } catch (err) {
-    console.error("❌ Firebase SignIn Error:", err.code, err.message);
-    alert("Login failed: " + err.message);
-    setLoading(false);
   }
-};
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const userCred = await signInWithEmailAndPassword(auth, email, password);
+
+      const user = userCred.user;
+      const userName = user.displayName || user.email.split("@")[0];
+
+      // Save locally if you need
+      localStorage.setItem("userName", userName);
+      localStorage.setItem(
+        "user",
+        JSON.stringify({ role: "admin", email: user.email })
+      );
+
+      // Always redirect to admin
+      navigate("/admin", { replace: true });
+    } catch (err) {
+      console.error("Firebase SignIn Error:", err.code, err.message);
+      alert("Login failed: " + err.message);
+      setLoading(false);
+    }
+  };
 
   return (
-    <section className="flex flex-col lg:flex-row h-screen w-screen">
-      {/* Left Image Section */}
-      <div className="w-full lg:w-1/2 bg-white flex flex-col items-center justify-center gap-4">
-        <img
-          src={BigLogo}
-          alt="Sign in Illustration"
-          className="max-w-[80%] h-auto"
-        />
-      </div>
+    <section className="relative min-h-screen w-full overflow-hidden bg-gradient-to-br from-[#f7f1e6] via-[#edf4ff] to-[#c7d7ff] text-[#0b2c4a]">
+      <div className="pointer-events-none absolute -top-28 -left-20 h-80 w-80 rounded-full bg-[#103c6b]/15 blur-3xl" />
+      <div className="pointer-events-none absolute top-20 right-0 h-[26rem] w-[26rem] translate-x-1/2 rounded-full bg-[#ffcf70]/35 blur-3xl" />
+      <div className="pointer-events-none absolute bottom-0 left-1/3 h-72 w-72 -translate-x-1/2 rounded-full bg-[#7fb0ff]/35 blur-3xl" />
 
-      {/* Right Form Section */}
-      <div className="w-full lg:w-1/2 bg-gradient-to-r from-[#303030] via-blue-600 to-[#B0B0B0] flex items-center justify-center py-6">
-        <div className="h-auto lg:h-[528px] w-[90%] max-w-sm lg:w-[354px] rounded-[15px] text-center flex flex-col shadow-lg">
-          <div className="w-full h-28 lg:h-[40%] flex justify-center items-center rounded-t-[20px] bg-blue-600">
-            <h1 className="text-white font-bold uppercase font-sans text-2xl">
-              Welcome
-            </h1>
+      <div className="relative z-10 grid min-h-screen grid-cols-1 gap-10 px-6 py-10 lg:grid-cols-[1.1fr_0.9fr] lg:px-16 lg:py-16">
+        <div className="flex flex-col justify-center gap-8">
+          <div className="inline-flex w-fit items-center gap-3 rounded-full bg-white/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-[#0b2c4a] shadow-sm">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#0b2c4a]" />
+            College Portal
           </div>
 
-          <div className="w-full h-auto lg:h-[60%] bg-white rounded-b-[20px] flex flex-col items-center justify-center p-6">
-            <form
-              className="bg-white p-5 rounded-lg flex flex-col gap-5 w-full"
-              onSubmit={handleSubmit}
-            >
-              <div className="w-full rounded-lg p-[1px] bg-blue-600">
+          <div className="max-w-xl">
+            <h1 className="text-4xl font-semibold leading-tight tracking-tight text-[#0b2c4a] lg:text-5xl lg:leading-tight font-['Palatino_Linotype','Book_Antiqua','Palatino','serif']">
+              Benis Suef National University
+            </h1>
+            <p className="mt-4 text-base text-[#1d3557]/80 lg:text-lg">
+              Sign in to reach student services, faculty resources, and campus announcements in one secure space.
+            </p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="rounded-2xl bg-white/80 p-4 shadow-sm ring-1 ring-white/60">
+              <p className="text-2xl font-semibold text-[#0b2c4a]">24/7</p>
+              <p className="mt-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#1d3557]/60">
+                Portal Access
+              </p>
+            </div>
+            <div className="rounded-2xl bg-white/80 p-4 shadow-sm ring-1 ring-white/60">
+              <p className="text-2xl font-semibold text-[#0b2c4a]">1</p>
+              <p className="mt-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#1d3557]/60">
+                Secure Login
+              </p>
+            </div>
+            <div className="rounded-2xl bg-white/80 p-4 shadow-sm ring-1 ring-white/60">
+              <p className="text-2xl font-semibold text-[#0b2c4a]">100%</p>
+              <p className="mt-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#1d3557]/60">
+                Verified
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4 rounded-2xl bg-white/70 p-4 shadow-sm ring-1 ring-white/60">
+            <div className="h-14 w-14 rounded-2xl bg-white p-2 shadow-sm">
+              <img
+                src={BigLogo}
+                alt="Benis Suef National University logo"
+                className="h-full w-full object-contain"
+              />
+            </div>
+            <div className="text-sm text-[#1d3557]/70">
+              <p className="text-base font-semibold text-[#0b2c4a]">
+                Official College Access
+              </p>
+              <p>Use your university email to enter the portal.</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-center">
+          <div className="w-full max-w-md rounded-3xl bg-white/85 p-8 shadow-2xl ring-1 ring-white/60 backdrop-blur">
+            <div className="flex flex-col items-center text-center">
+              <div className="h-24 w-24 rounded-full bg-[#0b2c4a] p-[3px] shadow-lg">
+                <div className="h-full w-full rounded-full bg-white p-3">
+                  <img
+                    src={BigLogo}
+                    alt="Benis Suef National University logo"
+                    className="h-full w-full object-contain"
+                  />
+                </div>
+              </div>
+              <h2 className="mt-5 text-2xl font-semibold text-[#0b2c4a] font-['Palatino_Linotype','Book_Antiqua','Palatino','serif']">
+                Welcome Back
+              </h2>
+              <p className="mt-2 text-sm text-[#1d3557]/70">
+                Sign in to continue to the college portal.
+              </p>
+            </div>
+
+            <form className="mt-8 flex flex-col gap-5" onSubmit={handleSubmit}>
+              <div>
+                <label
+                  htmlFor="email"
+                  className="text-xs font-semibold uppercase tracking-[0.2em] text-[#1d3557]/70"
+                >
+                  Email
+                </label>
                 <input
+                  id="email"
                   type="email"
-                  placeholder="Email"
+                  placeholder="name@bnu.edu.eg"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg border-none focus:outline-none bg-white text-gray-900"
+                  autoComplete="email"
+                  className="mt-2 w-full rounded-2xl border border-[#0b2c4a]/15 bg-white/90 px-4 py-3 text-sm text-[#0b2c4a] shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
                   required
                 />
               </div>
 
-              <div className="w-full rounded-lg p-[1px] bg-blue-600">
+              <div>
+                <label
+                  htmlFor="password"
+                  className="text-xs font-semibold uppercase tracking-[0.2em] text-[#1d3557]/70"
+                >
+                  Password
+                </label>
                 <input
+                  id="password"
                   type="password"
-                  placeholder="Password"
+                  placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg border-none focus:outline-none bg-white text-gray-900"
+                  autoComplete="current-password"
+                  className="mt-2 w-full rounded-2xl border border-[#0b2c4a]/15 bg-white/90 px-4 py-3 text-sm text-[#0b2c4a] shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
                   required
                 />
               </div>
@@ -105,15 +177,22 @@ const handleSubmit = async (e) => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 text-white text-lg rounded-full bg-blue-600 hover:opacity-80 transition flex items-center justify-center"
+                className="mt-2 flex items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-[#0b2c4a] via-[#1d5fa3] to-[#0b2c4a] px-6 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-white shadow-lg transition hover:translate-y-[-1px] hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {loading ? (
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <>
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/70 border-t-white" />
+                    Signing In
+                  </>
                 ) : (
                   "Sign In"
                 )}
               </button>
             </form>
+
+            <div className="mt-6 rounded-2xl bg-[#0b2c4a]/5 px-4 py-3 text-xs text-[#1d3557]/70">
+              Use your official university credentials. For support, contact the IT helpdesk.
+            </div>
           </div>
         </div>
       </div>
