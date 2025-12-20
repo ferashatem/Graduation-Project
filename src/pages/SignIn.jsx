@@ -35,6 +35,7 @@ function SignIn() {
 
     try {
       const userCred = await signInWithEmailAndPassword(auth, email, password);
+console.log((await userCred.user.getIdTokenResult()).claims);
 
       const user = userCred.user;
       const userName = user.displayName || user.email.split("@")[0];
@@ -47,7 +48,7 @@ function SignIn() {
       );
 
       // Always redirect to admin
-      navigate("/admin", { replace: true });
+      navigate("/admin/home", { replace: true });
     } catch (err) {
       console.error("Firebase SignIn Error:", err.code, err.message);
       alert("Login failed: " + err.message);

@@ -1,4 +1,15 @@
 import React from "react";
+import { getFunctions, httpsCallable } from "firebase/functions";
+import { getAuth } from "firebase/auth";
+
+const functions = getFunctions();
+const setUserRole = httpsCallable(functions, "setUserRole");
+
+async function assignRole(uid, role) {
+  // Make sure you are logged in as super_admin first
+  const result = await setUserRole({ uid, role });
+  console.log(result.data);
+}
 
 const studentDetails = [
   {
