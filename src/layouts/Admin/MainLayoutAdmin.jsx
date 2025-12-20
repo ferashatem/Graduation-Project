@@ -1,18 +1,10 @@
 import SideNavBar from "../../components/SideNavBar/SideNavBarRender";
-import Listing from "../../assets/imgs/navbar/listing.png";
-import Owners from "../../assets/imgs/navbar/owners.png";
-import shares from "../../assets/imgs/navbar/shares.png";
-import userManagment from "../../assets/imgs/userManagment.png";
-import person from "../../assets/imgs/navbar/person.png";
-import reward from "../../assets/imgs/navbar/reward.png";
-import settings from "../../assets/imgs/navbar/managment.png";
-import dashboard from "../../assets/imgs/navbar/dashboard.png";
-import brokers from "../../assets/imgs/navbar/brokers.png";
+import profile from "../../assets/navbar/user-solid.svg";
 import { Outlet } from "react-router-dom";
 
 function MainLayout() {
   const AdminNavItems = [
-    { icon: dashboard, title: "Home", link: "home" },
+    { icon: profile, title: "Home", link: "home" },
   ];
 
   return (
