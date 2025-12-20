@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import "../assets/styles/styles.css";
 import { useNavigate } from "react-router-dom";
-import { app } from "../firebase";
+import { app } from "../firebase/firebaseConfig";
 import { useAuthState } from "react-firebase-hooks/auth";
 import {
   getAuth,

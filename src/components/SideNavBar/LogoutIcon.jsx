@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import lougout from "../../assets/imgs/logout.png";
 import { useNavigate } from "react-router-dom";
-import { app } from "../../firebase";
+import { app } from "../../firebase/firebaseConfig";
 import { getAuth, signOut } from "firebase/auth";
 
 // ✅ Initialize Firebase Auth
