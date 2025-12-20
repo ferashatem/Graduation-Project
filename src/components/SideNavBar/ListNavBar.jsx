@@ -46,7 +46,7 @@ function ListNavBar({ isMobile, closeMenu, navItems = [] }) {
   };
 
   return (
-    <div className="w-full px-4 text-white font-sans font-normal text-base flex flex-col">
+    <div className="flex w-full flex-col px-4 text-sm font-normal text-[#0b2c4a]">
       <ul className="flex flex-col gap-2">
         {cards.map((card, index) => {
           const hasChildren =
@@ -59,28 +59,28 @@ function ListNavBar({ isMobile, closeMenu, navItems = [] }) {
             <li key={index} className="w-full">
               {/* Parent row */}
               <div
-                className={`flex items-center justify-between w-full h-[48px] px-4 rounded-md transition-all duration-1000 text-sm ${
-                  card.disabled ? "cursor-not-allowed" : "cursor-pointer"
+                className={`group flex w-full items-center justify-between rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-300 ${
+                  card.disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"
                 } ${
-                  isParentActive ? "bg-[#303030]/35" : "hover:bg-[#303030]"
+                  isParentActive
+                    ? "bg-white/85 text-[#0b2c4a] shadow-sm ring-1 ring-white/70"
+                    : "text-[#1d3557] hover:bg-white/70 hover:text-[#0b2c4a] hover:shadow-sm"
                 }`}
                 onClick={() => handleParentClick(card)}
               >
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                   <img
                     src={card.icon}
                     alt="icon"
-                    className="w-5 h-5 object-contain"
+                    className="h-5 w-5 object-contain"
                   />
-                  <span className="text-white group-hover:text-white whitespace-nowrap">
-                    {card.title}
-                  </span>
+                  <span className="whitespace-nowrap">{card.title}</span>
                 </div>
 
                 {hasChildren && (
                   <IoChevronDown
-                    className={`text-white transition-transform duration-200 ${
-                      openDropdown === card.title ? "rotate-180" : ""
+                    className={`text-[#1d3557] transition-transform duration-200 group-hover:text-[#0b2c4a] ${
+                      openDropdown === card.title ? "rotate-180 text-[#0b2c4a]" : ""
                     }`}
                     size={16}
                   />
@@ -93,24 +93,24 @@ function ListNavBar({ isMobile, closeMenu, navItems = [] }) {
                   openDropdown === card.title ? "max-h-40" : "max-h-0"
                 }`}
               >
-                <ul className="mt-1 ml-10 flex flex-col gap-1">
+                <ul className="ml-8 mt-2 flex flex-col gap-1.5">
                   {card.children?.map((child) => {
                     const active = isActiveLink(child.link);
                     return (
                       <li
                         key={child.title}
                         onClick={() => handleChildClick(child)}
-                        className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm cursor-pointer transition ${
+                        className={`flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition ${
                           active
-                            ? "bg-white/15 text-white"
-                            : "text-white/90 hover:bg-white/10 hover:text-white"
+                            ? "bg-[#0b2c4a]/10 text-[#0b2c4a] ring-1 ring-[#0b2c4a]/10"
+                            : "text-[#1d3557]/80 hover:bg-white/70 hover:text-[#0b2c4a]"
                         }`}
                       >
                         {child.icon && (
                           <img
                             src={child.icon}
                             alt={child.title}
-                            className="w-4 h-4 object-contain"
+                            className="h-4 w-4 object-contain"
                           />
                         )}
                         <span>{child.title}</span>
