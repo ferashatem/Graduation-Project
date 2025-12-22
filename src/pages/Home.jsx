@@ -1,75 +1,159 @@
-import React from "react";
-import { getFunctions, httpsCallable } from "firebase/functions";
-import { getAuth } from "firebase/auth";
+// src/pages/admin/Home.jsx
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import { db } from "../firebase/firebaseConfig";
+import { useAuthUser } from "../auth/useAuthUser";
 
-const functions = getFunctions();
-const setUserRole = httpsCallable(functions, "setUserRole");
-
-async function assignRole(uid, role) {
-  // Make sure you are logged in as super_admin first
-  const result = await setUserRole({ uid, role });
-  console.log(result.data);
-}
-
-const studentDetails = [
-  {
-    label: "Student Name",
-    value: "فراس حاتم عمر جابر الغرابلى",
-    valueDir: "rtl",
-  },
-  { label: "Student ID", value: "220100152" },
-  { label: "Faculty", value: "Faculty of Computer and Information Sciences" },
-  { label: "Degree", value: "B.Sc." },
-  { label: "Student Major", value: "Artificial Intelligence and Data Science" },
-  { label: "Level", value: "Level 3" },
-  { label: "Enrollment Status", value: "Enrolled" },
-  { label: "Academic Status", value: "--" },
-  { label: "Total Passed CH", value: "106.00" },
-  { label: "CGPA", value: "2.66" },
-];
-
-function Home() {
-  return (
-    <section className="relative mx-auto w-full max-w-6xl overflow-hidden rounded-3xl bg-gradient-to-br from-[#f7f1e6] via-[#edf4ff] to-[#c7d7ff] p-6 text-[#0b2c4a] shadow-2xl ring-1 ring-white/70 sm:p-8">
-      <div className="pointer-events-none absolute -top-16 -left-16 h-40 w-40 rounded-full bg-[#103c6b]/15 blur-3xl" />
-      <div className="pointer-events-none absolute bottom-0 right-0 h-48 w-48 translate-x-1/3 rounded-full bg-[#ffcf70]/25 blur-3xl" />
-
-      <div className="relative z-10">
-        <div className="inline-flex items-center gap-3 rounded-full bg-white/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-[#0b2c4a] shadow-sm">
-          <span className="h-2.5 w-2.5 rounded-full bg-[#0b2c4a]" />
-          Student Profile
-        </div>
-
-        <div className="mt-5 max-w-2xl">
-          <h1 className="text-3xl font-semibold tracking-tight text-[#0b2c4a] sm:text-4xl font-['Palatino_Linotype','Book_Antiqua','Palatino','serif']">
-            Academic Overview
-          </h1>
-          <p className="mt-3 text-sm text-[#1d3557]/80 sm:text-base">
-            Snapshot of enrollment, academic standing, and program details.
-          </p>
-        </div>
-
-        <dl className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {studentDetails.map((detail) => (
-            <div
-              key={detail.label}
-              className="rounded-2xl bg-white/85 p-4 shadow-sm ring-1 ring-white/60"
-            >
-              <dt className="text-xs font-semibold uppercase tracking-[0.2em] text-[#1d3557]/60">
-                {detail.label}
-              </dt>
-              <dd
-                className="mt-2 text-base font-semibold text-[#0b2c4a]"
-                dir={detail.valueDir}
-              >
-                {detail.value}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      </div>
-    </section>
+/**
+ * Create/Update user profile in Firestore under: Users/{uid}
+ * - doc id = uid (recommended)
+ * - merge: true so it won't overwrite existing fields
+ *
+ * Firestore setDoc/doc usage is the standard way to write a known document path.
+ * https://firebase.google.com/docs/firestore/manage-data/add-data
+ */
+export async function upsertUserProfile({
+  uid,
+  email,
+  fullName,
+  phoneNumber,
+  title,
+}) {
+  await setDoc(
+    doc(db, "Users", uid),
+    {
+      uid,
+      email: email ?? "",
+      fullName: fullName ?? "",
+      phoneNumber: phoneNumber ?? "",
+      title: title ?? "",
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
   );
 }
 
-export default Home;
+
+export default function AdminHome() {
+  const { user, authLoading } = useAuthUser();
+
+  const [profile, setProfile] = useState(null);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+
+  /**
+   * Load profile from Users/{uid}
+   * - If profile doesn't exist, create a minimal one then re-read.
+   */
+  const loadProfile = useCallback(async (firebaseUser) => {
+    if (!firebaseUser?.uid) return;
+
+    setLoadingProfile(true);
+
+    try {
+      // 1) Read role from custom claims (force refresh if you recently changed claims)
+      // https://firebase.google.com/docs/auth/admin/custom-claims#access_custom_claims
+      const tokenResult = await firebaseUser.getIdTokenResult(true);
+      const role = tokenResult?.claims?.role || "student";
+
+      // 2) Try reading the profile
+      const ref = doc(db, "Users", firebaseUser.uid);
+      const snap = await getDoc(ref);
+console.log(ref);
+console.log(snap);
+
+      // 3) If not found, create it (minimal profile) then read again
+      if (!snap.exists()) {
+        const fallbackName =
+          firebaseUser.displayName ||
+          firebaseUser.email?.split("@")[0] ||
+          "User";
+
+        await upsertUserProfile({
+          uid: firebaseUser.uid,
+          email: firebaseUser.email || "",
+          fullName: fallbackName,
+          phoneNumber: "",
+          title: role === "admin" ? "Admin" : role === "super_admin" ? "Super" : "",
+          
+        });
+
+        // const snap2 = await getDoc(ref);
+        setProfile(snap.data());
+      } else {
+        setProfile(snap.data());
+      }
+    } catch (err) {
+      console.error("Load profile error:", err);
+      setProfile(null);
+    } finally {
+      setLoadingProfile(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (authLoading) return;
+
+    if (!user) {
+      setProfile(null);
+      setLoadingProfile(false);
+      return;
+    }
+
+    loadProfile(user);
+  }, [authLoading, user, loadProfile]);
+
+  const viewModel = useMemo(() => {
+    const p = profile || {};
+    return {
+      name: p.fullName ?? p.Full_Name ?? user?.displayName ?? "—",
+      email: p.email ?? p.Email ?? user?.email ?? "—",
+      phone: p.phoneNumber ?? p.Phone_Number ?? "—",
+      title: p.title ?? p.Title ?? "—",
+      uid: p.uid ?? user?.uid ?? "—",
+    };
+  }, [profile, user]);
+  
+
+  if (authLoading || loadingProfile) {
+    return <div style={{ padding: 24 }}>Loading...</div>;
+  }
+
+  return (
+    <div style={{ padding: 24 }}>
+      <h1>Admin Overview</h1>
+
+      <div
+        style={{
+          display: "grid",
+          gap: 12,
+          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+        }}
+      >
+        <Card title="FULL NAME" value={viewModel.name} />
+        <Card title="EMAIL" value={viewModel.email} />
+        <Card title="PHONE NUMBER" value={viewModel.phone} />
+        <Card title="TITLE" value={viewModel.title} />
+        {/* <Card title="ROLE" value={viewModel.role} /> */}
+        <Card title="UID" value={viewModel.uid} />
+      </div>
+    </div>
+  );
+}
+
+function Card({ title, value }) {
+  return (
+    <div
+      style={{
+        background: "white",
+        padding: 16,
+        borderRadius: 12,
+        boxShadow: "0 6px 18px rgba(0,0,0,.06)",
+      }}
+    >
+      <div style={{ fontSize: 12, letterSpacing: 2, opacity: 0.6 }}>
+        {title}
+      </div>
+      <div style={{ marginTop: 8, fontWeight: 700 }}>{value}</div>
+    </div>
+  );
+}

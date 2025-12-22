@@ -1,22 +1,42 @@
-import React, { useState } from "react";
+// src/pages/SignIn.jsx
+import React, { useCallback, useMemo, useState } from "react";
 import "../assets/styles/styles.css";
 import { useNavigate } from "react-router-dom";
-import { app } from "../firebase/firebaseConfig";
-import { useAuthState } from "react-firebase-hooks/auth";
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../firebase/firebaseConfig";
+import { useAuthUser } from "../auth/useAuthUser";
 
 import BigLogo from "../assets/university-logo.png";
 
-export const auth = getAuth(app);
-
 function SignIn() {
-  const [user, pageLoading] = useAuthState(auth);
+  const { user, authLoading } = useAuthUser();
   const navigate = useNavigate();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  if (pageLoading) {
+  // ✅ If already logged in, you can redirect
+  const redirectIfLoggedIn = useCallback(async () => {
+    if (!user) return;
+
+    // Read claims (role) from token
+    // Custom claims are set server-side (Admin SDK / Cloud Functions). :contentReference[oaicite:2]{index=2}
+    const token = await user.getIdTokenResult(true);
+    const role = token?.claims?.role;
+
+    if (role === "super_admin") navigate("/superadmin/home", { replace: true });
+    else if (role === "admin") navigate("/admin/home", { replace: true });
+    else if (role === "professor") navigate("/professor/home", { replace: true });
+    else if (role === "assistant") navigate("/assistant/home", { replace: true });
+    else navigate("/student/home", { replace: true });
+  }, [user, navigate]);
+
+  React.useEffect(() => {
+    if (!authLoading && user) redirectIfLoggedIn();
+  }, [authLoading, user, redirectIfLoggedIn]);
+
+  const pageLoadingUI = useMemo(() => {
     return (
       <section className="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-gradient-to-br from-[#f7f1e6] via-[#edf4ff] to-[#c7d7ff]">
         <div className="pointer-events-none absolute -top-24 -left-20 h-72 w-72 rounded-full bg-[#103c6b]/15 blur-3xl" />
@@ -27,34 +47,49 @@ function SignIn() {
         </div>
       </section>
     );
-  }
+  }, []);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+  const handleSubmit = useCallback(
+    async (e) => {
+      e.preventDefault();
+      setLoading(true);
 
-    try {
-      const userCred = await signInWithEmailAndPassword(auth, email, password);
-console.log((await userCred.user.getIdTokenResult()).claims);
+      try {
+        // Firebase email/password sign-in :contentReference[oaicite:3]{index=3}
+        const userCred = await signInWithEmailAndPassword(auth, email, password);
 
-      const user = userCred.user;
-      const userName = user.displayName || user.email.split("@")[0];
+        const signedUser = userCred.user;
 
-      // Save locally if you need
-      localStorage.setItem("userName", userName);
-      localStorage.setItem(
-        "user",
-        JSON.stringify({ role: "admin", email: user.email })
-      );
+        // ✅ Force-refresh token if you recently changed claims
+        const token = await signedUser.getIdTokenResult(true);
+        const role = token?.claims?.role;
+        console.log(token);
+        console.log(role);
+        
+        // Optional: store lightweight info locally (NOT security)
+        const userName = signedUser.displayName || signedUser.email?.split("@")[0] || "User";
+        localStorage.setItem("userName", userName);
+        localStorage.setItem(
+          "user",
+          JSON.stringify({ uid: signedUser.uid, email: signedUser.email, role: role || "student" })
+        );
 
-      // Always redirect to admin
-      navigate("/admin/home", { replace: true });
-    } catch (err) {
-      console.error("Firebase SignIn Error:", err.code, err.message);
-      alert("Login failed: " + err.message);
-      setLoading(false);
-    }
-  };
+        // ✅ Redirect based on real role
+        if (role === "super_admin") navigate("/SuperAdmin/home", { replace: true });
+        else if (role === "admin") navigate("/admin/home", { replace: true });
+        else if (role === "professor") navigate("/professor/home", { replace: true });
+        else if (role === "assistant") navigate("/assistant/home", { replace: true });
+        else navigate("/student/home", { replace: true });
+      } catch (err) {
+        console.error("Firebase SignIn Error:", err.code, err.message);
+        alert("Login failed: " + err.message);
+        setLoading(false);
+      }
+    },
+    [email, password, navigate]
+  );
+
+  if (authLoading) return pageLoadingUI;
 
   return (
     <section className="relative min-h-screen w-full overflow-hidden bg-gradient-to-br from-[#f7f1e6] via-[#edf4ff] to-[#c7d7ff] text-[#0b2c4a]">
@@ -78,39 +113,12 @@ console.log((await userCred.user.getIdTokenResult()).claims);
             </p>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="rounded-2xl bg-white/80 p-4 shadow-sm ring-1 ring-white/60">
-              <p className="text-2xl font-semibold text-[#0b2c4a]">24/7</p>
-              <p className="mt-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#1d3557]/60">
-                Portal Access
-              </p>
-            </div>
-            <div className="rounded-2xl bg-white/80 p-4 shadow-sm ring-1 ring-white/60">
-              <p className="text-2xl font-semibold text-[#0b2c4a]">1</p>
-              <p className="mt-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#1d3557]/60">
-                Secure Login
-              </p>
-            </div>
-            <div className="rounded-2xl bg-white/80 p-4 shadow-sm ring-1 ring-white/60">
-              <p className="text-2xl font-semibold text-[#0b2c4a]">100%</p>
-              <p className="mt-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#1d3557]/60">
-                Verified
-              </p>
-            </div>
-          </div>
-
           <div className="flex items-center gap-4 rounded-2xl bg-white/70 p-4 shadow-sm ring-1 ring-white/60">
             <div className="h-14 w-14 rounded-2xl bg-white p-2 shadow-sm">
-              <img
-                src={BigLogo}
-                alt="Benis Suef National University logo"
-                className="h-full w-full object-contain"
-              />
+              <img src={BigLogo} alt="Benis Suef National University logo" className="h-full w-full object-contain" />
             </div>
             <div className="text-sm text-[#1d3557]/70">
-              <p className="text-base font-semibold text-[#0b2c4a]">
-                Official College Access
-              </p>
+              <p className="text-base font-semibold text-[#0b2c4a]">Official College Access</p>
               <p>Use your university email to enter the portal.</p>
             </div>
           </div>
@@ -121,27 +129,18 @@ console.log((await userCred.user.getIdTokenResult()).claims);
             <div className="flex flex-col items-center text-center">
               <div className="h-24 w-24 rounded-full bg-[#0b2c4a] p-[3px] shadow-lg">
                 <div className="h-full w-full rounded-full bg-white p-3">
-                  <img
-                    src={BigLogo}
-                    alt="Benis Suef National University logo"
-                    className="h-full w-full object-contain"
-                  />
+                  <img src={BigLogo} alt="Benis Suef National University logo" className="h-full w-full object-contain" />
                 </div>
               </div>
               <h2 className="mt-5 text-2xl font-semibold text-[#0b2c4a] font-['Palatino_Linotype','Book_Antiqua','Palatino','serif']">
                 Welcome Back
               </h2>
-              <p className="mt-2 text-sm text-[#1d3557]/70">
-                Sign in to continue to the college portal.
-              </p>
+              <p className="mt-2 text-sm text-[#1d3557]/70">Sign in to continue to the college portal.</p>
             </div>
 
             <form className="mt-8 flex flex-col gap-5" onSubmit={handleSubmit}>
               <div>
-                <label
-                  htmlFor="email"
-                  className="text-xs font-semibold uppercase tracking-[0.2em] text-[#1d3557]/70"
-                >
+                <label htmlFor="email" className="text-xs font-semibold uppercase tracking-[0.2em] text-[#1d3557]/70">
                   Email
                 </label>
                 <input

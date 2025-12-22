@@ -1,5 +1,7 @@
-// Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
+import { getFirestore } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
+import { getFunctions } from "firebase/functions";
 import { getAnalytics } from "firebase/analytics";
 
 const firebaseConfig = {
@@ -9,10 +11,14 @@ const firebaseConfig = {
   storageBucket: "graduation-project-61aa9.firebasestorage.app",
   messagingSenderId: "1001425488308",
   appId: "1:1001425488308:web:4742a1a2477b5ed8638ae1",
-  measurementId: "G-GEGSYVRXSN"
+  measurementId: "G-GEGSYVRXSN",
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
-export { app, analytics };
+
+export const db = getFirestore(app);
+export const auth = getAuth(app);
+export const functions = getFunctions(app);
+export const analytics = getAnalytics(app);
+
+export default app;

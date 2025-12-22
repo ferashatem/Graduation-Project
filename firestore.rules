@@ -1,0 +1,51 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function roleIs(r) {
+      return signedIn() && request.auth.token.role == r;
+    }
+
+    function roleIn(roles) {
+      return signedIn() && request.auth.token.role in roles;
+    }
+
+    // Users collection (profiles)
+    match /users/{uid} {
+      // super_admin يشوف الكل
+      allow read: if roleIs("super_admin");
+
+      // أي مستخدم يشوف بروفايله
+      allow read: if signedIn() && request.auth.uid == uid;
+
+      // super_admin يعدّل/ينشئ بروفايلات
+      allow write: if roleIs("super_admin");
+    }
+
+    // Students collection
+    match /students/{studentId} {
+      // Staff can read all students; students can read their own doc.
+      allow read: if roleIn(["super_admin", "admin", "prof", "assistant"]) ||
+        (signedIn() && request.auth.uid == studentId);
+
+      // Restrict writes to admins by default.
+      allow write: if roleIn(["super_admin", "admin"]);
+    }
+
+    // Courses
+    match /courses/{courseId} {
+      allow read: if signedIn();
+      allow write: if roleIn(["super_admin", "admin"]);
+    }
+
+    // Materials (profs + assistant)
+    match /materials/{docId} {
+      allow read: if signedIn();
+      allow write: if roleIn(["super_admin", "admin", "prof", "assistant"]);
+    }
+  }
+}
