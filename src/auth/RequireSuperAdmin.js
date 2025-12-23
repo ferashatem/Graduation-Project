@@ -1,30 +1,24 @@
-import React, { useEffect, useState } from "react";
-import { Navigate } from "react-router-dom";
 import { auth } from "../firebase/firebaseConfig";
-import { useAuthUser } from "./useAuthUser";
+import { Navigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 
 export default function RequireSuperAdmin({ children }) {
-  const { user, authLoading } = useAuthUser();
-  const [role, setRole] = useState(null);
-  const [loadingRole, setLoadingRole] = useState(true);
+  const [ok, setOk] = useState(null);
 
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      if (!authLoading && user) {
-        const token = await auth.currentUser.getIdTokenResult(true);
-        if (mounted) setRole(token.claims.role || null);
+    const check = async () => {
+      const user = auth.currentUser;
+      if (!user) {
+        setOk(false);
+        return;
       }
-      if (mounted) setLoadingRole(false);
-    })();
-    return () => {
-      mounted = false;
+      const token = await user.getIdTokenResult();
+      setOk(token.claims.role === "super_admin");
     };
-  }, [authLoading, user]);
+    check();
+  }, []);
 
-  if (authLoading || loadingRole) return <p>Loading...</p>;
-  if (!user) return <Navigate to="/login" replace />;
-  if (role !== "super_admin") return <Navigate to="/unauthorized" replace />;
-
+  if (ok === null) return <div>Loading...</div>;
+  if (!ok) return <Navigate to="/" replace />;
   return children;
 }

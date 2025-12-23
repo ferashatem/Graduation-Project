@@ -1,115 +1,86 @@
-// src/pages/SignIn.jsx
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useState } from "react";
 import "../assets/styles/styles.css";
-import { Link, useNavigate } from "react-router-dom";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { Link } from "react-router-dom";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth } from "../firebase/firebaseConfig";
-import { useAuthUser } from "../auth/useAuthUser";
-
+import { db } from "../firebase/firebaseConfig";
 import BigLogo from "../assets/university-logo.png";
 
-function SignIn() {
-  const { user, authLoading } = useAuthUser();
-  const navigate = useNavigate();
-
+function SignUp() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
-  // ✅ If already logged in, you can redirect
-  const redirectIfLoggedIn = useCallback(async () => {
-    if (!user) return;
-
-    // Read claims (role) from token
-    // Custom claims are set server-side (Admin SDK / Cloud Functions). :contentReference[oaicite:2]{index=2}
-    const token = await user.getIdTokenResult(true);
-    const role = token?.claims?.role;
-
-    if (role === "super_admin") navigate("/superadmin/home", { replace: true });
-    else if (role === "admin") navigate("/admin/home", { replace: true });
-    else if (role === "professor") navigate("/professor/home", { replace: true });
-    else if (role === "assistant") navigate("/assistant/home", { replace: true });
-    else navigate("/superadmin/home", { replace: true });
-  }, [user, navigate]);
-
-  React.useEffect(() => {
-    if (!authLoading && user) redirectIfLoggedIn();
-  }, [authLoading, user, redirectIfLoggedIn]);
-
-  const pageLoadingUI = useMemo(() => {
-    return (
-      <section className="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-gradient-to-br from-[#f7f1e6] via-[#edf4ff] to-[#c7d7ff]">
-        <div className="pointer-events-none absolute -top-24 -left-20 h-72 w-72 rounded-full bg-[#103c6b]/15 blur-3xl" />
-        <div className="pointer-events-none absolute bottom-0 right-0 h-80 w-80 translate-x-1/3 rounded-full bg-[#ffcf70]/30 blur-3xl" />
-        <div className="relative z-10 flex items-center gap-3 rounded-full bg-white/80 px-5 py-3 text-sm font-semibold text-[#0b2c4a] shadow-lg">
-          <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#0b2c4a]/40 border-t-[#0b2c4a]" />
-          Preparing your portal...
-        </div>
-      </section>
-    );
-  }, []);
-
-  const handleSubmit = useCallback(
+  const handleSignUp = useCallback(
     async (e) => {
       e.preventDefault();
+      setFormError("");
+      setSuccessMessage("");
+
+      if (!email || !password) {
+        setFormError("Email and password are required.");
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        setFormError("Passwords do not match.");
+        return;
+      }
+
       setLoading(true);
 
       try {
-        // Firebase email/password sign-in :contentReference[oaicite:3]{index=3}
-        const userCred = await signInWithEmailAndPassword(auth, email, password);
-
-        const signedUser = userCred.user;
-
-        // ✅ Force-refresh token if you recently changed claims
-        const token = await signedUser.getIdTokenResult(true);
-        const role = token?.claims?.role;
-        console.log(token);
-        console.log(role);
-        
-        // Optional: store lightweight info locally (NOT security)
-        const userName = signedUser.displayName || signedUser.email?.split("@")[0] || "User";
-        localStorage.setItem("userName", userName);
-        localStorage.setItem(
-          "user",
-          JSON.stringify({ uid: signedUser.uid, email: signedUser.email, role: role || "student" })
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        console.log("User created in Auth:", user.uid);
+        await setDoc(
+          doc(db, "Users", user.uid),
+          {
+            uid: user.uid,
+            email: user.email || email,
+            role: "student",
+            createdAt: serverTimestamp(),
+          },
+          { merge: true }
         );
-
-        // ✅ Redirect based on real role
-        if (role === "super_admin") navigate("/SuperAdmin/home", { replace: true });
-        else if (role === "admin") navigate("/admin/home", { replace: true });
-        else if (role === "professor") navigate("/professor/home", { replace: true });
-        else if (role === "assistant") navigate("/assistant/home", { replace: true });
-        else navigate("/student/home", { replace: true });
-      } catch (err) {
-        console.error("Firebase SignIn Error:", err.code, err.message);
-        alert("Login failed: " + err.message);
+        setSuccessMessage("Account created. You can sign in now.");
+        setEmail("");
+        setPassword("");
+        setConfirmPassword("");
+      } catch (error) {
+        console.error("Sign up error:", error.message);
+        setFormError(error.message || "Sign up failed.");
+      } finally {
         setLoading(false);
       }
     },
-    [email, password, navigate]
+    [email, password, confirmPassword]
   );
-
-  if (authLoading) return pageLoadingUI;
 
   return (
     <section className="relative min-h-screen w-full overflow-hidden bg-gradient-to-br from-[#f7f1e6] via-[#edf4ff] to-[#c7d7ff] text-[#0b2c4a]">
       <div className="pointer-events-none absolute -top-28 -left-20 h-80 w-80 rounded-full bg-[#103c6b]/15 blur-3xl" />
-      <div className="pointer-events-none absolute top-20 right-0 h-[26rem] w-[26rem] translate-x-1/2 rounded-full bg-[#ffcf70]/35 blur-3xl" />
+      <div className="pointer-events-none absolute top-16 right-0 h-[26rem] w-[26rem] translate-x-1/2 rounded-full bg-[#ffcf70]/35 blur-3xl" />
       <div className="pointer-events-none absolute bottom-0 left-1/3 h-72 w-72 -translate-x-1/2 rounded-full bg-[#7fb0ff]/35 blur-3xl" />
 
       <div className="relative z-10 grid min-h-screen grid-cols-1 gap-10 px-6 py-10 lg:grid-cols-[1.1fr_0.9fr] lg:px-16 lg:py-16">
         <div className="flex flex-col justify-center gap-8">
           <div className="inline-flex w-fit items-center gap-3 rounded-full bg-white/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-[#0b2c4a] shadow-sm">
             <span className="h-2.5 w-2.5 rounded-full bg-[#0b2c4a]" />
-            College Portal
+            Account Access
           </div>
 
           <div className="max-w-xl">
             <h1 className="text-4xl font-semibold leading-tight tracking-tight text-[#0b2c4a] lg:text-5xl lg:leading-tight font-['Palatino_Linotype','Book_Antiqua','Palatino','serif']">
-              Benis Suef National University
+              Create your campus access
             </h1>
             <p className="mt-4 text-base text-[#1d3557]/80 lg:text-lg">
-              Sign in to reach student services, faculty resources, and campus announcements in one secure space.
+              No university email yet? Use any valid email address to create a portal account and we will connect you to
+              the right services.
             </p>
           </div>
 
@@ -118,8 +89,8 @@ function SignIn() {
               <img src={BigLogo} alt="Benis Suef National University logo" className="h-full w-full object-contain" />
             </div>
             <div className="text-sm text-[#1d3557]/70">
-              <p className="text-base font-semibold text-[#0b2c4a]">Official College Access</p>
-              <p>Use your university email to enter the portal.</p>
+              <p className="text-base font-semibold text-[#0b2c4a]">New Accounts Welcome</p>
+              <p>Create a secure login to access the university portal.</p>
             </div>
           </div>
         </div>
@@ -133,20 +104,23 @@ function SignIn() {
                 </div>
               </div>
               <h2 className="mt-5 text-2xl font-semibold text-[#0b2c4a] font-['Palatino_Linotype','Book_Antiqua','Palatino','serif']">
-                Welcome Back
+                Create Account
               </h2>
-              <p className="mt-2 text-sm text-[#1d3557]/70">Sign in to continue to the college portal.</p>
+              <p className="mt-2 text-sm text-[#1d3557]/70">Set up your portal credentials to get started.</p>
             </div>
 
-            <form className="mt-8 flex flex-col gap-5" onSubmit={handleSubmit}>
+            <form className="mt-8 flex flex-col gap-5" onSubmit={handleSignUp}>
               <div>
-                <label htmlFor="email" className="text-xs font-semibold uppercase tracking-[0.2em] text-[#1d3557]/70">
+                <label
+                  htmlFor="signup-email"
+                  className="text-xs font-semibold uppercase tracking-[0.2em] text-[#1d3557]/70"
+                >
                   Email
                 </label>
                 <input
-                  id="email"
+                  id="signup-email"
                   type="email"
-                  placeholder="name@bnu.edu.eg"
+                  placeholder="you@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   autoComplete="email"
@@ -157,22 +131,56 @@ function SignIn() {
 
               <div>
                 <label
-                  htmlFor="password"
+                  htmlFor="signup-password"
                   className="text-xs font-semibold uppercase tracking-[0.2em] text-[#1d3557]/70"
                 >
                   Password
                 </label>
                 <input
-                  id="password"
+                  id="signup-password"
                   type="password"
-                  placeholder="Enter your password"
+                  placeholder="Create a password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="current-password"
+                  autoComplete="new-password"
                   className="mt-2 w-full rounded-2xl border border-[#0b2c4a]/15 bg-white/90 px-4 py-3 text-sm text-[#0b2c4a] shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
                   required
                 />
               </div>
+
+              <div>
+                <label
+                  htmlFor="signup-confirm"
+                  className="text-xs font-semibold uppercase tracking-[0.2em] text-[#1d3557]/70"
+                >
+                  Confirm Password
+                </label>
+                <input
+                  id="signup-confirm"
+                  type="password"
+                  placeholder="Re-enter password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  autoComplete="new-password"
+                  className="mt-2 w-full rounded-2xl border border-[#0b2c4a]/15 bg-white/90 px-4 py-3 text-sm text-[#0b2c4a] shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
+                  required
+                />
+              </div>
+
+              {formError ? (
+                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700" role="alert">
+                  {formError}
+                </div>
+              ) : null}
+
+              {successMessage ? (
+                <div
+                  className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-700"
+                  role="status"
+                >
+                  {successMessage}
+                </div>
+              ) : null}
 
               <button
                 type="submit"
@@ -182,26 +190,26 @@ function SignIn() {
                 {loading ? (
                   <>
                     <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/70 border-t-white" />
-                    Signing In
+                    Creating Account
                   </>
                 ) : (
-                  "Sign In"
+                  "Create Account"
                 )}
               </button>
             </form>
 
             <div className="mt-6 text-center text-xs text-[#1d3557]/70">
-              No account yet?{" "}
+              Already have an account?{" "}
               <Link
-                to="/signup"
+                to="/"
                 className="font-semibold text-[#0b2c4a] underline decoration-[#0b2c4a]/40 underline-offset-4"
               >
-                Create one here
+                Sign in here
               </Link>
             </div>
 
             <div className="mt-6 rounded-2xl bg-[#0b2c4a]/5 px-4 py-3 text-xs text-[#1d3557]/70">
-              Use your official university credentials. For support, contact the IT helpdesk.
+              Use a secure password and keep it private. For help, contact the IT helpdesk.
             </div>
           </div>
         </div>
@@ -210,4 +218,4 @@ function SignIn() {
   );
 }
 
-export default SignIn;
+export default SignUp;

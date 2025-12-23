@@ -5,7 +5,7 @@ import { Outlet } from "react-router-dom";
 function MainLayoutSuperAdmin() {
   const SuperAdminNavItems = [
     { icon: profile, title: "Home", link: "home" },
-    { icon: profile, title: "Admin Page", link: "adminpage" },
+    { icon: profile, title: "Admin Page", link: "create-admin" },
   ];
 
   return (
