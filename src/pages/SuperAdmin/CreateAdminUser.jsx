@@ -1,9 +1,12 @@
-import { useMemo, useState, useCallback } from "react";
-import { getFunctions, httpsCallable } from "firebase/functions";
+import React, { useCallback, useMemo, useState } from "react";
+import { httpsCallable } from "firebase/functions";
+import { functions, auth } from "../../firebase/firebaseConfig";
+import { useAuthUser } from "../../auth/useAuthUser";
 
-export default function CreateAdmin() {
+export default function CreateAdminUser() {
+  const { user, authLoading } = useAuthUser();
+
   const createAdminUser = useMemo(() => {
-    const functions = getFunctions();
     return httpsCallable(functions, "createAdminUser");
   }, []);
 
@@ -11,12 +14,12 @@ export default function CreateAdmin() {
     fullName: "",
     email: "",
     password: "",
-    phone: "",
+    phone: ""
   });
 
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
   const [error, setError] = useState("");
+  const [result, setResult] = useState(null);
 
   const onChange = useCallback((e) => {
     const { name, value } = e.target;
@@ -26,46 +29,98 @@ export default function CreateAdmin() {
   const onSubmit = useCallback(
     async (e) => {
       e.preventDefault();
-      setLoading(true);
       setError("");
       setResult(null);
 
+      // still loading auth state
+      if (authLoading) return;
+
+      // not logged in
+      if (!user || !auth.currentUser) {
+        setError("Login first.");
+        return;
+      }
+
+      setLoading(true);
       try {
+        // IMPORTANT: refresh token so role claims are up-to-date
+        await auth.currentUser.getIdToken(true);
+
+        // Call the callable function (this sends auth token automatically)
         const res = await createAdminUser({
           fullName: form.fullName.trim(),
           email: form.email.trim(),
           password: form.password,
-          phone: form.phone.trim(),
+          phone: form.phone.trim()
         });
 
         setResult(res.data); // { success, uid, role }
+        setForm({ fullName: "", email: "", password: "", phone: "" });
       } catch (err) {
-        setError(err?.message || "Failed to create admin.");
+        // firebase callable error
+        const msg =
+          err?.message ||
+          err?.details ||
+          "Failed to create admin user.";
+        setError(msg);
       } finally {
         setLoading(false);
       }
     },
-    [createAdminUser, form]
+    [authLoading, user, createAdminUser, form]
   );
 
   return (
-    <div style={{ maxWidth: 420 }}>
+    <div style={{ maxWidth: 520, padding: 16 }}>
       <h2>Create Admin</h2>
 
-      <form onSubmit={onSubmit}>
-        <input name="fullName" placeholder="Full name" value={form.fullName} onChange={onChange} />
-        <input name="email" placeholder="Email" value={form.email} onChange={onChange} />
-        <input name="password" placeholder="Password" type="password" value={form.password} onChange={onChange} />
-        <input name="phone" placeholder="Phone (optional)" value={form.phone} onChange={onChange} />
+      {authLoading ? (
+        <p>Loading auth...</p>
+      ) : (
+        <p style={{ color: "#6b7280" }}>
+          Logged in as: {user?.email || "Not logged in"}
+        </p>
+      )}
 
-        <button disabled={loading} type="submit">
+      <form onSubmit={onSubmit} style={{ display: "grid", gap: 10 }}>
+        <input
+          name="fullName"
+          placeholder="Full name"
+          value={form.fullName}
+          onChange={onChange}
+          required
+        />
+        <input
+          name="email"
+          placeholder="Email"
+          value={form.email}
+          onChange={onChange}
+          required
+        />
+        <input
+          name="password"
+          placeholder="Password"
+          type="password"
+          value={form.password}
+          onChange={onChange}
+          required
+        />
+        <input
+          name="phone"
+          placeholder="Phone (optional)"
+          value={form.phone}
+          onChange={onChange}
+        />
+
+        <button type="submit" disabled={loading}>
           {loading ? "Creating..." : "Create Admin"}
         </button>
       </form>
 
-      {error && <p style={{ color: "red" }}>{error}</p>}
+      {error && <p style={{ color: "crimson", marginTop: 12 }}>{error}</p>}
+
       {result && (
-        <pre style={{ background: "#f5f5f5", padding: 12 }}>
+        <pre style={{ marginTop: 12, background: "#f5f5f5", padding: 12 }}>
           {JSON.stringify(result, null, 2)}
         </pre>
       )}

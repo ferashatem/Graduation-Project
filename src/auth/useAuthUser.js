@@ -1,28 +1,18 @@
-// src/auth/useAuthUser.js
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../firebase/firebaseConfig";
-import { getCurrentUserRole } from "./authHelpers";
 
 export function useAuthUser() {
   const [user, setUser] = useState(null);
-  const [role, setRole] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (u) => {
+    const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u || null);
-      if (u) {
-        const r = await getCurrentUserRole();
-        setRole(r);
-      } else {
-        setRole(null);
-      }
-      setLoading(false);
+      setAuthLoading(false);
     });
-
     return () => unsub();
   }, []);
 
-  return useMemo(() => ({ user, role, loading }), [user, role, loading]);
+  return { user, authLoading };
 }

@@ -18,7 +18,7 @@ function AppRoutes() {
 
         {/* Admin Routes */}
         <Route path="/admin" element={<MainLayoutAdmin />}>
-          <Route path="home" element={<Home />} />
+          {/* <Route path="home" element={<Home />} /> */}
         </Route>
 
         {/* Super Admin Routes */}
