@@ -29,7 +29,7 @@ function SignIn() {
     else if (role === "admin") navigate("/admin/home", { replace: true });
     else if (role === "professor") navigate("/professor/home", { replace: true });
     else if (role === "assistant") navigate("/assistant/home", { replace: true });
-    else navigate("/student/home", { replace: true });
+    else navigate("/superadmin/home", { replace: true });
   }, [user, navigate]);
 
   React.useEffect(() => {

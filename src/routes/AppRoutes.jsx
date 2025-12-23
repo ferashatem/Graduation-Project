@@ -7,7 +7,7 @@ import Home from "../pages/Home";
 // Layouts
 import MainLayoutAdmin from "../layouts/Admin/MainLayoutAdmin";
 import MainLayoutSuperAdmin from "../layouts/Super_Admin/MainLayoutSuperAdmin";
-import AdminPage from "../pages/SuperAdmin/AdminPage";
+import CreateAdmin from "../pages/SuperAdmin/CreateAdminUser";
 
 function AppRoutes() {
   return (
@@ -24,7 +24,7 @@ function AppRoutes() {
         {/* Super Admin Routes */}
         <Route path="/superadmin" element={<MainLayoutSuperAdmin />}>
           <Route path="home" element={<Home />} />
-          <Route path="adminpage" element={<AdminPage />} />
+          <Route path="adminpage" element={<CreateAdmin />} />
         </Route>
       </Routes>
     </Router>

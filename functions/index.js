@@ -1,32 +1,71 @@
+const functions = require("firebase-functions");
+const admin = require("firebase-admin");
+
+admin.initializeApp();
+
 /**
- * Import function triggers from their respective submodules:
- *
- * const {onCall} = require("firebase-functions/v2/https");
- * const {onDocumentWritten} = require("firebase-functions/v2/firestore");
- *
- * See a full list of supported triggers at https://firebase.google.com/docs/functions
+ * createAdminUser (callable)
+ * - Only super_admin can call it
+ * - Creates Firebase Auth user
+ * - Sets custom claim: { role: "admin" }
+ * - Creates/updates Firestore profile doc under /users/{uid}
  */
+exports.createAdminUser = functions.https.onCall(async (data, context) => {
+  // ✅ 1) Must be authenticated
+  if (!context.auth) {
+    throw new functions.https.HttpsError("unauthenticated", "Login required.");
+  }
 
-const {setGlobalOptions} = require("firebase-functions");
-const {onRequest} = require("firebase-functions/https");
-const logger = require("firebase-functions/logger");
+  // ✅ 2) Must be super_admin
+  if (context.auth.token.role !== "super_admin") {
+    throw new functions.https.HttpsError(
+      "permission-denied",
+      "Only super_admin can create admins."
+    );
+  }
 
-// For cost control, you can set the maximum number of containers that can be
-// running at the same time. This helps mitigate the impact of unexpected
-// traffic spikes by instead downgrading performance. This limit is a
-// per-function limit. You can override the limit for each function using the
-// `maxInstances` option in the function's options, e.g.
-// `onRequest({ maxInstances: 5 }, (req, res) => { ... })`.
-// NOTE: setGlobalOptions does not apply to functions using the v1 API. V1
-// functions should each use functions.runWith({ maxInstances: 10 }) instead.
-// In the v1 API, each function can only serve one request per container, so
-// this will be the maximum concurrent request count.
-setGlobalOptions({ maxInstances: 10 });
+  const { fullName, email, password, phoneNumber } = data || {};
 
-// Create and deploy your first functions
-// https://firebase.google.com/docs/functions/get-started
+  // ✅ 3) Validate input
+  if (!fullName || !email || !password) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "fullName, email, password are required."
+    );
+  }
 
-// exports.helloWorld = onRequest((request, response) => {
-//   logger.info("Hello logs!", {structuredData: true});
-//   response.send("Hello from Firebase!");
-// });
+  // ✅ 4) Create Auth user (Admin SDK)
+  let userRecord;
+  try {
+    userRecord = await admin.auth().createUser({
+      email: String(email).trim(),
+      password: String(password),
+      displayName: String(fullName).trim(),
+      disabled: false,
+    });
+  } catch (err) {
+    // common: auth/email-already-exists
+    throw new functions.https.HttpsError("already-exists", err.message);
+  }
+
+  const uid = userRecord.uid;
+
+  // ✅ 5) Set custom claim role=admin
+  await admin.auth().setCustomUserClaims(uid, { role: "admin" });
+
+  // ✅ 6) Create Firestore profile doc (optional but recommended)
+  await admin.firestore().collection("users").doc(uid).set(
+    {
+      uid,
+      fullName: String(fullName).trim(),
+      email: String(email).trim().toLowerCase(),
+      phone: phoneNumber ? String(phoneNumber).trim() : "",
+      role: "admin", // convenience field (rules should still rely on claim)
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdBy: context.auth.uid, // who created this admin
+    },
+    { merge: true }
+  );
+
+  return { success: true, uid, role: "admin" };
+});

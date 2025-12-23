@@ -54,6 +54,8 @@ export default function AdminHome() {
       // https://firebase.google.com/docs/auth/admin/custom-claims#access_custom_claims
       const tokenResult = await firebaseUser.getIdTokenResult(true);
       const role = tokenResult?.claims?.role || "student";
+console.log(tokenResult);
+console.log(role);
 
       // 2) Try reading the profile
       const ref = doc(db, "Users", firebaseUser.uid);
