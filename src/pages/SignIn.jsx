@@ -190,16 +190,6 @@ function SignIn() {
               </button>
             </form>
 
-            <div className="mt-6 text-center text-xs text-[#1d3557]/70">
-              No account yet?{" "}
-              <Link
-                to="/signup"
-                className="font-semibold text-[#0b2c4a] underline decoration-[#0b2c4a]/40 underline-offset-4"
-              >
-                Create one here
-              </Link>
-            </div>
-
             <div className="mt-6 rounded-2xl bg-[#0b2c4a]/5 px-4 py-3 text-xs text-[#1d3557]/70">
               Use your official university credentials. For support, contact the IT helpdesk.
             </div>

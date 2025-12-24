@@ -49,7 +49,7 @@ export default function AdminHome() {
       console.log(role);
 
       // 2) Try reading the profile
-      const ref = doc(db, "Users", firebaseUser.uid);
+      const ref = doc(db, "users", firebaseUser.uid);
       const snap = await getDoc(ref);
       console.log(ref);
       console.log(snap);

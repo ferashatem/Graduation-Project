@@ -8,6 +8,8 @@ function CreateAdminUser() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [collegeUserId, setCollegeUserId] = useState("");
   const [role, setRole] = useState("student");
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState("");
@@ -19,8 +21,8 @@ function CreateAdminUser() {
       setFormError("");
       setSuccessMessage("");
 
-      if (!email || !password) {
-        setFormError("Email and password are required.");
+      if (!email || !password || !phoneNumber || !collegeUserId) {
+        setFormError("Email, password, phone number, and college user ID are required.");
         return;
       }
 
@@ -40,6 +42,8 @@ function CreateAdminUser() {
           {
             uid: user.uid,
             email: user.email || email,
+            phoneNumber,
+            collegeUserId,
             role,
             createdAt: serverTimestamp(),
           },
@@ -50,6 +54,8 @@ function CreateAdminUser() {
         setEmail("");
         setPassword("");
         setConfirmPassword("");
+        setPhoneNumber("");
+        setCollegeUserId("");
         setRole("student");
       } catch (error) {
         console.error("Create account error:", error.message);
@@ -58,7 +64,7 @@ function CreateAdminUser() {
         setLoading(false);
       }
     },
-    [email, password, confirmPassword, role]
+    [email, password, confirmPassword, phoneNumber, collegeUserId, role]
   );
 
   return (
@@ -91,6 +97,38 @@ function CreateAdminUser() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               autoComplete="email"
+              className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
+              required
+            />
+          </div>
+
+          <div>
+            <label htmlFor="admin-phone" className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+              Phone Number
+            </label>
+            <input
+              id="admin-phone"
+              type="tel"
+              placeholder="01xxxxxxxxx"
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
+              autoComplete="tel"
+              className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
+              required
+            />
+          </div>
+
+          <div>
+            <label htmlFor="admin-college-id" className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+              College User ID
+            </label>
+            <input
+              id="admin-college-id"
+              type="text"
+              placeholder="College user ID"
+              value={collegeUserId}
+              onChange={(e) => setCollegeUserId(e.target.value)}
+              autoComplete="off"
               className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
               required
             />
