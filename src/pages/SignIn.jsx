@@ -3,7 +3,8 @@ import React, { useCallback, useMemo, useState } from "react";
 import "../assets/styles/styles.css";
 import { Link, useNavigate } from "react-router-dom";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../firebase/firebaseConfig";
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "../firebase/firebaseConfig";
 import { useAuthUser } from "../auth/useAuthUser";
 
 import BigLogo from "../assets/university-logo.png";
@@ -16,21 +17,39 @@ function SignIn() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const getRoleFromFirestore = useCallback(async (uid) => {
+    if (!uid) return null;
+
+    try {
+      const collections = ["Users", "users"];
+
+      for (const collectionName of collections) {
+        const snap = await getDoc(doc(db, collectionName, uid));
+        if (snap.exists()) {
+          const data = snap.data();
+          return data?.role || null;
+        }
+      }
+    } catch (err) {
+      console.error("Load role error:", err);
+    }
+
+    return null;
+  }, []);
+
   // ✅ If already logged in, you can redirect
   const redirectIfLoggedIn = useCallback(async () => {
     if (!user) return;
 
-    // Read claims (role) from token
-    // Custom claims are set server-side (Admin SDK / Cloud Functions). :contentReference[oaicite:2]{index=2}
-    const token = await user.getIdTokenResult(true);
-    const role = token?.claims?.role;
+    const roleFromDb = await getRoleFromFirestore(user.uid);
+    const role = roleFromDb || "student";
 
     if (role === "super_admin") navigate("/superadmin/home", { replace: true });
     else if (role === "admin") navigate("/admin/home", { replace: true });
     else if (role === "professor") navigate("/professor/home", { replace: true });
     else if (role === "assistant") navigate("/assistant/home", { replace: true });
-    else navigate("/superadmin/home", { replace: true });
-  }, [user, navigate]);
+    // else navigate("/superadmin/home", { replace: true });
+  }, [user, navigate, getRoleFromFirestore]);
 
   React.useEffect(() => {
     if (!authLoading && user) redirectIfLoggedIn();
@@ -60,22 +79,19 @@ function SignIn() {
 
         const signedUser = userCred.user;
 
-        // ✅ Force-refresh token if you recently changed claims
-        const token = await signedUser.getIdTokenResult(true);
-        const role = token?.claims?.role;
-        console.log(token);
-        console.log(role);
+        const roleFromDb = await getRoleFromFirestore(signedUser.uid);
+        const role = roleFromDb || "student";
         
         // Optional: store lightweight info locally (NOT security)
         const userName = signedUser.displayName || signedUser.email?.split("@")[0] || "User";
         localStorage.setItem("userName", userName);
         localStorage.setItem(
           "user",
-          JSON.stringify({ uid: signedUser.uid, email: signedUser.email, role: role || "student" })
+          JSON.stringify({ uid: signedUser.uid, email: signedUser.email, role })
         );
 
         // ✅ Redirect based on real role
-        if (role === "super_admin") navigate("/SuperAdmin/home", { replace: true });
+        if (role === "super_admin") navigate("/superadmin/home", { replace: true });
         else if (role === "admin") navigate("/admin/home", { replace: true });
         else if (role === "professor") navigate("/professor/home", { replace: true });
         else if (role === "assistant") navigate("/assistant/home", { replace: true });
@@ -86,7 +102,7 @@ function SignIn() {
         setLoading(false);
       }
     },
-    [email, password, navigate]
+    [email, password, navigate, getRoleFromFirestore]
   );
 
   if (authLoading) return pageLoadingUI;

@@ -6,6 +6,7 @@ import BigLogo from "../../assets/university-logo.png";
 
 function CreateAdminUser() {
   const [email, setEmail] = useState("");
+  const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -21,8 +22,8 @@ function CreateAdminUser() {
       setFormError("");
       setSuccessMessage("");
 
-      if (!email || !password || !phoneNumber || !collegeUserId) {
-        setFormError("Email, password, phone number, and college user ID are required.");
+      if (!email || !fullName || !password || !phoneNumber || !collegeUserId) {
+        setFormError("Email, full name, password, phone number, and college user ID are required.");
         return;
       }
 
@@ -42,6 +43,7 @@ function CreateAdminUser() {
           {
             uid: user.uid,
             email: user.email || email,
+            fullName,
             phoneNumber,
             collegeUserId,
             role,
@@ -52,6 +54,7 @@ function CreateAdminUser() {
 
         setSuccessMessage("Account created successfully.");
         setEmail("");
+        setFullName("");
         setPassword("");
         setConfirmPassword("");
         setPhoneNumber("");
@@ -64,7 +67,7 @@ function CreateAdminUser() {
         setLoading(false);
       }
     },
-    [email, password, confirmPassword, phoneNumber, collegeUserId, role]
+    [email, fullName, password, confirmPassword, phoneNumber, collegeUserId, role]
   );
 
   return (
@@ -86,6 +89,22 @@ function CreateAdminUser() {
         onSubmit={handleCreateAccount}
       >
         <div className="grid gap-5 md:grid-cols-2">
+          <div className="md:col-span-2">
+            <label htmlFor="admin-full-name" className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+              Full Name
+            </label>
+            <input
+              id="admin-full-name"
+              type="text"
+              placeholder="Full name"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              autoComplete="name"
+              className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
+              required
+            />
+          </div>
+
           <div className="md:col-span-2">
             <label htmlFor="admin-email" className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
               Email

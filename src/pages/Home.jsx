@@ -101,7 +101,7 @@ export default function AdminHome() {
       name: p.fullName ?? p.Full_Name ?? user?.displayName ?? "—",
       email: p.email ?? p.Email ?? user?.email ?? "—",
       phone: p.phoneNumber ?? p.Phone_Number ?? "—",
-      title: p.title ?? p.Title ?? "—",
+      role: p.role ?? p.Role ?? p.title ?? p.Title ?? "—",
       uid: p.uid ?? user?.uid ?? "—",
     };
   }, [profile, user]);
@@ -124,7 +124,7 @@ export default function AdminHome() {
         <Card title="FULL NAME" value={viewModel.name} />
         <Card title="EMAIL" value={viewModel.email} />
         <Card title="PHONE NUMBER" value={viewModel.phone} />
-        <Card title="TITLE" value={viewModel.title} />
+        <Card title="ROLE" value={viewModel.role} />
         {/* <Card title="ROLE" value={viewModel.role} /> */}
         <Card title="UID" value={viewModel.uid} />
       </div>
@@ -149,3 +149,4 @@ function Card({ title, value }) {
     </div>
   );
 }
+
