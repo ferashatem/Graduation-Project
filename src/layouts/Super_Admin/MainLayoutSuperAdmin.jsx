@@ -1,11 +1,12 @@
 import SideNavBar from "../../components/SideNavBar/SideNavBarRender";
-import profile from "../../assets/navbar/user-solid.svg";
+import users from "../../assets/navbar/user-solid.svg";
+import profile from "../../assets/navbar/address-card-regular.svg";
 import { Outlet } from "react-router-dom";
 
 function MainLayoutSuperAdmin() {
   const SuperAdminNavItems = [
     { icon: profile, title: "Home", link: "home" },
-    { icon: profile, title: "Admin Page", link: "create-admin" },
+    { icon: users, title: "User Management", link: "create-admin" },
   ];
 
   return (

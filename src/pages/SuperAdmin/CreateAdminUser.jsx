@@ -8,6 +8,7 @@ function CreateAdminUser() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [role, setRole] = useState("student");
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -35,11 +36,11 @@ function CreateAdminUser() {
         const user = userCredential.user;
 
         await setDoc(
-          doc(db, "Users", user.uid),
+          doc(db, "users", user.uid),
           {
             uid: user.uid,
             email: user.email || email,
-            role: "student",
+            role,
             createdAt: serverTimestamp(),
           },
           { merge: true }
@@ -49,6 +50,7 @@ function CreateAdminUser() {
         setEmail("");
         setPassword("");
         setConfirmPassword("");
+        setRole("student");
       } catch (error) {
         console.error("Create account error:", error.message);
         setFormError(error.message || "Account creation failed.");
@@ -56,7 +58,7 @@ function CreateAdminUser() {
         setLoading(false);
       }
     },
-    [email, password, confirmPassword]
+    [email, password, confirmPassword, role]
   );
 
   return (
@@ -92,6 +94,25 @@ function CreateAdminUser() {
               className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
               required
             />
+          </div>
+
+          <div className="md:col-span-2">
+            <label htmlFor="admin-role" className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+              Role
+            </label>
+            <select
+              id="admin-role"
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
+              required
+            >
+              <option value="student">Student</option>
+              <option value="assistant">Assistant</option>
+              <option value="professor">Professor</option>
+              <option value="admin">Admin</option>
+              <option value="super_admin">Super Admin</option>
+            </select>
           </div>
 
           <div>

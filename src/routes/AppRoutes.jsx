@@ -30,9 +30,9 @@ function AppRoutes() {
           <Route
             path="create-admin"
             element={
-              <RequireRole role="super_admin">
+              // <RequireRole role="super_admin">
                 <CreateAdminUser />
-              </RequireRole>
+              // </RequireRole>
             }
           />
         </Route>

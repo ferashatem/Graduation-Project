@@ -4,14 +4,6 @@ import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { db } from "../firebase/firebaseConfig";
 import { useAuthUser } from "../auth/useAuthUser";
 
-/**
- * Create/Update user profile in Firestore under: Users/{uid}
- * - doc id = uid (recommended)
- * - merge: true so it won't overwrite existing fields
- *
- * Firestore setDoc/doc usage is the standard way to write a known document path.
- * https://firebase.google.com/docs/firestore/manage-data/add-data
- */
 export async function upsertUserProfile({
   uid,
   email,
@@ -33,7 +25,6 @@ export async function upsertUserProfile({
   );
 }
 
-
 export default function AdminHome() {
   const { user, authLoading } = useAuthUser();
 
@@ -54,14 +45,14 @@ export default function AdminHome() {
       // https://firebase.google.com/docs/auth/admin/custom-claims#access_custom_claims
       const tokenResult = await firebaseUser.getIdTokenResult(true);
       const role = tokenResult?.claims?.role || "student";
-console.log(tokenResult);
-console.log(role);
+      console.log(tokenResult);
+      console.log(role);
 
       // 2) Try reading the profile
       const ref = doc(db, "Users", firebaseUser.uid);
       const snap = await getDoc(ref);
-console.log(ref);
-console.log(snap);
+      console.log(ref);
+      console.log(snap);
 
       // 3) If not found, create it (minimal profile) then read again
       if (!snap.exists()) {
@@ -75,8 +66,8 @@ console.log(snap);
           email: firebaseUser.email || "",
           fullName: fallbackName,
           phoneNumber: "",
-          title: role === "admin" ? "Admin" : role === "super_admin" ? "Super" : "",
-          
+          title:
+            role === "admin" ? "Admin" : role === "super_admin" ? "Super" : "",
         });
 
         // const snap2 = await getDoc(ref);
@@ -114,7 +105,6 @@ console.log(snap);
       uid: p.uid ?? user?.uid ?? "—",
     };
   }, [profile, user]);
-  
 
   if (authLoading || loadingProfile) {
     return <div style={{ padding: 24 }}>Loading...</div>;
