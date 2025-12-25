@@ -2,7 +2,7 @@
 import React, { useCallback, useMemo, useState } from "react";
 import "../assets/styles/styles.css";
 import { Link, useNavigate } from "react-router-dom";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { getIdTokenResult, signInWithEmailAndPassword } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "../firebase/firebaseConfig";
 import { useAuthUser } from "../auth/useAuthUser";
@@ -36,27 +36,31 @@ function SignIn() {
     return null;
   }, []);
 
-  const getRoleFromFirestore = useCallback(
-    async (uid) => {
-      const userRecord = await getUserFromFirestore(uid);
-      return userRecord?.data?.role || null;
-    },
-    [getUserFromFirestore]
-  );
+  const getRoleFromClaims = useCallback(async (firebaseUser) => {
+    if (!firebaseUser) return null;
+
+    try {
+      const tokenResult = await getIdTokenResult(firebaseUser, true);
+      return tokenResult?.claims?.role || null;
+    } catch (err) {
+      console.error("Load claims role error:", err);
+      return null;
+    }
+  }, []);
 
   // ✅ If already logged in, you can redirect
   const redirectIfLoggedIn = useCallback(async () => {
     if (!user) return;
 
-    const roleFromDb = await getRoleFromFirestore(user.uid);
-    const role = roleFromDb || "super_admin";
+    const roleFromClaims = await getRoleFromClaims(user);
+    const role = roleFromClaims || "student";
 
     if (role === "super_admin") navigate("/super_admin/home", { replace: true });
     else if (role === "admin") navigate("/admin/home", { replace: true });
     else if (role === "professor") navigate("/professor/home", { replace: true });
     else if (role === "assistant") navigate("/assistant/home", { replace: true });
     // else navigate("/superadmin/home", { replace: true });
-  }, [user, navigate, getRoleFromFirestore]);
+  }, [user, navigate, getRoleFromClaims]);
 
   React.useEffect(() => {
     if (!authLoading && user) redirectIfLoggedIn();
@@ -92,7 +96,8 @@ function SignIn() {
           collection: userRecord?.collection || null,
           data: userRecord?.data || null,
         });
-        const role = userRecord?.data?.role || "student";
+        const roleFromClaims = await getRoleFromClaims(signedUser);
+        const role = roleFromClaims || "student";
         
         // Optional: store lightweight info locally (NOT security)
         const userName = signedUser.displayName || signedUser.email?.split("@")[0] || "User";
@@ -114,7 +119,7 @@ function SignIn() {
         setLoading(false);
       }
     },
-    [email, password, navigate, getUserFromFirestore]
+    [email, password, navigate, getUserFromFirestore, getRoleFromClaims]
   );
 
   if (authLoading) return pageLoadingUI;

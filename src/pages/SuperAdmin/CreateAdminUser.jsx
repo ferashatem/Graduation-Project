@@ -1,7 +1,7 @@
-import React, { useCallback, useState } from "react";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import React, { useCallback, useMemo, useState } from "react";
+import { httpsCallable } from "firebase/functions";
 import { doc, serverTimestamp, setDoc } from "firebase/firestore";
-import { auth, db } from "../../firebase/firebaseConfig";
+import { db, functions } from "../../firebase/firebaseConfig";
 import BigLogo from "../../assets/university-logo.png";
 
 function CreateAdminUser() {
@@ -15,6 +15,11 @@ function CreateAdminUser() {
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+
+  const createUserWithRole = useMemo(
+    () => httpsCallable(functions, "createUserWithRole"),
+    [functions]
+  );
 
   const handleCreateAccount = useCallback(
     async (e) => {
@@ -35,14 +40,23 @@ function CreateAdminUser() {
       setLoading(true);
 
       try {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        const user = userCredential.user;
+        const result = await createUserWithRole({
+          email,
+          password,
+          displayName: fullName,
+          role,
+        });
+
+        const { uid, email: createdEmail, message } = result?.data || {};
+        if (!uid) {
+          throw new Error("Create user failed to return uid.");
+        }
 
         await setDoc(
-          doc(db, "users", user.uid),
+          doc(db, "users", uid),
           {
-            uid: user.uid,
-            email: user.email || email,
+            uid,
+            email: createdEmail || email,
             fullName,
             phoneNumber,
             collegeUserId,
@@ -52,7 +66,7 @@ function CreateAdminUser() {
           { merge: true }
         );
 
-        setSuccessMessage("Account created successfully.");
+        setSuccessMessage(message || "Account created successfully.");
         setEmail("");
         setFullName("");
         setPassword("");
@@ -67,7 +81,16 @@ function CreateAdminUser() {
         setLoading(false);
       }
     },
-    [email, fullName, password, confirmPassword, phoneNumber, collegeUserId, role]
+    [
+      email,
+      fullName,
+      password,
+      confirmPassword,
+      phoneNumber,
+      collegeUserId,
+      role,
+      createUserWithRole,
+    ]
   );
 
   return (
