@@ -1,80 +1,66 @@
-// functions/index.js (or index.ts)
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
+const { logger } = require("firebase-functions");
 
 admin.initializeApp();
 
-exports.createUserWithRole = onCall(async (request) => {
+exports.createUserWithRole = onCall({ cors: true }, async (request) => {
   // 1) Must be logged in
   if (!request.auth) {
+    logger.error("Request failed: Unauthenticated");
     throw new HttpsError("unauthenticated", "You must be signed in.");
   }
 
   // 2) Read caller role from custom claims
   const callerRole = request.auth.token.role;
+  logger.info(`Caller UID: ${request.auth.uid}, Role: ${callerRole}`);
 
-  // 3) Authorize caller
-  const allowed = callerRole === "super_admin" ;
-  if (!allowed) {
-    throw new HttpsError("permission-denied", "Not allowed.");
+  // 3) Authorize caller (TEMPORARY: Ensure you have this role!)
+  // If you are testing for the first time, you might want to log the role 
+  // to make sure your account actually has "super_admin"
+  if (callerRole !== "super_admin") {
+    logger.warn(`Permission Denied for UID: ${request.auth.uid}`);
+    throw new HttpsError("permission-denied", "Only Super Admins can create users.");
   }
 
   // 4) Validate input
   const { email, password, displayName, role } = request.data || {};
   if (!email || !password || !role) {
-    throw new HttpsError("invalid-argument", "Missing email/password/role.");
+    throw new HttpsError("invalid-argument", "Missing email, password, or role.");
   }
 
-  const allowedNewRoles =
-    callerRole === "super_admin"
-      ? ["super_admin", "admin", "professor", "assistant", "student"]
-      : ["professor", "assistant", "student"]; // example restriction for admin
-
-  if (!allowedNewRoles.includes(role)) {
-    throw new HttpsError("invalid-argument", "Role not allowed.");
+  // Define allowed roles
+  const validRoles = ["super_admin", "admin", "professor", "assistant", "student"];
+  if (!validRoles.includes(role)) {
+    throw new HttpsError("invalid-argument", "The specified role is not valid.");
   }
 
-  // 5) Create user
-  const userRecord = await admin.auth().createUser({
-    email,
-    password,
-    displayName: displayName || undefined,
-  });
+  try {
+    // 5) Create user in Firebase Auth
+    const userRecord = await admin.auth().createUser({
+      email,
+      password,
+      displayName: displayName || undefined,
+    });
 
-  // 6) Set custom claims
-  await admin.auth().setCustomUserClaims(userRecord.uid, { role });
+    // 6) Set custom claims
+    await admin.auth().setCustomUserClaims(userRecord.uid, { role });
 
-  // 7) (Optional but recommended) Create a Firestore profile doc
-  await admin.firestore().collection("users").doc(userRecord.uid).set({
-    email,
-    displayName: displayName || "",
-    role,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-  });
+    // 7) Create a Firestore profile doc
+    await admin.firestore().collection("users").doc(userRecord.uid).set({
+      email,
+      displayName: displayName || "",
+      role,
+      uid: userRecord.uid,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
 
-  return { ok: true, uid: userRecord.uid };
+    logger.info(`Successfully created user: ${userRecord.uid} with role: ${role}`);
+    return { ok: true, uid: userRecord.uid };
+
+  } catch (error) {
+    logger.error("Error creating user:", error);
+    // Properly format the error for the frontend
+    throw new HttpsError("internal", error.message);
+  }
 });
-
-
-// const functions = require("firebase-functions");
-// const admin = require("firebase-admin");
-
-// admin.initializeApp();
-
-// exports.addAdminRole = functions.https.onCall((data, context) => {
-//   return admin
-//     .auth()
-//     .getUserByEmail(data.email)
-//     .then((user) => {
-//       return admin.auth().setCustomUserClaims(user.uid, { admin: true });
-//     })
-//     .then(() => {
-//       return {
-//         message: `Success! ${data.email} has been made an admin`,
-//       };
-//     })
-//     .catch((err) => {
-//       console.log(err);
-//     });
-// });
-

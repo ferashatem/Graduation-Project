@@ -41,7 +41,9 @@ function SignIn() {
 
     try {
       const tokenResult = await getIdTokenResult(firebaseUser, true);
+      console.log(tokenResult);
       return tokenResult?.claims?.role || null;
+      
     } catch (err) {
       console.error("Load claims role error:", err);
       return null;
@@ -54,11 +56,16 @@ function SignIn() {
 
     const roleFromClaims = await getRoleFromClaims(user);
     const role = roleFromClaims || "student";
+    console.log(roleFromClaims);
+    console.log(role);
 
-    if (role === "super_admin") navigate("/super_admin/home", { replace: true });
+    if (role === "super_admin")
+      navigate("/super_admin/home", { replace: true });
     else if (role === "admin") navigate("/admin/home", { replace: true });
-    else if (role === "professor") navigate("/professor/home", { replace: true });
-    else if (role === "assistant") navigate("/assistant/home", { replace: true });
+    else if (role === "professor")
+      navigate("/professor/home", { replace: true });
+    else if (role === "assistant")
+      navigate("/assistant/home", { replace: true });
     // else navigate("/superadmin/home", { replace: true });
   }, [user, navigate, getRoleFromClaims]);
 
@@ -86,7 +93,11 @@ function SignIn() {
 
       try {
         // Firebase email/password sign-in :contentReference[oaicite:3]{index=3}
-        const userCred = await signInWithEmailAndPassword(auth, email, password);
+        const userCred = await signInWithEmailAndPassword(
+          auth,
+          email,
+          password
+        );
 
         const signedUser = userCred.user;
 
@@ -98,9 +109,10 @@ function SignIn() {
         });
         const roleFromClaims = await getRoleFromClaims(signedUser);
         const role = roleFromClaims || "student";
-        
+
         // Optional: store lightweight info locally (NOT security)
-        const userName = signedUser.displayName || signedUser.email?.split("@")[0] || "User";
+        const userName =
+          signedUser.displayName || signedUser.email?.split("@")[0] || "User";
         localStorage.setItem("userName", userName);
         localStorage.setItem(
           "user",
@@ -108,10 +120,13 @@ function SignIn() {
         );
 
         // ✅ Redirect based on real role
-        if (role === "super_admin") navigate("/super_admin/home", { replace: true });
+        if (role === "super_admin")
+          navigate("/super_admin/home", { replace: true });
         else if (role === "admin") navigate("/admin/home", { replace: true });
-        else if (role === "professor") navigate("/professor/home", { replace: true });
-        else if (role === "assistant") navigate("/assistant/home", { replace: true });
+        else if (role === "professor")
+          navigate("/professor/home", { replace: true });
+        else if (role === "assistant")
+          navigate("/assistant/home", { replace: true });
         else navigate("/student/home", { replace: true });
       } catch (err) {
         console.error("Firebase SignIn Error:", err.code, err.message);
@@ -142,16 +157,23 @@ function SignIn() {
               Benis Suef National University
             </h1>
             <p className="mt-4 text-base text-[#1d3557]/80 lg:text-lg">
-              Sign in to reach student services, faculty resources, and campus announcements in one secure space.
+              Sign in to reach student services, faculty resources, and campus
+              announcements in one secure space.
             </p>
           </div>
 
           <div className="flex items-center gap-4 rounded-2xl bg-white/70 p-4 shadow-sm ring-1 ring-white/60">
             <div className="h-14 w-14 rounded-2xl bg-white p-2 shadow-sm">
-              <img src={BigLogo} alt="Benis Suef National University logo" className="h-full w-full object-contain" />
+              <img
+                src={BigLogo}
+                alt="Benis Suef National University logo"
+                className="h-full w-full object-contain"
+              />
             </div>
             <div className="text-sm text-[#1d3557]/70">
-              <p className="text-base font-semibold text-[#0b2c4a]">Official College Access</p>
+              <p className="text-base font-semibold text-[#0b2c4a]">
+                Official College Access
+              </p>
               <p>Use your university email to enter the portal.</p>
             </div>
           </div>
@@ -162,18 +184,27 @@ function SignIn() {
             <div className="flex flex-col items-center text-center">
               <div className="h-24 w-24 rounded-full bg-[#0b2c4a] p-[3px] shadow-lg">
                 <div className="h-full w-full rounded-full bg-white p-3">
-                  <img src={BigLogo} alt="Benis Suef National University logo" className="h-full w-full object-contain" />
+                  <img
+                    src={BigLogo}
+                    alt="Benis Suef National University logo"
+                    className="h-full w-full object-contain"
+                  />
                 </div>
               </div>
               <h2 className="mt-5 text-2xl font-semibold text-[#0b2c4a] font-['Palatino_Linotype','Book_Antiqua','Palatino','serif']">
                 Welcome Back
               </h2>
-              <p className="mt-2 text-sm text-[#1d3557]/70">Sign in to continue to the college portal.</p>
+              <p className="mt-2 text-sm text-[#1d3557]/70">
+                Sign in to continue to the college portal.
+              </p>
             </div>
 
             <form className="mt-8 flex flex-col gap-5" onSubmit={handleSubmit}>
               <div>
-                <label htmlFor="email" className="text-xs font-semibold uppercase tracking-[0.2em] text-[#1d3557]/70">
+                <label
+                  htmlFor="email"
+                  className="text-xs font-semibold uppercase tracking-[0.2em] text-[#1d3557]/70"
+                >
                   Email
                 </label>
                 <input
@@ -224,7 +255,8 @@ function SignIn() {
             </form>
 
             <div className="mt-6 rounded-2xl bg-[#0b2c4a]/5 px-4 py-3 text-xs text-[#1d3557]/70">
-              Use your official university credentials. For support, contact the IT helpdesk.
+              Use your official university credentials. For support, contact the
+              IT helpdesk.
             </div>
           </div>
         </div>

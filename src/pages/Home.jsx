@@ -1,19 +1,47 @@
 // src/pages/admin/Home.jsx
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
 import { db } from "../firebase/firebaseConfig";
 import { useAuthUser } from "../auth/useAuthUser";
 
+
+
+
 export default function AdminHome() {
   const { user, authLoading } = useAuthUser();
-
+  
   const [profile, setProfile] = useState(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
+
+  const loadAllUsers = useCallback(async (firebaseUser) => {
+    if (!firebaseUser) return;
+
+    try {
+      const tokenResult = await firebaseUser.getIdTokenResult(true);
+      const role = tokenResult?.claims?.role || null;
+
+      if (role !== "super_admin") {
+        console.warn("Skipping users list: requires super_admin role.");
+        return;
+      }
+
+      const snap = await getDocs(collection(db, "users"));
+      const users = snap.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data(),
+      }));
+      console.log("All users (users collection):", users);
+    } catch (err) {
+      console.error("Load users error:", err);
+    }
+  }, []);
 
   /**
    * Load profile from Users/{uid}
    * - If profile doesn't exist, create a minimal one then re-read.
    */
+  
+
   const loadProfile = useCallback(async (firebaseUser) => {
     if (!firebaseUser?.uid) return;
 
@@ -58,7 +86,8 @@ export default function AdminHome() {
     }
 
     loadProfile(user);
-  }, [authLoading, user, loadProfile]);
+    loadAllUsers(user);
+  }, [authLoading, user, loadProfile, loadAllUsers]);
 
   const viewModel = useMemo(() => {
     const p = profile || {};
