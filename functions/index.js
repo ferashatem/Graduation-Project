@@ -64,3 +64,40 @@ exports.createUserWithRole = onCall({ cors: true }, async (request) => {
     throw new HttpsError("internal", error.message);
   }
 });
+
+exports.deleteUserAccount = onCall({ cors: true }, async (request) => {
+  if (!request.auth) {
+    logger.error("Delete request failed: Unauthenticated");
+    throw new HttpsError("unauthenticated", "You must be signed in.");
+  }
+
+  const callerRole = request.auth.token.role;
+  logger.info(`Delete request by UID: ${request.auth.uid}, Role: ${callerRole}`);
+
+  if (callerRole !== "super_admin") {
+    logger.warn(`Delete permission denied for UID: ${request.auth.uid}`);
+    throw new HttpsError("permission-denied", "Only Super Admins can delete users.");
+  }
+
+  const { uid } = request.data || {};
+  if (!uid || typeof uid !== "string") {
+    throw new HttpsError("invalid-argument", "uid is required.");
+  }
+
+  try {
+    await admin.auth().deleteUser(uid).catch((error) => {
+      if (error?.code === "auth/user-not-found") {
+        return null;
+      }
+      throw error;
+    });
+
+    await admin.firestore().collection("users").doc(uid).delete();
+
+    logger.info(`Successfully deleted user: ${uid}`);
+    return { ok: true, uid };
+  } catch (error) {
+    logger.error("Error deleting user:", error);
+    throw new HttpsError("internal", error.message);
+  }
+});

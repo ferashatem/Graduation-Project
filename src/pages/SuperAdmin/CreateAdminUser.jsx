@@ -61,9 +61,17 @@ function CreateAdminUser() {
   const [usersLoading, setUsersLoading] = useState(false);
   const [usersError, setUsersError] = useState("");
   const [activeRole, setActiveRole] = useState("all");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [deletingUserId, setDeletingUserId] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [actionSuccess, setActionSuccess] = useState("");
 
   const createUserWithRole = useMemo(
     () => httpsCallable(functions, "createUserWithRole"),
+    [functions]
+  );
+  const deleteUserAccount = useMemo(
+    () => httpsCallable(functions, "deleteUserAccount"),
     [functions]
   );
 
@@ -177,6 +185,36 @@ function CreateAdminUser() {
     ]
   );
 
+  const handleDeleteUser = useCallback(
+    async (currentUser) => {
+      const uid = currentUser?.id;
+      if (!uid) return;
+
+      const displayName = getUserName(currentUser);
+      const emailLabel = getUserEmail(currentUser);
+      const confirmLabel = displayName !== "N/A" ? displayName : emailLabel;
+      const shouldDelete = window.confirm(`Delete ${confirmLabel}? This cannot be undone.`);
+
+      if (!shouldDelete) return;
+
+      setActionError("");
+      setActionSuccess("");
+      setDeletingUserId(uid);
+
+      try {
+        await deleteUserAccount({ uid });
+        setUsers((prevUsers) => prevUsers.filter((item) => item.id !== uid));
+        setActionSuccess(`${confirmLabel} was deleted.`);
+      } catch (error) {
+        console.error("Delete user error:", error);
+        setActionError(error?.message || "Failed to delete user.");
+      } finally {
+        setDeletingUserId("");
+      }
+    },
+    [deleteUserAccount]
+  );
+
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
@@ -187,9 +225,38 @@ function CreateAdminUser() {
   }, [authLoading, user, loadUsers]);
 
   const filteredUsers = useMemo(() => {
-    if (activeRole === "all") return users;
-    return users.filter((currentUser) => getUserRoleKey(currentUser) === activeRole);
-  }, [activeRole, users]);
+    const roleFiltered =
+      activeRole === "all"
+        ? users
+        : users.filter((currentUser) => getUserRoleKey(currentUser) === activeRole);
+    const query = searchTerm.trim().toLowerCase();
+
+    if (!query) return roleFiltered;
+
+    return roleFiltered.filter((currentUser) => {
+      const roleKey = getUserRoleKey(currentUser);
+      const searchableValues = [
+        getUserName(currentUser),
+        getUserEmail(currentUser),
+        getUserPhone(currentUser),
+        getUserCollegeId(currentUser),
+        roleKey,
+        formatRoleLabel(roleKey),
+        currentUser?.uid,
+        currentUser?.id,
+      ];
+
+      return searchableValues.some((value) =>
+        String(value ?? "").toLowerCase().includes(query)
+      );
+    });
+  }, [activeRole, searchTerm, users]);
+
+  const emptyMessage = useMemo(() => {
+    if (searchTerm.trim()) return "No users match your search.";
+    if (activeRole === "all") return "No users found.";
+    return "No users found for this role.";
+  }, [activeRole, searchTerm]);
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
@@ -220,26 +287,49 @@ function CreateAdminUser() {
             <h2 className="text-xl font-semibold text-[#0b2c4a]">User Directory</h2>
             <p className="text-sm text-slate-600">Browse and filter users by role.</p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {ROLE_TABS.map((tab) => {
-              const isActive = activeRole === tab.value;
-              return (
-                <button
-                  key={tab.value}
-                  type="button"
-                  onClick={() => setActiveRole(tab.value)}
-                  className={`rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${
-                    isActive
-                      ? "border-transparent bg-[#0b2c4a] text-white shadow-sm"
-                      : "border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-800"
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap gap-2">
+              {ROLE_TABS.map((tab) => {
+                const isActive = activeRole === tab.value;
+                return (
+                  <button
+                    key={tab.value}
+                    type="button"
+                    onClick={() => setActiveRole(tab.value)}
+                    className={`rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${
+                      isActive
+                        ? "border-transparent bg-[#0b2c4a] text-white shadow-sm"
+                        : "border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-800"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="w-full sm:w-auto">
+              <input
+                type="search"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search by name,email, phone, college ID, or role"
+                className="w-full rounded-full border border-slate-200 bg-white px-7 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600 shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
+              />
+            </div>
           </div>
         </div>
+
+        {actionError ? (
+          <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700" role="alert">
+            {actionError}
+          </div>
+        ) : null}
+
+        {actionSuccess ? (
+          <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-700" role="status">
+            {actionSuccess}
+          </div>
+        ) : null}
 
         <div className="mt-6 overflow-x-auto">
           <table className="min-w-full text-left text-sm text-slate-700">
@@ -251,25 +341,26 @@ function CreateAdminUser() {
                 <th className="px-4 py-3">College ID</th>
                 <th className="px-4 py-3">Role</th>
                 <th className="px-4 py-3">Created At</th>
+                <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
               {usersLoading ? (
                 <tr>
-                  <td className="px-4 py-6 text-sm text-slate-500" colSpan={6}>
+                  <td className="px-4 py-6 text-sm text-slate-500" colSpan={7}>
                     Loading users...
                   </td>
                 </tr>
               ) : usersError ? (
                 <tr>
-                  <td className="px-4 py-6 text-sm text-red-600" colSpan={6}>
+                  <td className="px-4 py-6 text-sm text-red-600" colSpan={7}>
                     {usersError}
                   </td>
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-6 text-sm text-slate-500" colSpan={6}>
-                    No users found for this role.
+                  <td className="px-4 py-6 text-sm text-slate-500" colSpan={7}>
+                    {emptyMessage}
                   </td>
                 </tr>
               ) : (
@@ -283,6 +374,16 @@ function CreateAdminUser() {
                     <td className="px-4 py-4">{getUserCollegeId(currentUser)}</td>
                     <td className="px-4 py-4">{formatRoleLabel(getUserRoleKey(currentUser))}</td>
                     <td className="px-4 py-4">{formatCreatedAt(currentUser?.createdAt)}</td>
+                    <td className="px-4 py-4 text-right">
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteUser(currentUser)}
+                        disabled={deletingUserId === currentUser.id}
+                        className="inline-flex items-center justify-center rounded-full border border-red-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-red-600 transition hover:border-red-300 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {deletingUserId === currentUser.id ? "Deleting" : "Delete"}
+                      </button>
+                    </td>
                   </tr>
                 ))
               )}
