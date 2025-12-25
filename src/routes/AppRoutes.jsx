@@ -52,7 +52,7 @@ function AppRoutes() {
           />
         </Route>
 
-        <Route path="/not-allowed" element={<Unauthorized />} />
+        {/* <Route path="/not-allowed" element={<Unauthorized />} /> */}
       </Routes>
     </Router>
   );

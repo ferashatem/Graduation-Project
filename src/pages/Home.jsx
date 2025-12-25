@@ -104,9 +104,15 @@ export default function AdminHome() {
     return <div style={{ padding: 24 }}>Loading...</div>;
   }
 
+  const roleLabel = (viewModel.role || "")
+    .toString()
+    .trim()
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase()) || "Admin";
+
   return (
     <div style={{ padding: 24 }}>
-      <h1>Admin Overview</h1>
+      <h1>{roleLabel} Overview</h1>
 
       <div
         style={{

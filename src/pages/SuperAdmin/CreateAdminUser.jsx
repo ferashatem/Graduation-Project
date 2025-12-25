@@ -1,10 +1,51 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { httpsCallable } from "firebase/functions";
-import { doc, serverTimestamp, setDoc } from "firebase/firestore";
+import { collection, doc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
 import { db, functions } from "../../firebase/firebaseConfig";
+import { useAuthUser } from "../../auth/useAuthUser";
 import BigLogo from "../../assets/university-logo.png";
 
+const ROLE_TABS = [
+  { value: "all", label: "All" },
+  { value: "student", label: "Student" },
+  { value: "assistant", label: "Assistant" },
+  { value: "professor", label: "Professor" },
+  { value: "admin", label: "Admin" },
+  { value: "super_admin", label: "Super Admin" },
+];
+
+const getUserRoleKey = (user) => {
+  const rawRole = user?.role ?? user?.Role ?? "";
+  return rawRole ? String(rawRole).toLowerCase() : "";
+};
+
+const formatRoleLabel = (roleKey) => {
+  if (!roleKey) return "N/A";
+  return roleKey.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+const getUserName = (user) =>
+  user?.fullName ?? user?.displayName ?? user?.Full_Name ?? user?.name ?? "N/A";
+
+const getUserEmail = (user) => user?.email ?? user?.Email ?? "N/A";
+
+const getUserPhone = (user) => user?.phoneNumber ?? user?.Phone_Number ?? "N/A";
+
+const getUserCollegeId = (user) => user?.collegeUserId ?? user?.College_User_ID ?? "N/A";
+
+const formatCreatedAt = (timestamp) => {
+  if (!timestamp) return "N/A";
+  if (typeof timestamp.toDate === "function") {
+    return timestamp.toDate().toLocaleDateString("en-US");
+  }
+  if (typeof timestamp.seconds === "number") {
+    return new Date(timestamp.seconds * 1000).toLocaleDateString();
+  }
+  return "N/A";
+};
+
 function CreateAdminUser() {
+  const { user, authLoading } = useAuthUser();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
@@ -16,11 +57,51 @@ function CreateAdminUser() {
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [users, setUsers] = useState([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [usersError, setUsersError] = useState("");
+  const [activeRole, setActiveRole] = useState("all");
 
   const createUserWithRole = useMemo(
     () => httpsCallable(functions, "createUserWithRole"),
     [functions]
   );
+
+  const loadUsers = useCallback(async () => {
+    if (!user) return;
+
+    setUsersLoading(true);
+    setUsersError("");
+
+    try {
+      const tokenResult = await user.getIdTokenResult(true);
+      const currentRole = tokenResult?.claims?.role || "";
+
+      if (currentRole && currentRole !== "super_admin") {
+        setUsers([]);
+        setUsersError("You do not have access to view all users.");
+        return;
+      }
+
+      const snapshot = await getDocs(collection(db, "users"));
+      const rows = snapshot.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data(),
+      }));
+
+      rows.sort(
+        (first, second) =>
+          (second?.createdAt?.seconds ?? 0) - (first?.createdAt?.seconds ?? 0)
+      );
+
+      setUsers(rows);
+    } catch (error) {
+      console.error("Load users error:", error);
+      setUsersError("Failed to load users.");
+    } finally {
+      setUsersLoading(false);
+    }
+  }, [user]);
 
   const handleCreateAccount = useCallback(
     async (e) => {
@@ -68,6 +149,7 @@ function CreateAdminUser() {
         );
 
         setSuccessMessage(message || "Account created successfully.");
+        await loadUsers();
         setEmail("");
         setFullName("");
         setPassword("");
@@ -91,11 +173,26 @@ function CreateAdminUser() {
       collegeUserId,
       role,
       createUserWithRole,
+      loadUsers,
     ]
   );
 
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      setUsers([]);
+      return;
+    }
+    loadUsers();
+  }, [authLoading, user, loadUsers]);
+
+  const filteredUsers = useMemo(() => {
+    if (activeRole === "all") return users;
+    return users.filter((currentUser) => getUserRoleKey(currentUser) === activeRole);
+  }, [activeRole, users]);
+
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
       <div className="flex flex-col gap-4 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-4">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#0b2c4a]/10">
@@ -117,6 +214,83 @@ function CreateAdminUser() {
         </button>
       </div>
 
+      <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-semibold text-[#0b2c4a]">User Directory</h2>
+            <p className="text-sm text-slate-600">Browse and filter users by role.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {ROLE_TABS.map((tab) => {
+              const isActive = activeRole === tab.value;
+              return (
+                <button
+                  key={tab.value}
+                  type="button"
+                  onClick={() => setActiveRole(tab.value)}
+                  className={`rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${
+                    isActive
+                      ? "border-transparent bg-[#0b2c4a] text-white shadow-sm"
+                      : "border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-800"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="mt-6 overflow-x-auto">
+          <table className="min-w-full text-left text-sm text-slate-700">
+            <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+              <tr>
+                <th className="px-4 py-3">Name</th>
+                <th className="px-4 py-3">Email</th>
+                <th className="px-4 py-3">Phone</th>
+                <th className="px-4 py-3">College ID</th>
+                <th className="px-4 py-3">Role</th>
+                <th className="px-4 py-3">Created At</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200">
+              {usersLoading ? (
+                <tr>
+                  <td className="px-4 py-6 text-sm text-slate-500" colSpan={6}>
+                    Loading users...
+                  </td>
+                </tr>
+              ) : usersError ? (
+                <tr>
+                  <td className="px-4 py-6 text-sm text-red-600" colSpan={6}>
+                    {usersError}
+                  </td>
+                </tr>
+              ) : filteredUsers.length === 0 ? (
+                <tr>
+                  <td className="px-4 py-6 text-sm text-slate-500" colSpan={6}>
+                    No users found for this role.
+                  </td>
+                </tr>
+              ) : (
+                filteredUsers.map((currentUser) => (
+                  <tr key={currentUser.id}>
+                    <td className="px-4 py-4 font-semibold text-slate-800">
+                      {getUserName(currentUser)}
+                    </td>
+                    <td className="px-4 py-4">{getUserEmail(currentUser)}</td>
+                    <td className="px-4 py-4">{getUserPhone(currentUser)}</td>
+                    <td className="px-4 py-4">{getUserCollegeId(currentUser)}</td>
+                    <td className="px-4 py-4">{formatRoleLabel(getUserRoleKey(currentUser))}</td>
+                    <td className="px-4 py-4">{formatCreatedAt(currentUser?.createdAt)}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       {isModalOpen ? (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
@@ -125,10 +299,10 @@ function CreateAdminUser() {
           <div
             role="dialog"
             aria-modal="true"
-            className="w-full max-w-3xl"
+            className="w-full max-w-5xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
+            <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
               <div className="flex items-center justify-between rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
                 <div className="flex items-center gap-4">
                   <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#0b2c4a]/10">
@@ -234,7 +408,6 @@ function CreateAdminUser() {
                       <option value="assistant">Assistant</option>
                       <option value="professor">Professor</option>
                       <option value="admin">Admin</option>
-                      <option value="super_admin">Super Admin</option>
                     </select>
                   </div>
 
