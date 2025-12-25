@@ -17,7 +17,7 @@ function SignIn() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const getRoleFromFirestore = useCallback(async (uid) => {
+  const getUserFromFirestore = useCallback(async (uid) => {
     if (!uid) return null;
 
     try {
@@ -26,25 +26,32 @@ function SignIn() {
       for (const collectionName of collections) {
         const snap = await getDoc(doc(db, collectionName, uid));
         if (snap.exists()) {
-          const data = snap.data();
-          return data?.role || null;
+          return { collection: collectionName, data: snap.data() };
         }
       }
     } catch (err) {
-      console.error("Load role error:", err);
+      console.error("Load user error:", err);
     }
 
     return null;
   }, []);
+
+  const getRoleFromFirestore = useCallback(
+    async (uid) => {
+      const userRecord = await getUserFromFirestore(uid);
+      return userRecord?.data?.role || null;
+    },
+    [getUserFromFirestore]
+  );
 
   // ✅ If already logged in, you can redirect
   const redirectIfLoggedIn = useCallback(async () => {
     if (!user) return;
 
     const roleFromDb = await getRoleFromFirestore(user.uid);
-    const role = roleFromDb || "student";
+    const role = roleFromDb || "super_admin";
 
-    if (role === "super_admin") navigate("/superadmin/home", { replace: true });
+    if (role === "super_admin") navigate("/super_admin/home", { replace: true });
     else if (role === "admin") navigate("/admin/home", { replace: true });
     else if (role === "professor") navigate("/professor/home", { replace: true });
     else if (role === "assistant") navigate("/assistant/home", { replace: true });
@@ -79,8 +86,13 @@ function SignIn() {
 
         const signedUser = userCred.user;
 
-        const roleFromDb = await getRoleFromFirestore(signedUser.uid);
-        const role = roleFromDb || "student";
+        const userRecord = await getUserFromFirestore(signedUser.uid);
+        console.log("Signed in user (Firestore):", {
+          uid: signedUser.uid,
+          collection: userRecord?.collection || null,
+          data: userRecord?.data || null,
+        });
+        const role = userRecord?.data?.role || "student";
         
         // Optional: store lightweight info locally (NOT security)
         const userName = signedUser.displayName || signedUser.email?.split("@")[0] || "User";
@@ -91,7 +103,7 @@ function SignIn() {
         );
 
         // ✅ Redirect based on real role
-        if (role === "super_admin") navigate("/superadmin/home", { replace: true });
+        if (role === "super_admin") navigate("/super_admin/home", { replace: true });
         else if (role === "admin") navigate("/admin/home", { replace: true });
         else if (role === "professor") navigate("/professor/home", { replace: true });
         else if (role === "assistant") navigate("/assistant/home", { replace: true });
@@ -102,7 +114,7 @@ function SignIn() {
         setLoading(false);
       }
     },
-    [email, password, navigate, getRoleFromFirestore]
+    [email, password, navigate, getUserFromFirestore]
   );
 
   if (authLoading) return pageLoadingUI;

@@ -4,27 +4,6 @@ import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { db } from "../firebase/firebaseConfig";
 import { useAuthUser } from "../auth/useAuthUser";
 
-export async function upsertUserProfile({
-  uid,
-  email,
-  fullName,
-  phoneNumber,
-  title,
-}) {
-  await setDoc(
-    doc(db, "Users", uid),
-    {
-      uid,
-      email: email ?? "",
-      fullName: fullName ?? "",
-      phoneNumber: phoneNumber ?? "",
-      title: title ?? "",
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true }
-  );
-}
-
 export default function AdminHome() {
   const { user, authLoading } = useAuthUser();
 
@@ -44,9 +23,9 @@ export default function AdminHome() {
       // 1) Read role from custom claims (force refresh if you recently changed claims)
       // https://firebase.google.com/docs/auth/admin/custom-claims#access_custom_claims
       const tokenResult = await firebaseUser.getIdTokenResult(true);
-      const role = tokenResult?.claims?.role || "student";
+      // const role = tokenResult?.claims?.role || "student";
       console.log(tokenResult);
-      console.log(role);
+      // console.log(role);
 
       // 2) Try reading the profile
       const ref = doc(db, "users", firebaseUser.uid);
@@ -54,22 +33,8 @@ export default function AdminHome() {
       console.log(ref);
       console.log(snap);
 
-      // 3) If not found, create it (minimal profile) then read again
+      // 3) If not found, create it (minimal profile) thejn read again
       if (!snap.exists()) {
-        const fallbackName =
-          firebaseUser.displayName ||
-          firebaseUser.email?.split("@")[0] ||
-          "User";
-
-        await upsertUserProfile({
-          uid: firebaseUser.uid,
-          email: firebaseUser.email || "",
-          fullName: fallbackName,
-          phoneNumber: "",
-          title:
-            role === "admin" ? "Admin" : role === "super_admin" ? "Super" : "",
-        });
-
         // const snap2 = await getDoc(ref);
         setProfile(snap.data());
       } else {

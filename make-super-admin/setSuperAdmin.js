@@ -11,18 +11,18 @@ admin.initializeApp({
 
 async function main() {
   // ✅ Put your user's UID here:
-  const uid = "9p6aR5ct0gcdakshREdB4wLw1872";
+  const uid = "yjVzBHUe3rcDMYjgTCAYXoupKTo2";
 
   // 3) Set custom claim
   await admin.auth().setCustomUserClaims(uid, {
-    role: "super_admin",
+    role: "admin",
   });
 
   // Optional: verify by reading the user record
   const user = await admin.auth().getUser(uid);
   console.log("✅ Updated claims:", user.customClaims);
 
-  console.log("✅ Done. User is now super_admin.");
+  // console.log("✅ Done. User is now super_admin.");
 }
 
 main().catch((err) => {

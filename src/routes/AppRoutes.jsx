@@ -25,7 +25,7 @@ function AppRoutes() {
         </Route>
 
         {/* Super Admin Routes */}
-        <Route path="/superadmin" element={<MainLayoutSuperAdmin />}>
+        <Route path="/super_admin" element={<MainLayoutSuperAdmin />}>
           <Route path="home" element={<Home />} />
           <Route
             path="create-admin"
