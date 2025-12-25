@@ -13,7 +13,7 @@ function LogoutIcon() {
 
   const handleLogout = async () => {
     await signOut(auth);
-    navigate("/");
+    navigate("/signup");
     setShowConfirm(false);
   };
 

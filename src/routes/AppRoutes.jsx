@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import SignIn from "../pages/SignIn";
 import SignUp from "../pages/SignUp";
 import Home from "../pages/Home";
+import Unauthorized from "../pages/Unauthorized";
 
 // Layouts
 import MainLayoutAdmin from "../layouts/Admin/MainLayoutAdmin";
@@ -20,22 +21,38 @@ function AppRoutes() {
         <Route path="/signup" element={<SignUp />} />
 
         {/* Admin Routes */}
-        <Route path="/admin" element={<MainLayoutAdmin />}>
+        <Route
+          path="/admin"
+          element={
+            <RequireRole role="admin">
+              <MainLayoutAdmin />
+            </RequireRole>
+          }
+        >
           <Route path="home" element={<Home />} />
         </Route>
 
         {/* Super Admin Routes */}
-        <Route path="/super_admin" element={<MainLayoutSuperAdmin />}>
+        <Route
+          path="/super_admin"
+          element={
+            <RequireRole role="super_admin">
+              <MainLayoutSuperAdmin />
+            </RequireRole>
+          }
+        >
           <Route path="home" element={<Home />} />
           <Route
             path="create-admin"
             element={
-              // <RequireRole role="super_admin">
+              <RequireRole role="super_admin">
                 <CreateAdminUser />
-              // </RequireRole>
+              </RequireRole>
             }
           />
         </Route>
+
+        <Route path="/not-allowed" element={<Unauthorized />} />
       </Routes>
     </Router>
   );
