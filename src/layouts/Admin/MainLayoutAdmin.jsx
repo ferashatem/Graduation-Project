@@ -6,6 +6,7 @@ import { Outlet } from "react-router-dom";
 function MainLayout() {
   const AdminNavItems = [
     { icon: profile, title: "Home", link: "home" },
+    { icon: profile, title: "Academic Structure", link: "colleges" },
     { icon: users, title: "User Management", link: "create-admin" },
   ];
 

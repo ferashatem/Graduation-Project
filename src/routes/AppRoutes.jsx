@@ -12,6 +12,10 @@ import MainLayoutSuperAdmin from "../layouts/Super_Admin/MainLayoutSuperAdmin";
 import MainLayoutProfessor from "../layouts/Professor/MainLayoutProfessor";
 import RequireRole from "../auth/RequireRole";
 import CreateAdminUser from "../pages/SuperAdmin/CreateAdminUser";
+import CollegesPage from "../features/colleges/pages/CollegesPage";
+import YearsPage from "../features/years/pages/YearsPage";
+import DepartmentsPage from "../features/departments/pages/DepartmentsPage";
+import CoursesPage from "../features/courses/pages/CoursesPage";
 
 function AppRoutes() {
   return (
@@ -32,6 +36,16 @@ function AppRoutes() {
         >
           <Route path="home" element={<Home />} />
           <Route path="create-admin" element={<CreateAdminUser />} />
+          <Route path="colleges" element={<CollegesPage />} />
+          <Route path="colleges/:collegeId/years" element={<YearsPage />} />
+          <Route
+            path="colleges/:collegeId/years/:yearId/departments"
+            element={<DepartmentsPage />}
+          />
+          <Route
+            path="colleges/:collegeId/years/:yearId/departments/:deptId/courses"
+            element={<CoursesPage />}
+          />
         </Route>
 
         {/* Super Admin Routes */}
