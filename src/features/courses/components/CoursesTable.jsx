@@ -21,7 +21,7 @@ function CourseRowActions({ row, onEdit, onDelete }) {
 
   return (
     <div className="flex items-center gap-2">
-      <IconButton size="small" onClick={handleEdit}>
+      <IconButton size="small" color="primary" onClick={handleEdit}>
         <EditIcon fontSize="inherit" />
       </IconButton>
       <IconButton size="small" color="error" onClick={handleDelete}>
@@ -62,7 +62,7 @@ function CoursesTable({ rows, loading, onEdit, onDelete }) {
   );
 
   return (
-    <div className="rounded-xl bg-white shadow">
+    <div className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 overflow-hidden">
       <DataGrid
         autoHeight
         rows={gridRows}
