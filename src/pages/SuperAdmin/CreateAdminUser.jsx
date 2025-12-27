@@ -14,6 +14,7 @@ const ROLE_TABS = [
   { value: "super_admin", label: "Super Admin" },
 ];
 
+const ROLE_OPTIONS = ROLE_TABS.filter((tab) => tab.value !== "all");
 const USERS_PER_PAGE = 4;
 
 const getUserRoleKey = (user) => {
@@ -49,6 +50,8 @@ const formatCreatedAt = (timestamp) => {
 function CreateAdminUser() {
   const { user, authLoading } = useAuthUser();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
@@ -67,6 +70,15 @@ function CreateAdminUser() {
   const [deletingUserId, setDeletingUserId] = useState("");
   const [actionError, setActionError] = useState("");
   const [actionSuccess, setActionSuccess] = useState("");
+  const [editFullName, setEditFullName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editPhoneNumber, setEditPhoneNumber] = useState("");
+  const [editCollegeUserId, setEditCollegeUserId] = useState("");
+  const [editRole, setEditRole] = useState("student");
+  const [editPassword, setEditPassword] = useState("");
+  const [editConfirmPassword, setEditConfirmPassword] = useState("");
+  const [editLoading, setEditLoading] = useState(false);
+  const [editFormError, setEditFormError] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
   const createUserWithRole = useMemo(
@@ -75,6 +87,10 @@ function CreateAdminUser() {
   );
   const deleteUserAccount = useMemo(
     () => httpsCallable(functions, "deleteUserAccount"),
+    [functions]
+  );
+  const editUserAccount = useMemo(
+    () => httpsCallable(functions, "editUserAccount"),
     [functions]
   );
 
@@ -216,6 +232,121 @@ function CreateAdminUser() {
       }
     },
     [deleteUserAccount]
+  );
+
+  const openEditModal = useCallback((currentUser) => {
+    if (!currentUser) return;
+
+    setEditingUser(currentUser);
+    setEditFullName(
+      currentUser?.fullName ?? currentUser?.displayName ?? currentUser?.Full_Name ?? currentUser?.name ?? ""
+    );
+    setEditEmail(currentUser?.email ?? currentUser?.Email ?? "");
+    setEditPhoneNumber(currentUser?.phoneNumber ?? currentUser?.Phone_Number ?? "");
+    setEditCollegeUserId(currentUser?.collegeUserId ?? currentUser?.College_User_ID ?? "");
+    setEditRole(getUserRoleKey(currentUser) || "student");
+    setEditPassword("");
+    setEditConfirmPassword("");
+    setEditFormError("");
+    setActionError("");
+    setActionSuccess("");
+    setIsEditModalOpen(true);
+  }, []);
+
+  const closeEditModal = useCallback(() => {
+    setIsEditModalOpen(false);
+    setEditingUser(null);
+    setEditFullName("");
+    setEditEmail("");
+    setEditPhoneNumber("");
+    setEditCollegeUserId("");
+    setEditRole("student");
+    setEditPassword("");
+    setEditConfirmPassword("");
+    setEditFormError("");
+    setEditLoading(false);
+  }, []);
+
+  const handleEditAccount = useCallback(
+    async (e) => {
+      e.preventDefault();
+      setEditFormError("");
+      setActionError("");
+      setActionSuccess("");
+
+      const uid = editingUser?.id;
+      const trimmedEmail = editEmail.trim();
+      const trimmedFullName = editFullName.trim();
+      const trimmedPhoneNumber = editPhoneNumber.trim();
+      const trimmedCollegeUserId = editCollegeUserId.trim();
+
+      if (!uid) {
+        setEditFormError("Select a user to edit.");
+        return;
+      }
+
+      if (!trimmedFullName || !trimmedEmail) {
+        setEditFormError("Full name and email are required.");
+        return;
+      }
+
+      if ((editPassword || editConfirmPassword) && editPassword !== editConfirmPassword) {
+        setEditFormError("Passwords do not match.");
+        return;
+      }
+
+      setEditLoading(true);
+
+      try {
+        const payload = {
+          uid,
+          email: trimmedEmail,
+          displayName: trimmedFullName,
+          role: editRole,
+        };
+
+        if (editPassword) {
+          payload.password = editPassword;
+        }
+
+        await editUserAccount(payload);
+
+        await setDoc(
+          doc(db, "users", uid),
+          {
+            email: trimmedEmail,
+            fullName: trimmedFullName,
+            phoneNumber: trimmedPhoneNumber,
+            collegeUserId: trimmedCollegeUserId,
+            role: editRole,
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+
+        setActionSuccess("User updated successfully.");
+        closeEditModal();
+        await loadUsers();
+      } catch (error) {
+        console.error("Edit account error:", error);
+        setEditFormError(error?.message || "Failed to edit user.");
+      } finally {
+        setEditLoading(false);
+      }
+    },
+    [
+      editCollegeUserId,
+      editConfirmPassword,
+      editEmail,
+      editFullName,
+      editPassword,
+      editPhoneNumber,
+      editRole,
+      editingUser,
+      editUserAccount,
+      loadUsers,
+      closeEditModal,
+    ]
   );
 
   useEffect(() => {
@@ -406,14 +537,23 @@ function CreateAdminUser() {
                     <td className="px-4 py-4">{formatRoleLabel(getUserRoleKey(currentUser))}</td>
                     <td className="px-4 py-4">{formatCreatedAt(currentUser?.createdAt)}</td>
                     <td className="px-4 py-4 text-right">
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteUser(currentUser)}
-                        disabled={deletingUserId === currentUser.id}
-                        className="inline-flex items-center justify-center rounded-full border border-red-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-red-600 transition hover:border-red-300 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {deletingUserId === currentUser.id ? "Deleting" : "Delete"}
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => openEditModal(currentUser)}
+                          className="inline-flex items-center justify-center rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600 transition hover:border-slate-300 hover:text-slate-800"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteUser(currentUser)}
+                          disabled={deletingUserId === currentUser.id}
+                          className="inline-flex items-center justify-center rounded-full border border-red-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-red-600 transition hover:border-red-300 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {deletingUserId === currentUser.id ? "Deleting" : "Delete"}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -635,6 +775,187 @@ function CreateAdminUser() {
                   </button>
                   <span className="text-xs text-slate-500">
                     The new user can sign in immediately after creation.
+                  </span>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isEditModalOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
+          onClick={closeEditModal}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="w-full max-w-5xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
+              <div className="flex items-center justify-between rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#0b2c4a]/10">
+                    <img src={BigLogo} alt="Benis Suef National University logo" className="h-8 w-8 object-contain" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-semibold text-[#0b2c4a]">Edit User</h2>
+                    <p className="text-sm text-slate-600">
+                      Update account details and role assignments.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeEditModal}
+                  className="rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600 transition hover:border-slate-300 hover:text-slate-800"
+                >
+                  Close
+                </button>
+              </div>
+
+              <form
+                className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200"
+                onSubmit={handleEditAccount}
+              >
+                <div className="grid gap-5 md:grid-cols-2">
+                  <div className="md:col-span-2">
+                    <label htmlFor="edit-full-name" className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                      Full Name
+                    </label>
+                    <input
+                      id="edit-full-name"
+                      type="text"
+                      placeholder="Full name"
+                      value={editFullName}
+                      onChange={(e) => setEditFullName(e.target.value)}
+                      autoComplete="name"
+                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
+                      required
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label htmlFor="edit-email" className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                      Email
+                    </label>
+                    <input
+                      id="edit-email"
+                      type="email"
+                      placeholder="user@example.com"
+                      value={editEmail}
+                      onChange={(e) => setEditEmail(e.target.value)}
+                      autoComplete="email"
+                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="edit-phone" className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                      Phone Number
+                    </label>
+                    <input
+                      id="edit-phone"
+                      type="tel"
+                      placeholder="01xxxxxxxxx"
+                      value={editPhoneNumber}
+                      onChange={(e) => setEditPhoneNumber(e.target.value)}
+                      autoComplete="tel"
+                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="edit-college-id" className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                      College User ID
+                    </label>
+                    <input
+                      id="edit-college-id"
+                      type="text"
+                      placeholder="College user ID"
+                      value={editCollegeUserId}
+                      onChange={(e) => setEditCollegeUserId(e.target.value)}
+                      autoComplete="off"
+                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label htmlFor="edit-role" className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                      Role
+                    </label>
+                    <select
+                      id="edit-role"
+                      value={editRole}
+                      onChange={(e) => setEditRole(e.target.value)}
+                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
+                      required
+                    >
+                      {ROLE_OPTIONS.map((tab) => (
+                        <option key={tab.value} value={tab.value}>
+                          {tab.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="edit-password" className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                      New Password (optional)
+                    </label>
+                    <input
+                      id="edit-password"
+                      type="password"
+                      placeholder="Leave blank to keep current"
+                      value={editPassword}
+                      onChange={(e) => setEditPassword(e.target.value)}
+                      autoComplete="new-password"
+                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="edit-confirm-password" className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                      Confirm New Password
+                    </label>
+                    <input
+                      id="edit-confirm-password"
+                      type="password"
+                      placeholder="Re-enter password"
+                      value={editConfirmPassword}
+                      onChange={(e) => setEditConfirmPassword(e.target.value)}
+                      autoComplete="new-password"
+                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
+                    />
+                  </div>
+                </div>
+
+                {editFormError ? (
+                  <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700" role="alert">
+                    {editFormError}
+                  </div>
+                ) : null}
+
+                <div className="mt-6 flex flex-wrap items-center gap-4">
+                  <button
+                    type="submit"
+                    disabled={editLoading}
+                    className="flex items-center justify-center gap-3 rounded-2xl bg-[#0b2c4a] px-6 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-white shadow-lg transition hover:translate-y-[-1px] hover:bg-[#153a63] disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {editLoading ? (
+                      <>
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/70 border-t-white" />
+                        Saving
+                      </>
+                    ) : (
+                      "Save Changes"
+                    )}
+                  </button>
+                  <span className="text-xs text-slate-500">
+                    Leave the password fields empty to keep the current password.
                   </span>
                 </div>
               </form>

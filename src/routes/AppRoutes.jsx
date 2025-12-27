@@ -9,6 +9,7 @@ import Unauthorized from "../pages/Unauthorized";
 // Layouts
 import MainLayoutAdmin from "../layouts/Admin/MainLayoutAdmin";
 import MainLayoutSuperAdmin from "../layouts/Super_Admin/MainLayoutSuperAdmin";
+import MainLayoutProfessor from "../layouts/Professor/MainLayoutProfessor";
 import RequireRole from "../auth/RequireRole";
 import CreateAdminUser from "../pages/SuperAdmin/CreateAdminUser";
 
@@ -50,6 +51,18 @@ function AppRoutes() {
               </RequireRole>
             }
           />
+        </Route>
+
+        {/* Professor Routes */}
+        <Route
+          path="/professor"
+          element={
+            <RequireRole role="professor">
+              <MainLayoutProfessor />
+            </RequireRole>
+          }
+        >
+          <Route path="home" element={<Home />} />
         </Route>
 
         {/* <Route path="/not-allowed" element={<Unauthorized />} /> */}

@@ -4,6 +4,10 @@ const { logger } = require("firebase-functions");
 
 admin.initializeApp();
 
+const validRoles = ["super_admin", "admin", "professor", "assistant", "student"];
+
+admin.initializeApp();
+
 exports.createUserWithRole = onCall({ cors: true }, async (request) => {
   // 1) Must be logged in
   if (!request.auth) {
@@ -99,5 +103,64 @@ exports.deleteUserAccount = onCall({ cors: true }, async (request) => {
   } catch (error) {
     logger.error("Error deleting user:", error);
     throw new HttpsError("internal", error.message);
+  }
+});
+
+exports.editUserAccount = onCall({ cors: true }, async (request) => {
+  // 1) Must be logged in
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "You must be signed in.");
+  }
+
+  // 2) Authorize caller
+  const callerRole = request.auth.token.role;
+  if (callerRole !== "super_admin") {
+    throw new HttpsError("permission-denied", "Only Super Admins can edit users.");
+  }
+
+  // 3) Validate input
+  const { uid, email, password, displayName, role } = request.data || {};
+  if (!uid || typeof uid !== "string") {
+    throw new HttpsError("invalid-argument", "uid is required.");
+  }
+
+  if (role && !validRoles.includes(role)) {
+    throw new HttpsError("invalid-argument", "The specified role is not valid.");
+  }
+
+  try {
+    // 4) Update Auth user (only fields provided)
+    const authUpdate = {};
+    if (email) authUpdate.email = String(email).trim();
+    if (password) authUpdate.password = String(password).trim();
+    if (displayName !== undefined) authUpdate.displayName = String(displayName);
+
+    if (Object.keys(authUpdate).length > 0) {
+      await admin.auth().updateUser(uid, authUpdate);
+      // Admin SDK supports updating user properties (email, password, displayName, etc.)
+      // without signing in as the user.
+    } 
+
+    // 5) Update role via custom claims (optional)
+    if (role) {
+      await admin.auth().setCustomUserClaims(uid, { role });
+      // Custom claims should be set via Admin SDK in a privileged environment.
+    } 
+
+    // 6) Update Firestore profile (merge = partial update)
+    const fsUpdate = {
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    if (email) fsUpdate.email = String(email).trim();
+    if (displayName !== undefined) fsUpdate.displayName = String(displayName);
+    if (role) fsUpdate.role = role;
+
+    await admin.firestore().collection("users").doc(uid).set(fsUpdate, { merge: true });
+
+    logger.info(`User updated: ${uid}`, { authUpdate, fsUpdate });
+    return { ok: true, uid };
+  } catch (error) {
+    logger.error("Error editing user:", error);
+    throw new HttpsError("internal", error?.message || "Failed to edit user.");
   }
 });
