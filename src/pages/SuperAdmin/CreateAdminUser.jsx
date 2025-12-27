@@ -14,6 +14,8 @@ const ROLE_TABS = [
   { value: "super_admin", label: "Super Admin" },
 ];
 
+const USERS_PER_PAGE = 4;
+
 const getUserRoleKey = (user) => {
   const rawRole = user?.role ?? user?.Role ?? "";
   return rawRole ? String(rawRole).toLowerCase() : "";
@@ -65,6 +67,7 @@ function CreateAdminUser() {
   const [deletingUserId, setDeletingUserId] = useState("");
   const [actionError, setActionError] = useState("");
   const [actionSuccess, setActionSuccess] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const createUserWithRole = useMemo(
     () => httpsCallable(functions, "createUserWithRole"),
@@ -252,11 +255,39 @@ function CreateAdminUser() {
     });
   }, [activeRole, searchTerm, users]);
 
+  const totalPages = useMemo(
+    () => Math.ceil(filteredUsers.length / USERS_PER_PAGE) || 1,
+    [filteredUsers.length]
+  );
+
+  const paginatedUsers = useMemo(() => {
+    const startIndex = (currentPage - 1) * USERS_PER_PAGE;
+    return filteredUsers.slice(startIndex, startIndex + USERS_PER_PAGE);
+  }, [currentPage, filteredUsers]);
+
+  const pageRangeLabel = useMemo(() => {
+    if (!filteredUsers.length) return "Showing 0 of 0";
+    const startIndex = (currentPage - 1) * USERS_PER_PAGE;
+    const start = startIndex + 1;
+    const end = Math.min(startIndex + USERS_PER_PAGE, filteredUsers.length);
+    return `Showing ${start}-${end} of ${filteredUsers.length}`;
+  }, [currentPage, filteredUsers.length]);
+
   const emptyMessage = useMemo(() => {
     if (searchTerm.trim()) return "No users match your search.";
     if (activeRole === "all") return "No users found.";
     return "No users found for this role.";
   }, [activeRole, searchTerm]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeRole, searchTerm]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
@@ -364,7 +395,7 @@ function CreateAdminUser() {
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((currentUser) => (
+                paginatedUsers.map((currentUser) => (
                   <tr key={currentUser.id}>
                     <td className="px-4 py-4 font-semibold text-slate-800">
                       {getUserName(currentUser)}
@@ -390,6 +421,33 @@ function CreateAdminUser() {
             </tbody>
           </table>
         </div>
+
+        {filteredUsers.length > USERS_PER_PAGE ? (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600">
+            <span>{pageRangeLabel}</span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600 transition hover:border-slate-300 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Previous
+              </button>
+              <span className="rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600 transition hover:border-slate-300 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {isModalOpen ? (
