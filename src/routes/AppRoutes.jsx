@@ -31,6 +31,7 @@ function AppRoutes() {
           }
         >
           <Route path="home" element={<Home />} />
+          <Route path="create-admin" element={<CreateAdminUser />} />
         </Route>
 
         {/* Super Admin Routes */}

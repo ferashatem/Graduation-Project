@@ -17,13 +17,22 @@ service cloud.firestore {
     // Users collection (profiles)
     match /users/{uid} {
       // super_admin يشوف الكل
-      allow read: if roleIs("super_admin");
+      allow read: if roleIn(["super_admin", "admin"]);
 
       // أي مستخدم يشوف بروفايله
       allow read: if signedIn() && request.auth.uid == uid;
 
       // super_admin يعدّل/ينشئ بروفايلات
-      allow write: if roleIs("super_admin");
+      allow create: if roleIs("super_admin") ||
+        (roleIs("admin") && request.resource.data.role != "super_admin");
+
+      allow update: if roleIs("super_admin") ||
+        (roleIs("admin") &&
+          resource.data.role != "super_admin" &&
+          request.resource.data.role != "super_admin");
+
+      allow delete: if roleIs("super_admin") ||
+        (roleIs("admin") && resource.data.role != "super_admin");
     }
 
     // Students collection
