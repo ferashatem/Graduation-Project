@@ -7,6 +7,7 @@ function MainLayout() {
   const AdminNavItems = [
     { icon: profile, title: "Home", link: "home" },
     { icon: profile, title: "Academic Structure", link: "colleges" },
+    { icon: profile, title: "Assignments", link: "assignments" },
     { icon: users, title: "User Management", link: "create-admin" },
   ];
 

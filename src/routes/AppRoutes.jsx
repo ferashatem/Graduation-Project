@@ -16,6 +16,8 @@ import CollegesPage from "../features/colleges/pages/CollegesPage";
 import YearsPage from "../features/years/pages/YearsPage";
 import DepartmentsPage from "../features/departments/pages/DepartmentsPage";
 import CoursesPage from "../features/courses/pages/CoursesPage";
+import AssignmentList from "../pages/admin/AssignmentList";
+import CreateCourseAssignment from "../pages/admin/CreateCourseAssignment";
 
 function AppRoutes() {
   return (
@@ -46,6 +48,8 @@ function AppRoutes() {
             path="colleges/:collegeId/years/:yearId/departments/:deptId/courses"
             element={<CoursesPage />}
           />
+          <Route path="assignments" element={<AssignmentList />} />
+          <Route path="assignments/new" element={<CreateCourseAssignment />} />
         </Route>
 
         {/* Super Admin Routes */}
