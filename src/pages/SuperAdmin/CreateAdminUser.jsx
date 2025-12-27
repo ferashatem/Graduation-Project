@@ -70,6 +70,7 @@ function CreateAdminUser() {
   const [deletingUserId, setDeletingUserId] = useState("");
   const [actionError, setActionError] = useState("");
   const [actionSuccess, setActionSuccess] = useState("");
+  const [userRole, setUserRole] = useState("");
   const [editFullName, setEditFullName] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editPhoneNumber, setEditPhoneNumber] = useState("");
@@ -94,6 +95,15 @@ function CreateAdminUser() {
     [functions]
   );
 
+  const isSuperAdmin = userRole === "super_admin";
+  const isAdmin = userRole === "admin";
+  const canManageUsers = isSuperAdmin || isAdmin;
+
+  const roleOptions = useMemo(() => {
+    if (isSuperAdmin) return ROLE_OPTIONS;
+    return ROLE_OPTIONS.filter((tab) => tab.value !== "super_admin");
+  }, [isSuperAdmin]);
+
   const loadUsers = useCallback(async () => {
     if (!user) return;
 
@@ -103,8 +113,12 @@ function CreateAdminUser() {
     try {
       const tokenResult = await user.getIdTokenResult(true);
       const currentRole = tokenResult?.claims?.role || "";
+      const normalizedRole = String(currentRole || "").toLowerCase();
+      const allowedRoles = ["super_admin", "admin"];
 
-      if (currentRole && currentRole !== "super_admin") {
+      setUserRole(normalizedRole);
+
+      if (!allowedRoles.includes(normalizedRole)) {
         setUsers([]);
         setUsersError("You do not have access to view all users.");
         return;
@@ -138,6 +152,11 @@ function CreateAdminUser() {
 
       if (!email || !fullName || !password || !phoneNumber || !collegeUserId) {
         setFormError("Email, full name, password, phone number, and college user ID are required.");
+        return;
+      }
+
+      if (isAdmin && role === "super_admin") {
+        setFormError("Admins cannot assign the super admin role.");
         return;
       }
 
@@ -199,6 +218,7 @@ function CreateAdminUser() {
       phoneNumber,
       collegeUserId,
       role,
+      isAdmin,
       createUserWithRole,
       loadUsers,
     ]
@@ -208,6 +228,13 @@ function CreateAdminUser() {
     async (currentUser) => {
       const uid = currentUser?.id;
       if (!uid) return;
+
+      const targetRole = getUserRoleKey(currentUser);
+      if (isAdmin && targetRole === "super_admin") {
+        setActionError("Admins cannot delete super admin accounts.");
+        setActionSuccess("");
+        return;
+      }
 
       const displayName = getUserName(currentUser);
       const emailLabel = getUserEmail(currentUser);
@@ -231,11 +258,18 @@ function CreateAdminUser() {
         setDeletingUserId("");
       }
     },
-    [deleteUserAccount]
+    [deleteUserAccount, isAdmin]
   );
 
   const openEditModal = useCallback((currentUser) => {
     if (!currentUser) return;
+
+    const targetRole = getUserRoleKey(currentUser);
+    if (isAdmin && targetRole === "super_admin") {
+      setActionError("Admins cannot edit super admin accounts.");
+      setActionSuccess("");
+      return;
+    }
 
     setEditingUser(currentUser);
     setEditFullName(
@@ -251,7 +285,7 @@ function CreateAdminUser() {
     setActionError("");
     setActionSuccess("");
     setIsEditModalOpen(true);
-  }, []);
+  }, [isAdmin]);
 
   const closeEditModal = useCallback(() => {
     setIsEditModalOpen(false);
@@ -287,6 +321,17 @@ function CreateAdminUser() {
 
       if (!trimmedFullName || !trimmedEmail) {
         setEditFormError("Full name and email are required.");
+        return;
+      }
+
+      const targetRole = getUserRoleKey(editingUser);
+      if (isAdmin && targetRole === "super_admin") {
+        setEditFormError("Admins cannot edit super admin accounts.");
+        return;
+      }
+
+      if (isAdmin && editRole === "super_admin") {
+        setEditFormError("Admins cannot assign the super admin role.");
         return;
       }
 
@@ -344,6 +389,7 @@ function CreateAdminUser() {
       editRole,
       editingUser,
       editUserAccount,
+      isAdmin,
       loadUsers,
       closeEditModal,
     ]
@@ -353,6 +399,7 @@ function CreateAdminUser() {
     if (authLoading) return;
     if (!user) {
       setUsers([]);
+      setUserRole("");
       return;
     }
     loadUsers();
@@ -434,13 +481,15 @@ function CreateAdminUser() {
             </p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => setIsModalOpen(true)}
-          className="inline-flex items-center justify-center rounded-2xl bg-[#0b2c4a] px-6 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-white shadow-lg transition hover:translate-y-[-1px] hover:bg-[#153a63]"
-        >
-          Add User
-        </button>
+        {canManageUsers ? (
+          <button
+            type="button"
+            onClick={() => setIsModalOpen(true)}
+            className="inline-flex items-center justify-center rounded-2xl bg-[#0b2c4a] px-6 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-white shadow-lg transition hover:translate-y-[-1px] hover:bg-[#153a63]"
+          >
+            Add User
+          </button>
+        ) : null}
       </div>
 
       <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
@@ -537,23 +586,35 @@ function CreateAdminUser() {
                     <td className="px-4 py-4">{formatRoleLabel(getUserRoleKey(currentUser))}</td>
                     <td className="px-4 py-4">{formatCreatedAt(currentUser?.createdAt)}</td>
                     <td className="px-4 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => openEditModal(currentUser)}
-                          className="inline-flex items-center justify-center rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600 transition hover:border-slate-300 hover:text-slate-800"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteUser(currentUser)}
-                          disabled={deletingUserId === currentUser.id}
-                          className="inline-flex items-center justify-center rounded-full border border-red-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-red-600 transition hover:border-red-300 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          {deletingUserId === currentUser.id ? "Deleting" : "Delete"}
-                        </button>
-                      </div>
+                      {canManageUsers ? (
+                        isAdmin && getUserRoleKey(currentUser) === "super_admin" ? (
+                          <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                            Protected
+                          </span>
+                        ) : (
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => openEditModal(currentUser)}
+                              className="inline-flex items-center justify-center rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600 transition hover:border-slate-300 hover:text-slate-800"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteUser(currentUser)}
+                              disabled={deletingUserId === currentUser.id}
+                              className="inline-flex items-center justify-center rounded-full border border-red-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-red-600 transition hover:border-red-300 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {deletingUserId === currentUser.id ? "Deleting" : "Delete"}
+                            </button>
+                          </div>
+                        )
+                      ) : (
+                        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                          View only
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -590,7 +651,7 @@ function CreateAdminUser() {
         ) : null}
       </div>
 
-      {isModalOpen ? (
+      {canManageUsers && isModalOpen ? (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
           onClick={() => setIsModalOpen(false)}
@@ -783,7 +844,7 @@ function CreateAdminUser() {
         </div>
       ) : null}
 
-      {isEditModalOpen ? (
+      {canManageUsers && isEditModalOpen ? (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
           onClick={closeEditModal}
@@ -894,7 +955,7 @@ function CreateAdminUser() {
                       className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
                       required
                     >
-                      {ROLE_OPTIONS.map((tab) => (
+                      {roleOptions.map((tab) => (
                         <option key={tab.value} value={tab.value}>
                           {tab.label}
                         </option>
