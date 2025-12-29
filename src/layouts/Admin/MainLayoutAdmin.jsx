@@ -1,13 +1,15 @@
 import SideNavBar from "../../components/SideNavBar/SideNavBarRender";
-import profile from "../../assets/navbar/address-card-regular.svg";
+import profile from "../../assets/navbar/address-card-regular.svg"; 
+import book from "../../assets/navbar/book-solid.svg";
+import school from "../../assets/navbar/school-solid.svg";
 import users from "../../assets/navbar/user-solid.svg";
 import { Outlet } from "react-router-dom";
 
 function MainLayout() {
   const AdminNavItems = [
     { icon: profile, title: "Home", link: "home" },
-    { icon: profile, title: "Academic Structure", link: "colleges" },
-    { icon: profile, title: "Assignments", link: "assignments" },
+    { icon: school, title: "Academic Structure", link: "colleges" },
+    { icon: book, title: "Assignments", link: "assignments" },
     { icon: users, title: "User Management", link: "create-admin" },
   ];
 

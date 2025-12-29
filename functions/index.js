@@ -1,16 +1,66 @@
+/*
+Cloud Functions callable user management with role-based access controls.
+Admins are limited to professor/assistant/student to prevent privilege escalation.
+Client-side before calling: await auth.currentUser.getIdToken(true);
+*/
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
-const admin = require("firebase-admin");
 const { logger } = require("firebase-functions");
+const admin = require("firebase-admin");
 
 admin.initializeApp();
 
-const validRoles = ["super_admin", "admin", "professor", "assistant", "student"];
-
-admin.initializeApp();
+const VALID_ROLES = ["super_admin", "admin", "professor", "assistant", "student"];
+const ADMIN_ALLOWED_ROLES = ["professor", "assistant", "student"];
 
 const normalizeRole = (role) => (role ? String(role).trim().toLowerCase() : "");
 
-const getUserRole = async (uid) => {
+const assertAuthenticated = (request) => {
+  if (!request.auth) {
+    logger.warn("Unauthenticated callable request.");
+    throw new HttpsError("unauthenticated", "You must be signed in.");
+  }
+};
+
+const getCallerRole = (request) => normalizeRole(request.auth.token.role);
+
+const logPermissionDenied = (request, callerRole, reason) => {
+  logger.warn(
+    `Permission denied: Caller UID ${request.auth?.uid || "unknown"} Role ${
+      callerRole || "none"
+    } ${reason}`
+  );
+};
+
+const assertCallerIsAdminOrSuperAdmin = (request, callerRole, action) => {
+  if (callerRole === "super_admin" || callerRole === "admin") {
+    return;
+  }
+  logPermissionDenied(request, callerRole, `Action ${action}`);
+  throw new HttpsError(
+    "permission-denied",
+    `Only Super Admins or Admins can ${action} users.`
+  );
+};
+
+const assertAdminAllowedRole = (request, callerRole, role, action) => {
+  if (callerRole !== "admin") {
+    return;
+  }
+  if (ADMIN_ALLOWED_ROLES.includes(role)) {
+    return;
+  }
+  logPermissionDenied(
+    request,
+    callerRole,
+    `Action ${action} Role ${role || "unknown"}`
+  );
+  throw new HttpsError(
+    "permission-denied",
+    "Admins can only manage professor, assistant, or student accounts."
+  );
+};
+
+const getTargetRole = async (uid) => {
   let role = "";
 
   try {
@@ -32,189 +82,209 @@ const getUserRole = async (uid) => {
   return role;
 };
 
+const throwAsHttpsError = (error) => {
+  if (error instanceof HttpsError) {
+    throw error;
+  }
+  const code = String(error?.code || "");
+  if (code.startsWith("auth/")) {
+    throw new HttpsError("invalid-argument", error.message || "Invalid request.");
+  }
+  throw new HttpsError("invalid-argument", error?.message || "Invalid request.");
+};
+
 exports.createUserWithRole = onCall({ cors: true }, async (request) => {
-  // 1) Must be logged in
-  if (!request.auth) {
-    logger.error("Request failed: Unauthenticated");
-    throw new HttpsError("unauthenticated", "You must be signed in.");
-  }
+  assertAuthenticated(request);
 
-  // 2) Read caller role from custom claims
-  const callerRole = normalizeRole(request.auth.token.role);
-  logger.info(`Caller UID: ${request.auth.uid}, Role: ${callerRole}`);
+  const callerRole = getCallerRole(request);
+  logger.info(
+    `Caller UID ${request.auth.uid} Role ${callerRole} Action createUserWithRole`
+  );
 
-  const isSuperAdmin = callerRole === "super_admin";
-  const isAdmin = callerRole === "admin";
+  assertCallerIsAdminOrSuperAdmin(request, callerRole, "create");
 
-  // 3) Authorize caller
-  if (!isSuperAdmin && !isAdmin) {
-    logger.warn(`Permission Denied for UID: ${request.auth.uid}`);
-    throw new HttpsError("permission-denied", "Only Super Admins or Admins can create users.");
-  }
-
-  // 4) Validate input
   const { email, password, displayName, role } = request.data || {};
   const normalizedRole = normalizeRole(role);
-  if (!email || !password || !normalizedRole) {
-    throw new HttpsError("invalid-argument", "Missing email, password, or role.");
+  const trimmedEmail = String(email || "").trim();
+
+  if (!trimmedEmail || !password || !normalizedRole) {
+    throw new HttpsError(
+      "invalid-argument",
+      "email, password, and role are required."
+    );
   }
 
-  // Define allowed roles
-  if (!validRoles.includes(normalizedRole)) {
+  if (!VALID_ROLES.includes(normalizedRole)) {
     throw new HttpsError("invalid-argument", "The specified role is not valid.");
   }
-  if (isAdmin && normalizedRole === "super_admin") {
-    throw new HttpsError("permission-denied", "Admins cannot create super admin accounts.");
-  }
+
+  assertAdminAllowedRole(request, callerRole, normalizedRole, "create");
 
   try {
-    // 5) Create user in Firebase Auth
     const userRecord = await admin.auth().createUser({
-      email,
-      password,
-      displayName: displayName || undefined,
+      email: trimmedEmail,
+      password: String(password),
+      displayName: displayName ? String(displayName).trim() : undefined,
     });
 
-    // 6) Set custom claims
-    await admin.auth().setCustomUserClaims(userRecord.uid, { role: normalizedRole });
-
-    // 7) Create a Firestore profile doc
-    await admin.firestore().collection("users").doc(userRecord.uid).set({
-      email,
-      displayName: displayName || "",
+    await admin.auth().setCustomUserClaims(userRecord.uid, {
       role: normalizedRole,
+    });
+
+    await admin.firestore().collection("users").doc(userRecord.uid).set(
+      {
+        uid: userRecord.uid,
+        email: trimmedEmail,
+        displayName: displayName ? String(displayName).trim() : "",
+        role: normalizedRole,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    logger.info(
+      `Successfully created user ${userRecord.uid} with role ${normalizedRole}`
+    );
+
+    return {
       uid: userRecord.uid,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    logger.info(`Successfully created user: ${userRecord.uid} with role: ${role}`);
-    return { ok: true, uid: userRecord.uid };
-
+      email: userRecord.email || trimmedEmail,
+      message: "User created successfully.",
+    };
   } catch (error) {
-    logger.error("Error creating user:", error);
-    // Properly format the error for the frontend
-    throw new HttpsError("internal", error.message);
-  }
-});
-
-exports.deleteUserAccount = onCall({ cors: true }, async (request) => {
-  if (!request.auth) {
-    logger.error("Delete request failed: Unauthenticated");
-    throw new HttpsError("unauthenticated", "You must be signed in.");
-  }
-
-  const callerRole = normalizeRole(request.auth.token.role);
-  logger.info(`Delete request by UID: ${request.auth.uid}, Role: ${callerRole}`);
-
-  const isSuperAdmin = callerRole === "super_admin";
-  const isAdmin = callerRole === "admin";
-
-  if (!isSuperAdmin && !isAdmin) {
-    logger.warn(`Delete permission denied for UID: ${request.auth.uid}`);
-    throw new HttpsError("permission-denied", "Only Super Admins or Admins can delete users.");
-  }
-
-  const { uid } = request.data || {};
-  if (!uid || typeof uid !== "string") {
-    throw new HttpsError("invalid-argument", "uid is required.");
-  }
-
-  try {
-    const targetRole = await getUserRole(uid);
-    if (isAdmin && targetRole === "super_admin") {
-      throw new HttpsError("permission-denied", "Admins cannot delete super admin accounts.");
-    }
-
-    await admin.auth().deleteUser(uid).catch((error) => {
-      if (error?.code === "auth/user-not-found") {
-        return null;
-      }
-      throw error;
-    });
-
-    await admin.firestore().collection("users").doc(uid).delete();
-
-    logger.info(`Successfully deleted user: ${uid}`);
-    return { ok: true, uid };
-  } catch (error) {
-    logger.error("Error deleting user:", error);
-    if (error instanceof HttpsError) {
-      throw error;
-    }
-    throw new HttpsError("internal", error.message);
+    logger.error("Create user error:", error);
+    throwAsHttpsError(error);
   }
 });
 
 exports.editUserAccount = onCall({ cors: true }, async (request) => {
-  // 1) Must be logged in
-  if (!request.auth) {
-    throw new HttpsError("unauthenticated", "You must be signed in.");
-  }
+  assertAuthenticated(request);
 
-  // 2) Authorize caller
-  const callerRole = normalizeRole(request.auth.token.role);
-  const isSuperAdmin = callerRole === "super_admin";
-  const isAdmin = callerRole === "admin";
+  const callerRole = getCallerRole(request);
+  logger.info(
+    `Caller UID ${request.auth.uid} Role ${callerRole} Action editUserAccount`
+  );
 
-  if (!isSuperAdmin && !isAdmin) {
-    throw new HttpsError("permission-denied", "Only Super Admins or Admins can edit users.");
-  }
+  assertCallerIsAdminOrSuperAdmin(request, callerRole, "edit");
 
-  // 3) Validate input
   const { uid, email, password, displayName, role } = request.data || {};
-  const normalizedRole = role ? normalizeRole(role) : "";
-  if (!uid || typeof uid !== "string") {
+  const trimmedUid = String(uid || "").trim();
+  const normalizedRole = role !== undefined ? normalizeRole(role) : "";
+
+  if (!trimmedUid) {
     throw new HttpsError("invalid-argument", "uid is required.");
   }
 
-  if (role && !validRoles.includes(normalizedRole)) {
+  if (role !== undefined && !normalizedRole) {
+    throw new HttpsError("invalid-argument", "role is invalid.");
+  }
+
+  if (normalizedRole && !VALID_ROLES.includes(normalizedRole)) {
     throw new HttpsError("invalid-argument", "The specified role is not valid.");
   }
 
+  const hasUpdates =
+    email !== undefined ||
+    password !== undefined ||
+    displayName !== undefined ||
+    normalizedRole;
+
+  if (!hasUpdates) {
+    throw new HttpsError("invalid-argument", "No updates provided.");
+  }
+
   try {
-    const targetRole = await getUserRole(uid);
-    if (isAdmin && targetRole === "super_admin") {
-      throw new HttpsError("permission-denied", "Admins cannot edit super admin accounts.");
-    }
-    if (isAdmin && normalizedRole === "super_admin") {
-      throw new HttpsError("permission-denied", "Admins cannot assign the super admin role.");
+    if (callerRole === "admin") {
+      const targetRole = await getTargetRole(trimmedUid);
+      assertAdminAllowedRole(request, callerRole, targetRole, "edit");
+      if (normalizedRole) {
+        assertAdminAllowedRole(request, callerRole, normalizedRole, "assign");
+      }
     }
 
-    // 4) Update Auth user (only fields provided)
     const authUpdate = {};
-    if (email) authUpdate.email = String(email).trim();
-    if (password) authUpdate.password = String(password).trim();
-    if (displayName !== undefined) authUpdate.displayName = String(displayName);
-
-    if (Object.keys(authUpdate).length > 0) {
-      await admin.auth().updateUser(uid, authUpdate);
-      // Admin SDK supports updating user properties (email, password, displayName, etc.)
-      // without signing in as the user.
-    } 
-
-    // 5) Update role via custom claims (optional)
-    if (normalizedRole) {
-      await admin.auth().setCustomUserClaims(uid, { role: normalizedRole });
-      // Custom claims should be set via Admin SDK in a privileged environment.
-    } 
-
-    // 6) Update Firestore profile (merge = partial update)
     const fsUpdate = {
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
-    if (email) fsUpdate.email = String(email).trim();
-    if (displayName !== undefined) fsUpdate.displayName = String(displayName);
-    if (normalizedRole) fsUpdate.role = normalizedRole;
 
-    await admin.firestore().collection("users").doc(uid).set(fsUpdate, { merge: true });
-
-    logger.info(`User updated: ${uid}`, { authUpdate, fsUpdate });
-    return { ok: true, uid };
-  } catch (error) {
-    logger.error("Error editing user:", error);
-    if (error instanceof HttpsError) {
-      throw error;
+    if (email !== undefined) {
+      const trimmedEmail = String(email).trim();
+      if (!trimmedEmail) {
+        throw new HttpsError("invalid-argument", "email is required.");
+      }
+      authUpdate.email = trimmedEmail;
+      fsUpdate.email = trimmedEmail;
     }
-    throw new HttpsError("internal", error?.message || "Failed to edit user.");
+
+    if (password !== undefined) {
+      const nextPassword = String(password);
+      if (!nextPassword) {
+        throw new HttpsError("invalid-argument", "password is required.");
+      }
+      authUpdate.password = nextPassword;
+    }
+
+    if (displayName !== undefined) {
+      const nextDisplayName = String(displayName).trim();
+      authUpdate.displayName = nextDisplayName;
+      fsUpdate.displayName = nextDisplayName;
+    }
+
+    if (Object.keys(authUpdate).length > 0) {
+      await admin.auth().updateUser(trimmedUid, authUpdate);
+    }
+
+    if (normalizedRole) {
+      await admin.auth().setCustomUserClaims(trimmedUid, {
+        role: normalizedRole,
+      });
+      fsUpdate.role = normalizedRole;
+    }
+
+    await admin.firestore().collection("users").doc(trimmedUid).set(fsUpdate, {
+      merge: true,
+    });
+
+    logger.info(`Successfully updated user ${trimmedUid}`);
+
+    return { uid: trimmedUid, message: "User updated successfully." };
+  } catch (error) {
+    logger.error("Edit user error:", error);
+    throwAsHttpsError(error);
+  }
+});
+
+exports.deleteUserAccount = onCall({ cors: true }, async (request) => {
+  assertAuthenticated(request);
+
+  const callerRole = getCallerRole(request);
+  logger.info(
+    `Caller UID ${request.auth.uid} Role ${callerRole} Action deleteUserAccount`
+  );
+
+  assertCallerIsAdminOrSuperAdmin(request, callerRole, "delete");
+
+  const { uid } = request.data || {};
+  const trimmedUid = String(uid || "").trim();
+
+  if (!trimmedUid) {
+    throw new HttpsError("invalid-argument", "uid is required.");
+  }
+
+  try {
+    if (callerRole === "admin") {
+      const targetRole = await getTargetRole(trimmedUid);
+      assertAdminAllowedRole(request, callerRole, targetRole, "delete");
+    }
+
+    await admin.auth().deleteUser(trimmedUid);
+    await admin.firestore().collection("users").doc(trimmedUid).delete();
+
+    logger.info(`Successfully deleted user ${trimmedUid}`);
+
+    return { uid: trimmedUid, message: "User deleted successfully." };
+  } catch (error) {
+    logger.error("Delete user error:", error);
+    throwAsHttpsError(error);
   }
 });
