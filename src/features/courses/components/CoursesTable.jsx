@@ -1,8 +1,10 @@
 import { useCallback, useMemo } from "react";
 import { DataGrid } from "@mui/x-data-grid";
-import { IconButton } from "@mui/material";
+import { IconButton, Tooltip } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import PersonAddAltIcon from "@mui/icons-material/PersonAddAlt";
+import GroupAddIcon from "@mui/icons-material/GroupAdd";
 
 const formatTimestamp = (value) => {
   if (!value) return "";
@@ -15,12 +17,36 @@ const formatTimestamp = (value) => {
   return String(value);
 };
 
-function CourseRowActions({ row, onEdit, onDelete }) {
+function CourseRowActions({
+  row,
+  onEdit,
+  onDelete,
+  onAssignProfessor,
+  onAssignAssistant,
+}) {
   const handleEdit = useCallback(() => onEdit(row), [onEdit, row]);
   const handleDelete = useCallback(() => onDelete(row), [onDelete, row]);
+  const handleAssignProfessor = useCallback(
+    () => onAssignProfessor(row),
+    [onAssignProfessor, row]
+  );
+  const handleAssignAssistant = useCallback(
+    () => onAssignAssistant(row),
+    [onAssignAssistant, row]
+  );
 
   return (
     <div className="flex items-center gap-2">
+      <Tooltip title="Assign Professor">
+        <IconButton size="small" onClick={handleAssignProfessor}>
+          <PersonAddAltIcon fontSize="inherit" />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="Assign Assistant/TA">
+        <IconButton size="small" onClick={handleAssignAssistant}>
+          <GroupAddIcon fontSize="inherit" />
+        </IconButton>
+      </Tooltip>
       <IconButton size="small" color="primary" onClick={handleEdit}>
         <EditIcon fontSize="inherit" />
       </IconButton>
@@ -31,7 +57,14 @@ function CourseRowActions({ row, onEdit, onDelete }) {
   );
 }
 
-function CoursesTable({ rows, loading, onEdit, onDelete }) {
+function CoursesTable({
+  rows,
+  loading,
+  onEdit,
+  onDelete,
+  onAssignProfessor,
+  onAssignAssistant,
+}) {
   const gridRows = useMemo(() => rows || [], [rows]);
 
   const columns = useMemo(
@@ -50,15 +83,21 @@ function CoursesTable({ rows, loading, onEdit, onDelete }) {
       {
         field: "actions",
         headerName: "Actions",
-        width: 120,
+        width: 180,
         sortable: false,
         filterable: false,
         renderCell: (params) => (
-          <CourseRowActions row={params.row} onEdit={onEdit} onDelete={onDelete} />
+          <CourseRowActions
+            row={params.row}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onAssignProfessor={onAssignProfessor}
+            onAssignAssistant={onAssignAssistant}
+          />
         ),
       },
     ],
-    [onDelete, onEdit]
+    [onAssignAssistant, onAssignProfessor, onDelete, onEdit]
   );
 
   return (

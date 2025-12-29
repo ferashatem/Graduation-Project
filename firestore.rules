@@ -2,59 +2,158 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    /* -------------------------
+       Helper Functions
+    --------------------------*/
     function signedIn() {
       return request.auth != null;
     }
 
+    function role() {
+      return signedIn() ? request.auth.token.role : null;
+    }
+
     function roleIs(r) {
-      return signedIn() && request.auth.token.role == r;
+      return signedIn() && role() == r;
     }
 
-    function roleIn(roles) {
-      return signedIn() && request.auth.token.role in roles;
+    function roleIn(list) {
+      return signedIn() && (role() in list);
     }
 
-    // Users collection (profiles)
+    /* -------------------------
+       Users (Profiles)
+       /users/{uid}
+    --------------------------*/
     match /users/{uid} {
-      // super_admin يشوف الكل
-      allow read: if roleIn(["super_admin", "admin"]);
 
-      // أي مستخدم يشوف بروفايله
+      // Any signed-in user can read their own profile
       allow read: if signedIn() && request.auth.uid == uid;
 
-      // super_admin يعدّل/ينشئ بروفايلات
-      allow create: if roleIs("super_admin") ||
-        (roleIs("admin") && request.resource.data.role != "super_admin");
+      // Super admin: full access
+      allow read, create, update, delete: if roleIs("super_admin");
 
-      allow update: if roleIs("super_admin") ||
-        (roleIs("admin") &&
-          resource.data.role != "super_admin" &&
-          request.resource.data.role != "super_admin");
+      // Admin: (as you wrote) allow read/write
+      // NOTE: this is permissive. You can tighten later.
+      allow read: if roleIs("admin");
+      allow create: if roleIs("admin");
+      allow update: if roleIs("admin");
+      allow delete: if roleIs("admin");
 
-      allow delete: if roleIs("super_admin") ||
-        (roleIs("admin") && resource.data.role != "super_admin");
+      /* ----------------------------------------
+         Subcollection inside each user:
+         users/{uid}/profs/{profId}
+         This is what your React should write to.
+      -----------------------------------------*/
+      match /profs/{profId} {
+
+        // admin + super_admin can manage prof docs under a user
+        allow read, create, update, delete: if roleIn(["super_admin", "admin"]);
+
+        // OPTIONAL:
+        // If you want the professor to read their own document too,
+        // and you store profId == auth.uid
+        // allow read: if roleIs("professor") && request.auth.uid == profId;
+      }
+
+      // (Optional) If later you want assistants under users:
+      // match /assistants/{assistantId} {
+      //   allow read, create, update, delete: if roleIn(["super_admin", "admin"]);
+      // }
     }
 
-    // Students collection
-    match /students/{studentId} {
-      // Staff can read all students; students can read their own doc.
-      allow read: if roleIn(["super_admin", "admin", "prof", "assistant"]) ||
-        (signedIn() && request.auth.uid == studentId);
-
-      // Restrict writes to admins by default.
+    /* -------------------------
+       Colleges (nested structure)
+       /colleges/{collegeId}/years/{yearId}/departments/{deptId}/courses/{courseId}
+    --------------------------*/
+    match /colleges/{collegeId} {
+      allow read: if signedIn();
       allow write: if roleIn(["super_admin", "admin"]);
+
+      match /years/{yearId} {
+        allow read: if signedIn();
+        allow write: if roleIn(["super_admin", "admin"]);
+
+        match /departments/{deptId} {
+          allow read: if signedIn();
+          allow write: if roleIn(["super_admin", "admin"]);
+
+          match /courses/{courseId} {
+            allow read: if signedIn();
+            allow write: if roleIn(["super_admin", "admin"]);
+          }
+        }
+      }
     }
 
-    // Courses
+    /* -------------------------
+       TOP-LEVEL Collections
+       /courses, /profs, /assistants
+       (Keep them only if you still use them)
+    --------------------------*/
     match /courses/{courseId} {
       allow read: if signedIn();
-      allow write: if roleIn(["super_admin", "admin"]);
+      allow create, update, delete: if roleIn(["super_admin", "admin"]);
     }
 
-    // Materials (profs + assistant)
-    match /materials/{docId} {
+    match /profs/{profId} {
+      allow read: if roleIn(["super_admin", "admin"]);
+
+      // if profId == auth.uid
+      allow read: if roleIs("prof") && request.auth.uid == profId;
+
+      allow create, update, delete: if roleIn(["super_admin", "admin"]);
+    }
+
+    match /assistants/{assistantId} {
+      allow read: if roleIn(["super_admin", "admin"]);
+
+      // if assistantId == auth.uid
+      allow read: if roleIs("assistant") && request.auth.uid == assistantId;
+
+      allow create, update, delete: if roleIn(["super_admin", "admin"]);
+    }
+
+    /* -------------------------
+       Course Assignments
+       /courseAssignments/{assignmentId}
+    --------------------------*/
+    match /courseAssignments/{assignmentId} {
+
+      allow read, create, update, delete: if roleIn(["super_admin", "admin"]);
+
+      allow read: if signedIn()
+        && (
+          (roleIs("prof") && (request.auth.uid in resource.data.professorIds)) ||
+          (roleIs("assistant") && (request.auth.uid in resource.data.assistantIds))
+        );
+    }
+
+    /* -------------------------
+       Students
+       /students/{studentId}
+    --------------------------*/
+    match /students/{studentId} {
+      allow read: if roleIn(["super_admin", "admin", "prof", "assistant"])
+        || (signedIn() && request.auth.uid == studentId);
+
+      allow create, update, delete: if roleIn(["super_admin", "admin"]);
+    }
+
+    /* -------------------------
+       Materials
+       /materials/{materialId}
+    --------------------------*/
+    match /materials/{materialId} {
       allow read: if signedIn();
-      allow write: if roleIn(["super_admin", "admin", "prof", "assistant"]);
+      allow create, update, delete: if roleIn(["super_admin", "admin", "prof", "assistant"]);
+    }
+
+    /* -------------------------
+       Default DENY (important)
+    --------------------------*/
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

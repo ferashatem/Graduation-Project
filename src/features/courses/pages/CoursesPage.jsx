@@ -7,6 +7,7 @@ import Loading from "../../../components/common/Loading";
 import ErrorState from "../../../components/common/ErrorState";
 import CoursesTable from "../components/CoursesTable";
 import CourseFormDialog from "../components/CourseFormDialog";
+import CourseOfferingAssignmentDialog from "../components/CourseOfferingAssignmentDialog";
 import { useCourses } from "../hooks/useCourses";
 import { getCollegeById } from "../../colleges/api/collegesApi";
 import { getYearById } from "../../years/api/yearsApi";
@@ -29,6 +30,9 @@ function CoursesPage() {
   const [editing, setEditing] = useState(null);
   const [confirmState, setConfirmState] = useState({ open: false, row: null });
   const [actionError, setActionError] = useState("");
+  const [assignmentDialogOpen, setAssignmentDialogOpen] = useState(false);
+  const [assignmentMode, setAssignmentMode] = useState("professor");
+  const [assignmentCourse, setAssignmentCourse] = useState(null);
   const [collegeName, setCollegeName] = useState("");
   const [yearName, setYearName] = useState("");
   const [departmentName, setDepartmentName] = useState("");
@@ -90,6 +94,27 @@ function CoursesPage() {
 
   const handleDeletePrompt = useCallback((row) => {
     setConfirmState({ open: true, row });
+  }, []);
+
+  const handleOpenAssignment = useCallback((mode, row) => {
+    setAssignmentMode(mode);
+    setAssignmentCourse(row);
+    setAssignmentDialogOpen(true);
+  }, []);
+
+  const handleAssignProfessor = useCallback(
+    (row) => handleOpenAssignment("professor", row),
+    [handleOpenAssignment]
+  );
+
+  const handleAssignAssistant = useCallback(
+    (row) => handleOpenAssignment("assistant", row),
+    [handleOpenAssignment]
+  );
+
+  const handleCloseAssignment = useCallback(() => {
+    setAssignmentDialogOpen(false);
+    setAssignmentCourse(null);
   }, []);
 
   const handleCloseConfirm = useCallback(() => {
@@ -154,6 +179,8 @@ function CoursesPage() {
           loading={loading}
           onEdit={handleEdit}
           onDelete={handleDeletePrompt}
+          onAssignProfessor={handleAssignProfessor}
+          onAssignAssistant={handleAssignAssistant}
         />
       )}
 
@@ -172,6 +199,14 @@ function CoursesPage() {
         confirmLabel="Delete"
         onConfirm={handleConfirmDelete}
         onClose={handleCloseConfirm}
+      />
+
+      <CourseOfferingAssignmentDialog
+        open={assignmentDialogOpen}
+        mode={assignmentMode}
+        course={assignmentCourse}
+        departmentId={deptId}
+        onClose={handleCloseAssignment}
       />
     </div>
   );
