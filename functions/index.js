@@ -15,8 +15,56 @@ const GLOBAL_ADMIN_ROLES = ["super_admin", "globaladmin"];
 const DEPARTMENT_ADMIN_ROLES = ["admin", "departmentadmin"];
 const ASSISTANT_ELIGIBLE_ROLES = ["assistant", "ta"];
 const PROFESSOR_ROLE = "professor";
+const ASSISTANT_ROLE = "assistant";
+const ASSIGNMENT_COLLECTION = "assignments";
+const ROLE_COLLECTIONS = {
+  super_admin: "super_admins",
+  admin: "admins",
+  professor: "profs",
+  assistant: "assistants",
+  student: "students",
+};
+const ROLE_COLLECTION_ROOT = "roles";
 
-const normalizeRole = (role) => (role ? String(role).trim().toLowerCase() : "");
+const ROLE_ALIASES = {
+  superadmin: "super_admin",
+  "super-admin": "super_admin",
+  "super admin": "super_admin",
+  admins: "admin",
+  prof: "professor",
+  profs: "professor",
+  professors: "professor",
+  assistants: "assistant",
+  ta: "assistant",
+  tas: "assistant",
+  students: "student",
+  "global admin": "globaladmin",
+  "global_admin": "globaladmin",
+  "department admin": "departmentadmin",
+  "department_admin": "departmentadmin",
+};
+
+const normalizeRole = (role) => {
+  if (!role) return "";
+  const cleaned = String(role).trim().toLowerCase();
+  return ROLE_ALIASES[cleaned] || cleaned;
+};
+const normalizeValue = (value) =>
+  value === null || value === undefined ? "" : String(value).trim();
+const normalizeSection = (section) => normalizeValue(section).toUpperCase();
+const buildOfferingId = ({ courseId, termId, yearLevel, section }) =>
+  `${courseId}__${termId}__Y${yearLevel}__S${section}`;
+const getRoleCollectionName = (role) => ROLE_COLLECTIONS[normalizeRole(role)] || "";
+const getRoleUserDocRef = (uid, role) => {
+  const collectionName = getRoleCollectionName(role);
+  if (!collectionName) return null;
+  return admin
+    .firestore()
+    .collection("users")
+    .doc(ROLE_COLLECTION_ROOT)
+    .collection(collectionName)
+    .doc(uid);
+};
 
 const assertAuthenticated = (request) => {
   if (!request.auth) {
@@ -70,6 +118,21 @@ const assertAdminAllowedRole = (request, callerRole, role, action) => {
   throw new HttpsError(
     "permission-denied",
     "Admins can only manage professor, assistant, or student accounts."
+  );
+};
+
+const assertCallerIsAdminOrSuperAdminForAssignments = (
+  request,
+  callerRole,
+  action
+) => {
+  if (callerRole === "super_admin" || callerRole === "admin") {
+    return;
+  }
+  logPermissionDenied(request, callerRole, `Action ${action}`);
+  throw new HttpsError(
+    "permission-denied",
+    "Only Super Admins or Admins can manage assignments."
   );
 };
 
@@ -127,6 +190,43 @@ const getTargetRole = async (uid) => {
   return role;
 };
 
+const getUserProfile = async (uid) => {
+  const trimmedUid = normalizeValue(uid);
+  if (!trimmedUid) return null;
+
+  let authRecord = null;
+  try {
+    authRecord = await admin.auth().getUser(trimmedUid);
+  } catch (error) {
+    if (error?.code !== "auth/user-not-found") {
+      throw error;
+    }
+  }
+
+  const snapshot = await admin.firestore().collection("users").doc(trimmedUid).get();
+  const data = snapshot.exists ? snapshot.data() : null;
+  const role = normalizeRole(authRecord?.customClaims?.role || data?.role);
+
+  if (!authRecord && !snapshot.exists) {
+    return null;
+  }
+
+  return {
+    uid: trimmedUid,
+    role,
+    displayName: String(
+      data?.name || data?.displayName || authRecord?.displayName || ""
+    ),
+    email: String(data?.email || authRecord?.email || ""),
+  };
+};
+
+const buildUserSummary = (profile) => ({
+  uid: profile.uid,
+  displayName: profile.displayName || "",
+  email: profile.email || "",
+});
+
 const throwAsHttpsError = (error) => {
   if (error instanceof HttpsError) {
     throw error;
@@ -148,14 +248,17 @@ exports.createUserWithRole = onCall({ cors: true }, async (request) => {
 
   assertCallerIsAdminOrSuperAdmin(request, callerRole, "create");
 
-  const { email, password, displayName, role } = request.data || {};
+  const { email, password, name, displayName, role, phoneNumber, phone } =
+    request.data || {};
   const normalizedRole = normalizeRole(role);
   const trimmedEmail = String(email || "").trim();
+  const trimmedName = normalizeValue(name || displayName);
+  const trimmedPhoneNumber = normalizeValue(phoneNumber || phone);
 
-  if (!trimmedEmail || !password || !normalizedRole) {
+  if (!trimmedEmail || !password || !normalizedRole || !trimmedName) {
     throw new HttpsError(
       "invalid-argument",
-      "email, password, and role are required."
+      "name, email, password, and role are required."
     );
   }
 
@@ -165,27 +268,46 @@ exports.createUserWithRole = onCall({ cors: true }, async (request) => {
 
   assertAdminAllowedRole(request, callerRole, normalizedRole, "create");
 
+  const roleCollection = getRoleCollectionName(normalizedRole);
+  if (!roleCollection) {
+    throw new HttpsError("invalid-argument", "The specified role is not valid.");
+  }
+
+  let userRecord = null;
+
   try {
-    const userRecord = await admin.auth().createUser({
+    userRecord = await admin.auth().createUser({
       email: trimmedEmail,
       password: String(password),
-      displayName: displayName ? String(displayName).trim() : undefined,
+      displayName: trimmedName,
     });
 
     await admin.auth().setCustomUserClaims(userRecord.uid, {
       role: normalizedRole,
     });
 
-    await admin.firestore().collection("users").doc(userRecord.uid).set(
-      {
-        uid: userRecord.uid,
-        email: trimmedEmail,
-        displayName: displayName ? String(displayName).trim() : "",
-        role: normalizedRole,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
+    const userProfile = {
+      uid: userRecord.uid,
+      name: trimmedName,
+      email: trimmedEmail,
+      role: normalizedRole,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    if (trimmedPhoneNumber) {
+      userProfile.phoneNumber = trimmedPhoneNumber;
+    }
+
+    const batch = admin.firestore().batch();
+    const userDocRef = admin.firestore().collection("users").doc(userRecord.uid);
+    const roleDocRef = getRoleUserDocRef(userRecord.uid, normalizedRole);
+    if (!roleDocRef) {
+      throw new HttpsError("invalid-argument", "The specified role is not valid.");
+    }
+
+    batch.set(userDocRef, userProfile);
+    batch.set(roleDocRef, userProfile);
+
+    await batch.commit();
 
     logger.info(
       `Successfully created user ${userRecord.uid} with role ${normalizedRole}`
@@ -194,9 +316,18 @@ exports.createUserWithRole = onCall({ cors: true }, async (request) => {
     return {
       uid: userRecord.uid,
       email: userRecord.email || trimmedEmail,
+      name: trimmedName,
+      role: normalizedRole,
       message: "User created successfully.",
     };
   } catch (error) {
+    if (userRecord?.uid) {
+      try {
+        await admin.auth().deleteUser(userRecord.uid);
+      } catch (cleanupError) {
+        logger.warn("Failed to rollback auth user after create error.", cleanupError);
+      }
+    }
     logger.error("Create user error:", error);
     throwAsHttpsError(error);
   }
@@ -212,9 +343,16 @@ exports.editUserAccount = onCall({ cors: true }, async (request) => {
 
   assertCallerIsAdminOrSuperAdmin(request, callerRole, "edit");
 
-  const { uid, email, password, displayName, role } = request.data || {};
+  const { uid, email, password, name, displayName, role, phoneNumber, phone } =
+    request.data || {};
   const trimmedUid = String(uid || "").trim();
   const normalizedRole = role !== undefined ? normalizeRole(role) : "";
+  const hasNameUpdate = name !== undefined || displayName !== undefined;
+  const trimmedName = hasNameUpdate ? normalizeValue(name || displayName) : "";
+  const hasPhoneUpdate = phoneNumber !== undefined || phone !== undefined;
+  const trimmedPhoneNumber = hasPhoneUpdate
+    ? normalizeValue(phoneNumber || phone)
+    : "";
 
   if (!trimmedUid) {
     throw new HttpsError("invalid-argument", "uid is required.");
@@ -231,26 +369,42 @@ exports.editUserAccount = onCall({ cors: true }, async (request) => {
   const hasUpdates =
     email !== undefined ||
     password !== undefined ||
-    displayName !== undefined ||
-    normalizedRole;
+    hasNameUpdate ||
+    normalizedRole ||
+    hasPhoneUpdate;
 
   if (!hasUpdates) {
     throw new HttpsError("invalid-argument", "No updates provided.");
   }
 
+  if (hasNameUpdate && !trimmedName) {
+    throw new HttpsError("invalid-argument", "name is required.");
+  }
+
   try {
+    const existingRole = await getTargetRole(trimmedUid);
+
     if (callerRole === "admin") {
-      const targetRole = await getTargetRole(trimmedUid);
-      assertAdminAllowedRole(request, callerRole, targetRole, "edit");
+      if (existingRole) {
+        assertAdminAllowedRole(request, callerRole, existingRole, "edit");
+      }
       if (normalizedRole) {
         assertAdminAllowedRole(request, callerRole, normalizedRole, "assign");
       }
     }
 
+    const effectiveRole = normalizedRole || existingRole;
+    if (!effectiveRole) {
+      throw new HttpsError("invalid-argument", "role is required.");
+    }
+
+    const roleCollection = getRoleCollectionName(effectiveRole);
+    if (!roleCollection) {
+      throw new HttpsError("invalid-argument", "The specified role is not valid.");
+    }
+
     const authUpdate = {};
-    const fsUpdate = {
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    };
+    const profileUpdate = { uid: trimmedUid };
 
     if (email !== undefined) {
       const trimmedEmail = String(email).trim();
@@ -258,7 +412,7 @@ exports.editUserAccount = onCall({ cors: true }, async (request) => {
         throw new HttpsError("invalid-argument", "email is required.");
       }
       authUpdate.email = trimmedEmail;
-      fsUpdate.email = trimmedEmail;
+      profileUpdate.email = trimmedEmail;
     }
 
     if (password !== undefined) {
@@ -269,10 +423,15 @@ exports.editUserAccount = onCall({ cors: true }, async (request) => {
       authUpdate.password = nextPassword;
     }
 
-    if (displayName !== undefined) {
-      const nextDisplayName = String(displayName).trim();
-      authUpdate.displayName = nextDisplayName;
-      fsUpdate.displayName = nextDisplayName;
+    if (hasNameUpdate) {
+      authUpdate.displayName = trimmedName;
+      profileUpdate.name = trimmedName;
+    }
+
+    if (hasPhoneUpdate) {
+      profileUpdate.phoneNumber = trimmedPhoneNumber
+        ? trimmedPhoneNumber
+        : admin.firestore.FieldValue.delete();
     }
 
     if (Object.keys(authUpdate).length > 0) {
@@ -283,12 +442,41 @@ exports.editUserAccount = onCall({ cors: true }, async (request) => {
       await admin.auth().setCustomUserClaims(trimmedUid, {
         role: normalizedRole,
       });
-      fsUpdate.role = normalizedRole;
+      profileUpdate.role = normalizedRole;
     }
 
-    await admin.firestore().collection("users").doc(trimmedUid).set(fsUpdate, {
-      merge: true,
-    });
+    const batch = admin.firestore().batch();
+    const usersDocRef = admin.firestore().collection("users").doc(trimmedUid);
+    batch.set(
+      usersDocRef,
+      {
+        ...profileUpdate,
+        role: effectiveRole,
+      },
+      { merge: true }
+    );
+
+    if (existingRole && normalizedRole && existingRole !== normalizedRole) {
+      const previousRoleDoc = getRoleUserDocRef(trimmedUid, existingRole);
+      if (previousRoleDoc) {
+        batch.delete(previousRoleDoc);
+      }
+    }
+
+    const roleDocRef = getRoleUserDocRef(trimmedUid, effectiveRole);
+    if (!roleDocRef) {
+      throw new HttpsError("invalid-argument", "The specified role is not valid.");
+    }
+    batch.set(
+      roleDocRef,
+      {
+        ...profileUpdate,
+        role: effectiveRole,
+      },
+      { merge: true }
+    );
+
+    await batch.commit();
 
     logger.info(`Successfully updated user ${trimmedUid}`);
 
@@ -317,13 +505,22 @@ exports.deleteUserAccount = onCall({ cors: true }, async (request) => {
   }
 
   try {
-    if (callerRole === "admin") {
-      const targetRole = await getTargetRole(trimmedUid);
+    const targetRole = await getTargetRole(trimmedUid);
+    if (callerRole === "admin" && targetRole) {
       assertAdminAllowedRole(request, callerRole, targetRole, "delete");
     }
 
+    const batch = admin.firestore().batch();
+    const userDocRef = admin.firestore().collection("users").doc(trimmedUid);
+    batch.delete(userDocRef);
+
+    const roleDocRef = getRoleUserDocRef(trimmedUid, targetRole);
+    if (roleDocRef) {
+      batch.delete(roleDocRef);
+    }
+
+    await batch.commit();
     await admin.auth().deleteUser(trimmedUid);
-    await admin.firestore().collection("users").doc(trimmedUid).delete();
 
     logger.info(`Successfully deleted user ${trimmedUid}`);
 
@@ -742,6 +939,150 @@ exports.unassignInstructor = onCall({ cors: true }, async (request) => {
     };
   } catch (error) {
     logger.error("Unassign instructor error:", error);
+    throwAsHttpsError(error);
+  }
+});
+
+exports.upsertAssignment = onCall({ cors: true }, async (request) => {
+  assertAuthenticated(request);
+
+  const callerRole = getCallerRole(request);
+  logger.info(
+    `Caller UID ${request.auth.uid} Role ${callerRole} Action upsertAssignment`
+  );
+  assertCallerIsAdminOrSuperAdminForAssignments(
+    request,
+    callerRole,
+    "manage assignments"
+  );
+
+  const {
+    courseId,
+    termId,
+    yearLevel,
+    section,
+    professorId,
+    assistantIds,
+  } = request.data || {};
+
+  const trimmedCourseId = normalizeValue(courseId);
+  const trimmedTermId = normalizeValue(termId);
+  const trimmedSection = normalizeSection(section);
+  const trimmedProfessorId = normalizeValue(professorId);
+  const trimmedYearLevel = normalizeValue(yearLevel);
+  const parsedYearLevel = Number(trimmedYearLevel);
+
+  if (
+    !trimmedCourseId ||
+    !trimmedTermId ||
+    !trimmedSection ||
+    !trimmedProfessorId ||
+    !trimmedYearLevel
+  ) {
+    throw new HttpsError(
+      "invalid-argument",
+      "courseId, termId, yearLevel, section, and professorId are required."
+    );
+  }
+
+  if (!Number.isFinite(parsedYearLevel) || parsedYearLevel <= 0) {
+    throw new HttpsError(
+      "invalid-argument",
+      "yearLevel must be a positive number."
+    );
+  }
+
+  const uniqueAssistantIds = Array.from(
+    new Set(
+      (assistantIds || []).map(normalizeValue).filter(Boolean)
+    )
+  );
+
+  if (
+    request.auth.uid === trimmedProfessorId ||
+    uniqueAssistantIds.includes(request.auth.uid)
+  ) {
+    throw new HttpsError(
+      "permission-denied",
+      "You cannot assign yourself to a course."
+    );
+  }
+
+  const professorProfile = await getUserProfile(trimmedProfessorId);
+  if (!professorProfile || !professorProfile.role) {
+    throw new HttpsError("invalid-argument", "Professor not found.");
+  }
+  if (professorProfile.role !== PROFESSOR_ROLE) {
+    throw new HttpsError("invalid-argument", "User is not a professor.");
+  }
+
+  const assistantProfiles = await Promise.all(
+    uniqueAssistantIds.map((uid) => getUserProfile(uid))
+  );
+
+  if (assistantProfiles.some((profile) => !profile || !profile.role)) {
+    throw new HttpsError(
+      "invalid-argument",
+      "One or more assistants were not found."
+    );
+  }
+
+  const invalidAssistant = assistantProfiles.find(
+    (profile) => profile.role !== ASSISTANT_ROLE
+  );
+
+  if (invalidAssistant) {
+    throw new HttpsError(
+      "invalid-argument",
+      "One or more assistants do not have the assistant role."
+    );
+  }
+
+  const offeringId = buildOfferingId({
+    courseId: trimmedCourseId,
+    termId: trimmedTermId,
+    yearLevel: String(parsedYearLevel),
+    section: trimmedSection,
+  });
+
+  const assignmentRef = admin
+    .firestore()
+    .collection(ASSIGNMENT_COLLECTION)
+    .doc(offeringId);
+
+  try {
+    await admin.firestore().runTransaction(async (transaction) => {
+      const existingSnap = await transaction.get(assignmentRef);
+      const payload = {
+        offeringId,
+        courseId: trimmedCourseId,
+        termId: trimmedTermId,
+        yearLevel: parsedYearLevel,
+        section: trimmedSection,
+        professorId: professorProfile.uid,
+        assistantIds: assistantProfiles.map((profile) => profile.uid),
+        professor: buildUserSummary(professorProfile),
+        assistants: assistantProfiles.map(buildUserSummary),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedBy: request.auth.uid,
+      };
+
+      if (!existingSnap.exists) {
+        payload.createdAt = admin.firestore.FieldValue.serverTimestamp();
+        payload.createdBy = request.auth.uid;
+      }
+
+      transaction.set(assignmentRef, payload, { merge: true });
+    });
+
+    const savedSnap = await assignmentRef.get();
+    return {
+      assignment: savedSnap.exists
+        ? { offeringId, ...savedSnap.data() }
+        : { offeringId },
+    };
+  } catch (error) {
+    logger.error("Upsert assignment error:", error);
     throwAsHttpsError(error);
   }
 });

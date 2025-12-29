@@ -96,6 +96,11 @@ service cloud.firestore {
       allow create, update, delete: if roleIn(["super_admin", "admin"]);
     }
 
+    match /allCourses/{courseId} {
+      allow read: if signedIn();
+      allow create, update, delete: if roleIn(["super_admin", "admin"]);
+    }
+
     match /profs/{profId} {
       allow read: if roleIn(["super_admin", "admin"]);
 

@@ -1,11 +1,7 @@
+import { doc, getDocs, serverTimestamp, writeBatch } from "firebase/firestore";
+import { db } from "../../../firebase/firebaseConfig";
 import {
-  addDoc,
-  deleteDoc,
-  getDocs,
-  serverTimestamp,
-  updateDoc,
-} from "firebase/firestore";
-import {
+  allCourseDoc,
   courseDoc,
   coursesCollection,
 } from "../../../firebase/firestorePaths";
@@ -36,12 +32,16 @@ export const createCourse = async (
     payload.description = description.trim();
   }
 
-  const docRef = await addDoc(
-    coursesCollection(collegeId, yearId, departmentId),
-    payload
-  );
+  const courseRef = doc(coursesCollection(collegeId, yearId, departmentId));
+  const allCoursesRef = allCourseDoc(courseRef.id);
+  const batch = writeBatch(db);
+
+  batch.set(courseRef, payload);
+  batch.set(allCoursesRef, payload);
+
+  await batch.commit();
   return {
-    id: docRef.id,
+    id: courseRef.id,
     ...payload,
     createdAt: new Date(),
   };
@@ -61,10 +61,10 @@ export const updateCourse = async (
     description: updates.description ? updates.description.trim() : "",
   };
 
-  await updateDoc(
-    courseDoc(collegeId, yearId, departmentId, courseId),
-    payload
-  );
+  const batch = writeBatch(db);
+  batch.update(courseDoc(collegeId, yearId, departmentId, courseId), payload);
+  batch.set(allCourseDoc(courseId), payload, { merge: true });
+  await batch.commit();
   return payload;
 };
 
@@ -74,6 +74,9 @@ export const deleteCourse = async (
   departmentId,
   courseId
 ) => {
-  await deleteDoc(courseDoc(collegeId, yearId, departmentId, courseId));
+  const batch = writeBatch(db);
+  batch.delete(courseDoc(collegeId, yearId, departmentId, courseId));
+  batch.delete(allCourseDoc(courseId));
+  await batch.commit();
   return courseId;
 };

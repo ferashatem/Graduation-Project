@@ -6,6 +6,7 @@ const COLLECTIONS = {
   years: "years",
   departments: "departments",
   courses: "courses",
+  allCourses: "allCourses",
   users: "users",
   profs: "profs",
 };
@@ -61,6 +62,10 @@ export const courseDoc = (collegeId, yearId, departmentId, courseId) =>
     COLLECTIONS.courses,
     courseId
   );
+
+export const allCoursesCollection = () => collection(db, COLLECTIONS.allCourses);
+export const allCourseDoc = (courseId) =>
+  doc(db, COLLECTIONS.allCourses, courseId);
 
 export const userProfsCollection = (userId) =>
   collection(db, COLLECTIONS.users, userId, COLLECTIONS.profs);

@@ -30,7 +30,7 @@ const TERM_OPTIONS = buildTermOptions();
 const ASSISTANT_ROLES = ["assistant", "ta"];
 
 const getUserDisplayName = (user) =>
-  user?.fullName || user?.displayName || user?.email || "Unnamed user";
+  user?.name || user?.fullName || user?.displayName || user?.email || "Unnamed user";
 
 const buildCourseLabel = (course) => {
   if (!course) return "Course";
@@ -277,7 +277,7 @@ function CourseOfferingAssignmentDialog({
       setUserLoading(true);
       try {
         const roles = isProfessorMode ? ["professor"] : ASSISTANT_ROLES;
-        const field = trimmedSearch.includes("@") ? "email" : "fullName";
+        const field = trimmedSearch.includes("@") ? "email" : "name";
         const users = await searchUsersByRole({
           roles,
           search: trimmedSearch,

@@ -1,10 +1,8 @@
 import { useCallback, useMemo } from "react";
 import { DataGrid } from "@mui/x-data-grid";
-import { IconButton, Tooltip } from "@mui/material";
+import { Button, IconButton } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import PersonAddAltIcon from "@mui/icons-material/PersonAddAlt";
-import GroupAddIcon from "@mui/icons-material/GroupAdd";
 
 const formatTimestamp = (value) => {
   if (!value) return "";
@@ -21,32 +19,20 @@ function CourseRowActions({
   row,
   onEdit,
   onDelete,
-  onAssignProfessor,
-  onAssignAssistant,
+  onAssignStaff,
 }) {
   const handleEdit = useCallback(() => onEdit(row), [onEdit, row]);
   const handleDelete = useCallback(() => onDelete(row), [onDelete, row]);
-  const handleAssignProfessor = useCallback(
-    () => onAssignProfessor(row),
-    [onAssignProfessor, row]
-  );
-  const handleAssignAssistant = useCallback(
-    () => onAssignAssistant(row),
-    [onAssignAssistant, row]
+  const handleAssignStaff = useCallback(
+    () => onAssignStaff(row),
+    [onAssignStaff, row]
   );
 
   return (
     <div className="flex items-center gap-2">
-      <Tooltip title="Assign Professor">
-        <IconButton size="small" onClick={handleAssignProfessor}>
-          <PersonAddAltIcon fontSize="inherit" />
-        </IconButton>
-      </Tooltip>
-      <Tooltip title="Assign Assistant/TA">
-        <IconButton size="small" onClick={handleAssignAssistant}>
-          <GroupAddIcon fontSize="inherit" />
-        </IconButton>
-      </Tooltip>
+      <Button size="small" variant="text" onClick={handleAssignStaff}>
+        Assign Staff
+      </Button>
       <IconButton size="small" color="primary" onClick={handleEdit}>
         <EditIcon fontSize="inherit" />
       </IconButton>
@@ -62,8 +48,7 @@ function CoursesTable({
   loading,
   onEdit,
   onDelete,
-  onAssignProfessor,
-  onAssignAssistant,
+  onAssignStaff,
 }) {
   const gridRows = useMemo(() => rows || [], [rows]);
 
@@ -83,7 +68,7 @@ function CoursesTable({
       {
         field: "actions",
         headerName: "Actions",
-        width: 180,
+        width: 220,
         sortable: false,
         filterable: false,
         renderCell: (params) => (
@@ -91,13 +76,12 @@ function CoursesTable({
             row={params.row}
             onEdit={onEdit}
             onDelete={onDelete}
-            onAssignProfessor={onAssignProfessor}
-            onAssignAssistant={onAssignAssistant}
+            onAssignStaff={onAssignStaff}
           />
         ),
       },
     ],
-    [onAssignAssistant, onAssignProfessor, onDelete, onEdit]
+    [onAssignStaff, onDelete, onEdit]
   );
 
   return (

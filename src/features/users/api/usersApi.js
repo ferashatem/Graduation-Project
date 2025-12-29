@@ -17,7 +17,7 @@ const mapDoc = (snapshot) => ({ id: snapshot.id, ...snapshot.data() });
 export const searchUsersByRole = async ({
   roles,
   search,
-  field = "fullName",
+  field = "name",
   limitCount = 10,
 }) => {
   const trimmedSearch = String(search || "").trim();

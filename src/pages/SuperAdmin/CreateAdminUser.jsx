@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { httpsCallable } from "firebase/functions";
-import { collection, doc, getDocs, serverTimestamp, setDoc } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { db, functions } from "../../firebase/firebaseConfig";
 import { useAuthUser } from "../../auth/useAuthUser";
 import BigLogo from "../../assets/university-logo.png";
@@ -28,7 +28,7 @@ const formatRoleLabel = (roleKey) => {
 };
 
 const getUserName = (user) =>
-  user?.fullName ?? user?.displayName ?? user?.Full_Name ?? user?.name ?? "N/A";
+  user?.name ?? user?.fullName ?? user?.displayName ?? user?.Full_Name ?? "N/A";
 
 const getUserEmail = (user) => user?.email ?? user?.Email ?? "N/A";
 
@@ -53,11 +53,9 @@ function CreateAdminUser() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [email, setEmail] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [name, setName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [collegeUserId, setCollegeUserId] = useState("");
+  const [password, setPassword] = useState("");
   const [role, setRole] = useState("student");
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState("");
@@ -71,13 +69,11 @@ function CreateAdminUser() {
   const [actionError, setActionError] = useState("");
   const [actionSuccess, setActionSuccess] = useState("");
   const [userRole, setUserRole] = useState("");
-  const [editFullName, setEditFullName] = useState("");
+  const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editPhoneNumber, setEditPhoneNumber] = useState("");
-  const [editCollegeUserId, setEditCollegeUserId] = useState("");
   const [editRole, setEditRole] = useState("student");
   const [editPassword, setEditPassword] = useState("");
-  const [editConfirmPassword, setEditConfirmPassword] = useState("");
   const [editLoading, setEditLoading] = useState(false);
   const [editFormError, setEditFormError] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -150,8 +146,12 @@ function CreateAdminUser() {
       setFormError("");
       setSuccessMessage("");
 
-      if (!email || !fullName || !password || !phoneNumber || !collegeUserId) {
-        setFormError("Email, full name, password, phone number, and college user ID are required.");
+      const trimmedEmail = email.trim();
+      const trimmedName = name.trim();
+      const trimmedPhoneNumber = phoneNumber.trim();
+
+      if (!trimmedEmail || !trimmedName || !password || !role) {
+        setFormError("Full name, email, password, and role are required.");
         return;
       }
 
@@ -160,48 +160,33 @@ function CreateAdminUser() {
         return;
       }
 
-      if (password !== confirmPassword) {
-        setFormError("Passwords do not match.");
-        return;
-      }
-
       setLoading(true);
 
       try {
-        const result = await createUserWithRole({
-          email,
+        const payload = {
+          email: trimmedEmail,
           password,
-          displayName: fullName,
+          name: trimmedName,
           role,
-        });
+        };
 
-        const { uid, email: createdEmail, message } = result?.data || {};
+        if (trimmedPhoneNumber) {
+          payload.phoneNumber = trimmedPhoneNumber;
+        }
+
+        const result = await createUserWithRole(payload);
+
+        const { uid, message } = result?.data || {};
         if (!uid) {
           throw new Error("Create user failed to return uid.");
         }
 
-        await setDoc(
-          doc(db, "users", uid),
-          {
-            uid,
-            email: createdEmail || email,
-            fullName,
-            phoneNumber,
-            collegeUserId,
-            role,
-            createdAt: serverTimestamp(),
-          },
-          { merge: true }
-        );
-
         setSuccessMessage(message || "Account created successfully.");
         await loadUsers();
         setEmail("");
-        setFullName("");
-        setPassword("");
-        setConfirmPassword("");
+        setName("");
         setPhoneNumber("");
-        setCollegeUserId("");
+        setPassword("");
         setRole("student");
       } catch (error) {
         console.error("Create account error:", error.message);
@@ -212,11 +197,9 @@ function CreateAdminUser() {
     },
     [
       email,
-      fullName,
+      name,
       password,
-      confirmPassword,
       phoneNumber,
-      collegeUserId,
       role,
       isAdmin,
       createUserWithRole,
@@ -272,15 +255,13 @@ function CreateAdminUser() {
     }
 
     setEditingUser(currentUser);
-    setEditFullName(
-      currentUser?.fullName ?? currentUser?.displayName ?? currentUser?.Full_Name ?? currentUser?.name ?? ""
+    setEditName(
+      currentUser?.name ?? currentUser?.fullName ?? currentUser?.displayName ?? currentUser?.Full_Name ?? ""
     );
     setEditEmail(currentUser?.email ?? currentUser?.Email ?? "");
     setEditPhoneNumber(currentUser?.phoneNumber ?? currentUser?.Phone_Number ?? "");
-    setEditCollegeUserId(currentUser?.collegeUserId ?? currentUser?.College_User_ID ?? "");
     setEditRole(getUserRoleKey(currentUser) || "student");
     setEditPassword("");
-    setEditConfirmPassword("");
     setEditFormError("");
     setActionError("");
     setActionSuccess("");
@@ -290,13 +271,11 @@ function CreateAdminUser() {
   const closeEditModal = useCallback(() => {
     setIsEditModalOpen(false);
     setEditingUser(null);
-    setEditFullName("");
+    setEditName("");
     setEditEmail("");
     setEditPhoneNumber("");
-    setEditCollegeUserId("");
     setEditRole("student");
     setEditPassword("");
-    setEditConfirmPassword("");
     setEditFormError("");
     setEditLoading(false);
   }, []);
@@ -310,16 +289,15 @@ function CreateAdminUser() {
 
       const uid = editingUser?.id;
       const trimmedEmail = editEmail.trim();
-      const trimmedFullName = editFullName.trim();
+      const trimmedName = editName.trim();
       const trimmedPhoneNumber = editPhoneNumber.trim();
-      const trimmedCollegeUserId = editCollegeUserId.trim();
 
       if (!uid) {
         setEditFormError("Select a user to edit.");
         return;
       }
 
-      if (!trimmedFullName || !trimmedEmail) {
+      if (!trimmedName || !trimmedEmail) {
         setEditFormError("Full name and email are required.");
         return;
       }
@@ -335,19 +313,15 @@ function CreateAdminUser() {
         return;
       }
 
-      if ((editPassword || editConfirmPassword) && editPassword !== editConfirmPassword) {
-        setEditFormError("Passwords do not match.");
-        return;
-      }
-
       setEditLoading(true);
 
       try {
         const payload = {
           uid,
           email: trimmedEmail,
-          displayName: trimmedFullName,
+          name: trimmedName,
           role: editRole,
+          phoneNumber: trimmedPhoneNumber,
         };
 
         if (editPassword) {
@@ -355,19 +329,6 @@ function CreateAdminUser() {
         }
 
         await editUserAccount(payload);
-
-        await setDoc(
-          doc(db, "users", uid),
-          {
-            email: trimmedEmail,
-            fullName: trimmedFullName,
-            phoneNumber: trimmedPhoneNumber,
-            collegeUserId: trimmedCollegeUserId,
-            role: editRole,
-            updatedAt: serverTimestamp(),
-          },
-          { merge: true }
-        );
 
         setActionSuccess("User updated successfully.");
         closeEditModal();
@@ -380,12 +341,10 @@ function CreateAdminUser() {
       }
     },
     [
-      editCollegeUserId,
-      editConfirmPassword,
       editEmail,
-      editFullName,
-      editPassword,
+      editName,
       editPhoneNumber,
+      editPassword,
       editRole,
       editingUser,
       editUserAccount,
@@ -690,15 +649,15 @@ function CreateAdminUser() {
               >
                 <div className="grid gap-5 md:grid-cols-2">
                   <div className="md:col-span-2">
-                    <label htmlFor="admin-full-name" className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    <label htmlFor="admin-name" className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                       Full Name
                     </label>
                     <input
-                      id="admin-full-name"
+                      id="admin-name"
                       type="text"
                       placeholder="Full name"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
                       autoComplete="name"
                       className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
                       required
@@ -721,35 +680,18 @@ function CreateAdminUser() {
                     />
                   </div>
 
-                  <div>
+                  <div className="md:col-span-2">
                     <label htmlFor="admin-phone" className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                       Phone Number
                     </label>
                     <input
                       id="admin-phone"
                       type="tel"
-                      placeholder="01xxxxxxxxx"
+                      placeholder="+20 100 000 0000"
                       value={phoneNumber}
                       onChange={(e) => setPhoneNumber(e.target.value)}
                       autoComplete="tel"
                       className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="admin-college-id" className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                      College User ID
-                    </label>
-                    <input
-                      id="admin-college-id"
-                      type="text"
-                      placeholder="College user ID"
-                      value={collegeUserId}
-                      onChange={(e) => setCollegeUserId(e.target.value)}
-                      autoComplete="off"
-                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
-                      required
                     />
                   </div>
 
@@ -781,22 +723,6 @@ function CreateAdminUser() {
                       placeholder="Create a password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      autoComplete="new-password"
-                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="admin-confirm" className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                      Confirm Password
-                    </label>
-                    <input
-                      id="admin-confirm"
-                      type="password"
-                      placeholder="Re-enter password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
                       autoComplete="new-password"
                       className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
                       required
@@ -883,15 +809,15 @@ function CreateAdminUser() {
               >
                 <div className="grid gap-5 md:grid-cols-2">
                   <div className="md:col-span-2">
-                    <label htmlFor="edit-full-name" className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    <label htmlFor="edit-name" className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                       Full Name
                     </label>
                     <input
-                      id="edit-full-name"
+                      id="edit-name"
                       type="text"
                       placeholder="Full name"
-                      value={editFullName}
-                      onChange={(e) => setEditFullName(e.target.value)}
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
                       autoComplete="name"
                       className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
                       required
@@ -914,32 +840,17 @@ function CreateAdminUser() {
                     />
                   </div>
 
-                  <div>
+                  <div className="md:col-span-2">
                     <label htmlFor="edit-phone" className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                       Phone Number
                     </label>
                     <input
                       id="edit-phone"
                       type="tel"
-                      placeholder="01xxxxxxxxx"
+                      placeholder="+20 100 000 0000"
                       value={editPhoneNumber}
                       onChange={(e) => setEditPhoneNumber(e.target.value)}
                       autoComplete="tel"
-                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="edit-college-id" className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                      College User ID
-                    </label>
-                    <input
-                      id="edit-college-id"
-                      type="text"
-                      placeholder="College user ID"
-                      value={editCollegeUserId}
-                      onChange={(e) => setEditCollegeUserId(e.target.value)}
-                      autoComplete="off"
                       className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
                     />
                   </div>
@@ -978,20 +889,6 @@ function CreateAdminUser() {
                     />
                   </div>
 
-                  <div>
-                    <label htmlFor="edit-confirm-password" className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                      Confirm New Password
-                    </label>
-                    <input
-                      id="edit-confirm-password"
-                      type="password"
-                      placeholder="Re-enter password"
-                      value={editConfirmPassword}
-                      onChange={(e) => setEditConfirmPassword(e.target.value)}
-                      autoComplete="new-password"
-                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
-                    />
-                  </div>
                 </div>
 
                 {editFormError ? (
@@ -1016,7 +913,7 @@ function CreateAdminUser() {
                     )}
                   </button>
                   <span className="text-xs text-slate-500">
-                    Leave the password fields empty to keep the current password.
+                    Leave the password field empty to keep the current password.
                   </span>
                 </div>
               </form>
