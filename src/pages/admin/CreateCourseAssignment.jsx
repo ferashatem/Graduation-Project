@@ -2,11 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   addDoc,
   collection,
+  doc,
   getDocs,
   query,
   serverTimestamp,
   where,
 } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
 import { Alert, Button } from "@mui/material";
 import { Link as RouterLink } from "react-router-dom";
 import PageHeader from "../../components/common/PageHeader";
@@ -16,12 +18,56 @@ import { getErrorMessage } from "../../utils/errorHelpers";
 
 const mapDoc = (snapshot) => ({ id: snapshot.id, ...snapshot.data() });
 
+/**
+ * ✅ IMPORTANT (based on your error):
+ * `users/{uid}/roles` is a COLLECTION (3 segments => collection path).
+ * Firestore must alternate: collection/doc/collection/doc...
+ *
+ * So we choose a "roles document" under that collection, e.g.:
+ * users/{uid}/roles/main
+ * and then subcollections:
+ * users/{uid}/roles/main/profs
+ * users/{uid}/roles/main/assistants
+ *
+ * If your roles doc is named something else (e.g. "default"), replace ROLE_DOC_ID below.
+ */
+const ROLE_DOC_ID = "main";
+
 function CreateCourseAssignment() {
+  // ✅ Auth-safe userId (updates correctly when auth state changes)
+  const [userId, setUserId] = useState("");
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      setUserId(user?.uid || "");
+    });
+    return () => unsub();
+  }, []);
+
   // Keep collection refs stable for hook dependencies and caching.
   const coursesRef = useMemo(() => collection(db, "allCourses"), [db]);
-  const profsRef = useMemo(() => collection(db, "profs"), [db]);
-  const assistantsRef = useMemo(() => collection(db, "assistants"), [db]);
-  const assignmentsRef = useMemo(() => collection(db, "courseAssignments"), [db]);
+
+  // ✅ FIX: roles is a collection, so we MUST point to a document inside it
+  const rolesDocRef = useMemo(
+    () => (userId ? doc(db, "users", userId, "roles", ROLE_DOC_ID) : null),
+    [db, userId]
+  );
+
+  // ✅ Now subcollections are valid
+  const profsRef = useMemo(
+    () => (rolesDocRef ? collection(rolesDocRef, "profs") : null),
+    [rolesDocRef]
+  );
+
+  const assistantsRef = useMemo(
+    () => (rolesDocRef ? collection(rolesDocRef, "assistants") : null),
+    [rolesDocRef]
+  );
+
+  const assignmentsRef = useMemo(
+    () => collection(db, "courseAssignments"),
+    [db]
+  );
 
   const [courses, setCourses] = useState([]);
   const [professors, setProfessors] = useState([]);
@@ -42,7 +88,22 @@ function CreateCourseAssignment() {
     setError("");
 
     try {
-      // Load static data once to avoid N+1 reads on render.
+      // Wait for auth to resolve
+      if (!userId) {
+        setCourses([]);
+        setProfessors([]);
+        setAssistants([]);
+        return;
+      }
+
+      if (!profsRef || !assistantsRef) {
+        setCourses([]);
+        setProfessors([]);
+        setAssistants([]);
+        setError("Roles collections are not available. Please try again.");
+        return;
+      }
+
       const [coursesSnap, profsSnap, assistantsSnap] = await Promise.all([
         getDocs(coursesRef),
         getDocs(profsRef),
@@ -54,12 +115,8 @@ function CreateCourseAssignment() {
       const nextAssistants = assistantsSnap.docs.map(mapDoc);
 
       nextCourses.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-      nextProfs.sort((a, b) =>
-        (a.displayName || "").localeCompare(b.displayName || "")
-      );
-      nextAssistants.sort((a, b) =>
-        (a.displayName || "").localeCompare(b.displayName || "")
-      );
+      nextProfs.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+      nextAssistants.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
       setCourses(nextCourses);
       setProfessors(nextProfs);
@@ -69,7 +126,7 @@ function CreateCourseAssignment() {
     } finally {
       setLoading(false);
     }
-  }, [assistantsRef, coursesRef, profsRef]);
+  }, [assistantsRef, coursesRef, profsRef, userId]);
 
   useEffect(() => {
     loadOptions();
@@ -137,9 +194,7 @@ function CreateCourseAssignment() {
         };
 
         const uid = auth?.currentUser?.uid;
-        if (uid) {
-          payload.createdBy = uid;
-        }
+        if (uid) payload.createdBy = uid;
 
         await addDoc(assignmentsRef, payload);
 
@@ -157,7 +212,6 @@ function CreateCourseAssignment() {
     },
     [
       assignmentsRef,
-      auth,
       courseId,
       selectedAssistantIds,
       selectedProfessorIds,
@@ -171,11 +225,7 @@ function CreateCourseAssignment() {
       <PageHeader
         title="Create Course Assignment"
         action={
-          <Button
-            component={RouterLink}
-            to="/admin/assignments"
-            variant="outlined"
-          >
+          <Button component={RouterLink} to="/admin/assignments" variant="outlined">
             Back to Assignments
           </Button>
         }
@@ -240,13 +290,9 @@ function CreateCourseAssignment() {
 
           <div className="grid gap-6 lg:grid-cols-2">
             <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
-              <div className="text-sm font-semibold text-slate-700">
-                Professors
-              </div>
+              <div className="text-sm font-semibold text-slate-700">Professors</div>
               {professors.length === 0 ? (
-                <p className="mt-2 text-xs text-slate-500">
-                  No professors found.
-                </p>
+                <p className="mt-2 text-xs text-slate-500">No professors found.</p>
               ) : (
                 <div className="mt-3 grid gap-2 md:grid-cols-2">
                   {professors.map((prof) => (
@@ -262,12 +308,10 @@ function CreateCourseAssignment() {
                       />
                       <span>
                         <span className="font-medium">
-                          {prof.name || "Unnamed professor"}
+                          {prof.name || prof.fullName || "Unnamed professor"}
                         </span>
                         {prof.email ? (
-                          <span className="block text-xs text-slate-500">
-                            {prof.email}
-                          </span>
+                          <span className="block text-xs text-slate-500">{prof.email}</span>
                         ) : null}
                       </span>
                     </label>
@@ -277,13 +321,9 @@ function CreateCourseAssignment() {
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
-              <div className="text-sm font-semibold text-slate-700">
-                Assistants
-              </div>
+              <div className="text-sm font-semibold text-slate-700">Assistants</div>
               {assistants.length === 0 ? (
-                <p className="mt-2 text-xs text-slate-500">
-                  No assistants found.
-                </p>
+                <p className="mt-2 text-xs text-slate-500">No assistants found.</p>
               ) : (
                 <div className="mt-3 grid gap-2 md:grid-cols-2">
                   {assistants.map((assistant) => (
@@ -299,12 +339,10 @@ function CreateCourseAssignment() {
                       />
                       <span>
                         <span className="font-medium">
-                          {assistant.name || "Unnamed assistant"}
+                          {assistant.name || assistant.fullName || "Unnamed assistant"}
                         </span>
                         {assistant.email ? (
-                          <span className="block text-xs text-slate-500">
-                            {assistant.email}
-                          </span>
+                          <span className="block text-xs text-slate-500">{assistant.email}</span>
                         ) : null}
                       </span>
                     </label>
