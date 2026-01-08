@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   addDoc,
   collection,
-  doc,
   getDocs,
   query,
   serverTimestamp,
@@ -18,23 +17,7 @@ import { getErrorMessage } from "../../utils/errorHelpers";
 
 const mapDoc = (snapshot) => ({ id: snapshot.id, ...snapshot.data() });
 
-/**
- * ✅ IMPORTANT (based on your error):
- * `users/{uid}/roles` is a COLLECTION (3 segments => collection path).
- * Firestore must alternate: collection/doc/collection/doc...
- *
- * So we choose a "roles document" under that collection, e.g.:
- * users/{uid}/roles/main
- * and then subcollections:
- * users/{uid}/roles/main/profs
- * users/{uid}/roles/main/assistants
- *
- * If your roles doc is named something else (e.g. "default"), replace ROLE_DOC_ID below.
- */
-const ROLE_DOC_ID = "main";
-
 function CreateCourseAssignment() {
-  // ✅ Auth-safe userId (updates correctly when auth state changes)
   const [userId, setUserId] = useState("");
 
   useEffect(() => {
@@ -46,23 +29,7 @@ function CreateCourseAssignment() {
 
   // Keep collection refs stable for hook dependencies and caching.
   const coursesRef = useMemo(() => collection(db, "allCourses"), [db]);
-
-  // ✅ FIX: roles is a collection, so we MUST point to a document inside it
-  const rolesDocRef = useMemo(
-    () => (userId ? doc(db, "users", userId, "roles", ROLE_DOC_ID) : null),
-    [db, userId]
-  );
-
-  // ✅ Now subcollections are valid
-  const profsRef = useMemo(
-    () => (rolesDocRef ? collection(rolesDocRef, "profs") : null),
-    [rolesDocRef]
-  );
-
-  const assistantsRef = useMemo(
-    () => (rolesDocRef ? collection(rolesDocRef, "assistants") : null),
-    [rolesDocRef]
-  );
+  const usersRef = useMemo(() => collection(db, "users"), [db]);
 
   const assignmentsRef = useMemo(
     () => collection(db, "courseAssignments"),
@@ -96,18 +63,10 @@ function CreateCourseAssignment() {
         return;
       }
 
-      if (!profsRef || !assistantsRef) {
-        setCourses([]);
-        setProfessors([]);
-        setAssistants([]);
-        setError("Roles collections are not available. Please try again.");
-        return;
-      }
-
       const [coursesSnap, profsSnap, assistantsSnap] = await Promise.all([
         getDocs(coursesRef),
-        getDocs(profsRef),
-        getDocs(assistantsRef),
+        getDocs(query(usersRef, where("role", "==", "professor"))),
+        getDocs(query(usersRef, where("role", "==", "assistant"))),
       ]);
 
       const nextCourses = coursesSnap.docs.map(mapDoc);
@@ -126,7 +85,7 @@ function CreateCourseAssignment() {
     } finally {
       setLoading(false);
     }
-  }, [assistantsRef, coursesRef, profsRef, userId]);
+  }, [coursesRef, userId, usersRef]);
 
   useEffect(() => {
     loadOptions();
