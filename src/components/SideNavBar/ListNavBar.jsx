@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { IoChevronDown } from "react-icons/io5";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -7,18 +7,42 @@ function ListNavBar({ isMobile, closeMenu, navItems = [] }) {
   const location = useLocation();
   const cards = Array.isArray(navItems) ? navItems : [];
 
+  const normalizePath = useCallback((value) => {
+    if (!value) return "";
+    const trimmed = String(value).replace(/\/+$/, "");
+    return trimmed || "/";
+  }, []);
+
+  const currentPath = useMemo(
+    () => normalizePath(location.pathname),
+    [location.pathname, normalizePath]
+  );
+
+  const matchesLink = useCallback(
+    (link) => {
+      const normalized = normalizePath(link);
+      if (!normalized) return false;
+      if (normalized.startsWith("/")) {
+        return (
+          currentPath === normalized || currentPath.startsWith(`${normalized}/`)
+        );
+      }
+      return (
+        currentPath.endsWith(`/${normalized}`) ||
+        currentPath.includes(`/${normalized}/`)
+      );
+    },
+    [currentPath, normalizePath]
+  );
+
   const initialOpenTitle = useMemo(() => {
     const match = cards.find(
       (c) =>
         Array.isArray(c.children) &&
-        c.children.some(
-          (ch) =>
-            location.pathname.endsWith("/" + ch.link) ||
-            location.pathname.includes("/" + ch.link + "/")
-        )
+        c.children.some((ch) => matchesLink(ch.link))
     );
     return match?.title ?? null;
-  }, [cards, location.pathname]);
+  }, [cards, matchesLink]);
 
   const [openDropdown, setOpenDropdown] = useState(initialOpenTitle);
 
@@ -26,9 +50,7 @@ function ListNavBar({ isMobile, closeMenu, navItems = [] }) {
     setOpenDropdown(initialOpenTitle);
   }, [initialOpenTitle]);
 
-  const isActiveLink = (link) =>
-    location.pathname.endsWith("/" + link) ||
-    location.pathname.includes("/" + link + "/");
+  const isActiveLink = useCallback((link) => matchesLink(link), [matchesLink]);
 
   const handleParentClick = (card) => {
     if (card.disabled) return;

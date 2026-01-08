@@ -18,7 +18,7 @@ const mapDoc = (snapshot) => ({ id: snapshot.id, ...snapshot.data() });
 
 function CreateCourseAssignment() {
   // Keep collection refs stable for hook dependencies and caching.
-  const coursesRef = useMemo(() => collection(db, "courses"), [db]);
+  const coursesRef = useMemo(() => collection(db, "allCourses"), [db]);
   const profsRef = useMemo(() => collection(db, "profs"), [db]);
   const assistantsRef = useMemo(() => collection(db, "assistants"), [db]);
   const assignmentsRef = useMemo(() => collection(db, "courseAssignments"), [db]);

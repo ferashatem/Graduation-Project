@@ -7,10 +7,11 @@ import { Outlet } from "react-router-dom";
 
 function MainLayout() {
   const AdminNavItems = [
-    { icon: profile, title: "Home", link: "home" },
-    { icon: school, title: "Academic Structure", link: "colleges" },
-    { icon: book, title: "Assignments", link: "assignments" },
-    { icon: users, title: "User Management", link: "create-admin" },
+    { icon: profile, title: "Home", link: "/admin/home" },
+    { icon: school, title: "Academic Structure", link: "/admin/colleges" },
+    { icon: book, title: "Courses", link: "/courses" },
+    { icon: book, title: "Assignments", link: "/admin/assignments" },
+    { icon: users, title: "User Management", link: "/admin/create-admin" },
   ];
 
   return (

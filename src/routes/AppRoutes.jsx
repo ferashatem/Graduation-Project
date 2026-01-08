@@ -15,9 +15,11 @@ import CreateAdminUser from "../pages/SuperAdmin/CreateAdminUser";
 import CollegesPage from "../features/colleges/pages/CollegesPage";
 import YearsPage from "../features/years/pages/YearsPage";
 import DepartmentsPage from "../features/departments/pages/DepartmentsPage";
-import CoursesPage from "../features/courses/pages/CoursesPage";
+import DepartmentCoursesPage from "../features/courses/pages/CoursesPage";
 import AssignmentList from "../pages/admin/AssignmentList";
 import CreateCourseAssignment from "../pages/admin/CreateCourseAssignment";
+import CoursesPage from "../pages/Courses/CoursesPage";
+import CourseDetailsPage from "../pages/Courses/CourseDetailsPage";
 
 function AppRoutes() {
   return (
@@ -46,10 +48,22 @@ function AppRoutes() {
           />
           <Route
             path="colleges/:collegeId/years/:yearId/departments/:deptId/courses"
-            element={<CoursesPage />}
+            element={<DepartmentCoursesPage />}
           />
           <Route path="assignments" element={<AssignmentList />} />
           <Route path="assignments/new" element={<CreateCourseAssignment />} />
+        </Route>
+
+        <Route
+          path="/courses"
+          element={
+            <RequireRole role="admin">
+              <MainLayoutAdmin />
+            </RequireRole>
+          }
+        >
+          <Route index element={<CoursesPage />} />
+          <Route path=":courseId" element={<CourseDetailsPage />} />
         </Route>
 
         {/* Super Admin Routes */}
