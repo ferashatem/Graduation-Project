@@ -19,6 +19,7 @@ export default function AdminHome() {
     try {
       const tokenResult = await firebaseUser.getIdTokenResult(true);
       const role = tokenResult?.claims?.role || null;
+console.log(role);
 
       if (role !== "super_admin") {
         console.warn("Skipping users list: requires super_admin role.");

@@ -20,6 +20,9 @@ import AssignmentsPage from "../pages/admin/AssignmentsPage";
 import CreateCourseAssignment from "../pages/admin/CreateCourseAssignment";
 import CoursesPage from "../pages/Courses/CoursesPage";
 import CourseDetailsPage from "../pages/Courses/CourseDetailsPage";
+import BuildingsPage from "../pages/Buildings/BuildingsPage";
+import RoomsPage from "../pages/Buildings/RoomsPage";
+import RoomSchedulePage from "../pages/Buildings/RoomSchedulePage";
 
 function AppRoutes() {
   return (
@@ -64,6 +67,22 @@ function AppRoutes() {
         >
           <Route index element={<CoursesPage />} />
           <Route path=":courseId" element={<CourseDetailsPage />} />
+        </Route>
+
+        <Route
+          path="/buildings"
+          element={
+            <RequireRole role="admin">
+              <MainLayoutAdmin />
+            </RequireRole>
+          }
+        >
+          <Route index element={<BuildingsPage />} />
+          <Route path=":buildingId/rooms" element={<RoomsPage />} />
+          <Route
+            path=":buildingId/rooms/:roomId"
+            element={<RoomSchedulePage />}
+          />
         </Route>
 
         {/* Super Admin Routes */}
