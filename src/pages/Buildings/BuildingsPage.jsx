@@ -272,7 +272,7 @@ function BuildingsPage() {
       </div>
 
       {actionError ? <Alert severity="error">{actionError}</Alert> : null}
-      {roomsError ? <Alert severity="warning">{roomsError}</Alert> : null}
+      {/* {roomsError ? <Alert severity="warning">{roomsError}</Alert> : null} */}
       {buildingsError && !buildingsLoading ? (
         <ErrorState message={buildingsError} />
       ) : null}

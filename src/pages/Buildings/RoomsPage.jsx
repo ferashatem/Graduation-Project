@@ -282,8 +282,8 @@ function RoomsPage() {
       </div>
 
       {actionError ? <Alert severity="error">{actionError}</Alert> : null}
-      {roomsError ? <Alert severity="warning">{roomsError}</Alert> : null}
-      {scheduleError ? <Alert severity="warning">{scheduleError}</Alert> : null}
+      {/* {roomsError ? <Alert severity="warning">{roomsError}</Alert> : null} */}
+      {/* {scheduleError ? <Alert severity="warning">{scheduleError}</Alert> : null} */}
       {buildingError && !buildingLoading ? (
         <ErrorState message={buildingError} />
       ) : null}

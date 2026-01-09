@@ -241,7 +241,7 @@ function RoomSchedulePage() {
       </div>
 
       {actionError ? <Alert severity="error">{actionError}</Alert> : null}
-      {scheduleError ? <Alert severity="warning">{scheduleError}</Alert> : null}
+      {/* {scheduleError ? <Alert severity="warning">{scheduleError}</Alert> : null} */}
       {metaError && !metaLoading ? <ErrorState message={metaError} /> : null}
 
       {metaLoading && (!building || !room) ? (
