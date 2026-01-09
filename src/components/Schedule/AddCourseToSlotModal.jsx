@@ -136,6 +136,7 @@ function AddCourseToSlotModal({
 
   const handleSave = useCallback(async () => {
     if (!canEdit) return;
+    if (saving) return;
     setLocalError("");
 
     if (!collegeId || !buildingId || !roomId || !dayKey || !slotKey) {
@@ -172,7 +173,13 @@ function AddCourseToSlotModal({
       if (onClose) onClose();
     } catch (err) {
       console.error("[AddCourseToSlotModal] Failed to save schedule:", err);
-      setLocalError(getErrorMessage(err));
+      if (err?.code === "slot-already-booked") {
+        setLocalError(
+          "This slot is already booked. Open the slot to view details."
+        );
+      } else {
+        setLocalError(getErrorMessage(err));
+      }
     } finally {
       setSaving(false);
     }
@@ -191,6 +198,7 @@ function AddCourseToSlotModal({
     schedule,
     section,
     selectedCourse,
+    saving,
     slotKey,
     startTime,
   ]);

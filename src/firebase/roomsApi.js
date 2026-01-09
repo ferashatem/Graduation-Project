@@ -61,6 +61,15 @@ export const subscribeRooms = (collegeId, buildingId, onChange, onError) => {
       if (onChange) onChange(snapshot.docs.map(mapDoc));
     },
     (error) => {
+      console.error("[roomsApi] subscribeRooms error", {
+        collegeId,
+        buildingId,
+        code: error?.code,
+        message: error?.message,
+      });
+      if (error?.code === "failed-precondition") {
+        console.error("[roomsApi] subscribeRooms index required:", error?.message);
+      }
       if (onError) onError(error);
     }
   );
@@ -82,6 +91,17 @@ export const subscribeRoomsByCollege = (collegeId, onChange, onError) => {
       if (onChange) onChange(rooms);
     },
     (error) => {
+      console.error("[roomsApi] subscribeRoomsByCollege error", {
+        collegeId,
+        code: error?.code,
+        message: error?.message,
+      });
+      if (error?.code === "failed-precondition") {
+        console.error(
+          "[roomsApi] subscribeRoomsByCollege index required:",
+          error?.message
+        );
+      }
       if (onError) onError(error);
     }
   );
@@ -142,4 +162,3 @@ export const deleteRoom = async (collegeId, buildingId, roomId) => {
 
   return roomId;
 };
-

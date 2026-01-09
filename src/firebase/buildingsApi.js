@@ -65,6 +65,17 @@ export const subscribeBuildings = (collegeId, onChange, onError) => {
       if (onChange) onChange(snapshot.docs.map(mapDoc));
     },
     (error) => {
+      console.error("[buildingsApi] subscribeBuildings error", {
+        collegeId,
+        code: error?.code,
+        message: error?.message,
+      });
+      if (error?.code === "failed-precondition") {
+        console.error(
+          "[buildingsApi] subscribeBuildings index required:",
+          error?.message
+        );
+      }
       if (onError) onError(error);
     }
   );
@@ -121,4 +132,3 @@ export const deleteBuilding = async (collegeId, buildingId) => {
 
   return buildingId;
 };
-

@@ -1,4 +1,5 @@
 import {
+  collection,
   collectionGroup,
   deleteDoc,
   getDoc,
@@ -53,6 +54,62 @@ export const subscribeSchedules = (
       if (onChange) onChange(snapshot.docs.map(mapDoc));
     },
     (error) => {
+      console.error("[scheduleApi] subscribeSchedules error", {
+        collegeId,
+        buildingId,
+        roomId,
+        dayKey: options?.dayKey || "",
+        code: error?.code,
+        message: error?.message,
+      });
+      if (error?.code === "failed-precondition") {
+        console.error(
+          "[scheduleApi] subscribeSchedules index required:",
+          error?.message
+        );
+      }
+      if (onError) onError(error);
+    }
+  );
+};
+
+export const listenRoomDaySchedule = (
+  { collegeId, buildingId, roomId, dayKey },
+  onChange,
+  onError
+) => {
+  if (!collegeId || !buildingId || !roomId || !dayKey) return () => {};
+  const scheduleRef = collection(
+    db,
+    "colleges",
+    collegeId,
+    "buildings",
+    buildingId,
+    "rooms",
+    roomId,
+    "schedule"
+  );
+  const schedulesQuery = query(scheduleRef, where("dayKey", "==", dayKey));
+  return onSnapshot(
+    schedulesQuery,
+    (snapshot) => {
+      if (onChange) onChange(snapshot.docs.map(mapDoc));
+    },
+    (error) => {
+      console.error("[scheduleApi] listenRoomDaySchedule error", {
+        collegeId,
+        buildingId,
+        roomId,
+        dayKey,
+        code: error?.code,
+        message: error?.message,
+      });
+      if (error?.code === "failed-precondition") {
+        console.error(
+          "[scheduleApi] listenRoomDaySchedule index required:",
+          error?.message
+        );
+      }
       if (onError) onError(error);
     }
   );
@@ -82,6 +139,19 @@ export const subscribeSchedulesByBuildingDay = (
       if (onChange) onChange(schedules);
     },
     (error) => {
+      console.error("[scheduleApi] subscribeSchedulesByBuildingDay error", {
+        collegeId,
+        buildingId,
+        dayKey,
+        code: error?.code,
+        message: error?.message,
+      });
+      if (error?.code === "failed-precondition") {
+        console.error(
+          "[scheduleApi] subscribeSchedulesByBuildingDay index required:",
+          error?.message
+        );
+      }
       if (onError) onError(error);
     }
   );
@@ -121,7 +191,9 @@ export const createSchedule = async (collegeId, buildingId, roomId, payload) => 
   await runTransaction(db, async (transaction) => {
     const existing = await transaction.get(scheduleRef);
     if (existing.exists()) {
-      throw new Error("Slot already booked");
+      const error = new Error("Slot already booked");
+      error.code = "slot-already-booked";
+      throw error;
     }
     transaction.set(scheduleRef, data);
   });
@@ -138,8 +210,9 @@ export const updateSchedule = async (
 ) => {
   if (!collegeId || !buildingId || !roomId || !scheduleId)
     throw new Error("Missing schedule details.");
+  const { dayKey, slotKey, createdAt, ...rest } = payload || {};
   const data = {
-    ...payload,
+    ...rest,
     updatedAt: serverTimestamp(),
   };
   await updateDoc(scheduleDoc(collegeId, buildingId, roomId, scheduleId), data);

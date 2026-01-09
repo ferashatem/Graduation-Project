@@ -8,12 +8,13 @@ import AddCourseToSlotModal from "../../components/Schedule/AddCourseToSlotModal
 import ConfirmDeleteModal from "../../components/Buildings/ConfirmDeleteModal";
 import { getBuilding } from "../../firebase/buildingsApi";
 import { getRoom } from "../../firebase/roomsApi";
-import { deleteSchedule, subscribeSchedules } from "../../firebase/scheduleApi";
+import { deleteSchedule, listenRoomDaySchedule } from "../../firebase/scheduleApi";
 import { getErrorMessage } from "../../utils/errorHelpers";
 import { useAuth } from "../../context/AuthContext";
 import { DAY_OPTIONS, TIME_SLOTS, getDayLabel, getDefaultDayKey } from "./scheduleConstants";
 
-function RoomSchedulePage() {
+export default  function RoomSchedulePage() {
+  const isDev = useMemo(() => process.env.NODE_ENV !== "production", []);
   const navigate = useNavigate();
   const location = useLocation();
   const { buildingId, roomId } = useParams();
@@ -68,22 +69,38 @@ function RoomSchedulePage() {
       setSchedules([]);
       return;
     }
-    const unsubscribe = subscribeSchedules(
-      collegeId,
-      buildingId,
-      roomId,
-      { dayKey: selectedDayKey },
-      (data) => setSchedules(data),
+    if (isDev) {
+      console.debug("[RoomSchedulePage] schedule listener start", {
+        collegeId,
+        buildingId,
+        roomId,
+        dayKey: selectedDayKey,
+        path: `colleges/${collegeId}/buildings/${buildingId}/rooms/${roomId}/schedule`,
+      });
+    }
+    const unsubscribe = listenRoomDaySchedule(
+      { collegeId, buildingId, roomId, dayKey: selectedDayKey },
+      (data) => {
+        if (isDev) {
+          console.debug("[RoomSchedulePage] schedule snapshot", {
+            dayKey: selectedDayKey,
+            count: data.length,
+            slotKeys: data.map((item) => item.slotKey),
+          });
+        }
+        setSchedules(data);
+      },
       (error) => setScheduleError(getErrorMessage(error))
     );
     return () => unsubscribe();
-  }, [buildingId, collegeId, roomId, selectedDayKey]);
+  }, [buildingId, collegeId, isDev, roomId, selectedDayKey]);
 
   const scheduleBySlot = useMemo(() => {
-    return schedules.reduce((acc, schedule) => {
-      if (schedule?.slotKey) acc[schedule.slotKey] = schedule;
-      return acc;
-    }, {});
+    const map = new Map();
+    schedules.forEach((schedule) => {
+      if (schedule?.slotKey) map.set(schedule.slotKey, schedule);
+    });
+    return map;
   }, [schedules]);
 
   const slotRows = useMemo(() => {
@@ -216,7 +233,7 @@ function RoomSchedulePage() {
           </div>
 
           {slotRows.map((slot) => {
-            const schedule = scheduleBySlot[slot.slotKey];
+            const schedule = scheduleBySlot.get(slot.slotKey);
             return (
               <div
                 key={slot.slotKey}
@@ -315,5 +332,3 @@ function RoomSchedulePage() {
     </div>
   );
 }
-
-export default RoomSchedulePage;
