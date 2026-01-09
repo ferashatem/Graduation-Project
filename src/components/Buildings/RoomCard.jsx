@@ -88,8 +88,8 @@ function RoomCard({
               const status = dayStatusMap[day.key] === "full" ? "full" : "available";
               const chipClasses =
                 status === "full"
-                  ? "border-red-200 bg-red-50 text-red-600"
-                  : "border-green-200 bg-green-50 text-green-600";
+                  ? "border-red-200 bg-red-50 text-red-700"
+                  : "border-green-200 bg-green-50 text-green-700";
               return (
                 <span
                   key={day.key || day.label}

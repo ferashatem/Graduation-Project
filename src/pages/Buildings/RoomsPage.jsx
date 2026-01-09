@@ -15,6 +15,7 @@ import { useAuth } from "../../context/AuthContext";
 import { DAY_OPTIONS, TIME_SLOTS, getDayLabel, getDefaultDayKey } from "./scheduleConstants";
 
 function RoomsPage() {
+  const isDev = useMemo(() => process.env.NODE_ENV !== "production", []);
   const navigate = useNavigate();
   const location = useLocation();
   const { buildingId } = useParams();
@@ -107,26 +108,29 @@ function RoomsPage() {
     return () => unsubscribe();
   }, [buildingId, collegeId]);
 
-  const roomDayCounts = useMemo(() => {
-    const counts = {};
+  const roomDaySlots = useMemo(() => {
+    const allowedDays = new Set(DAY_OPTIONS.map((day) => day.key));
+    const map = {};
     schedules.forEach((schedule) => {
-      const roomKey = schedule?.roomId;
-      const dayKey = schedule?.dayKey;
-      const slotKey = schedule?.slotKey;
+      const roomKey = String(schedule?.roomId || "").trim();
+      const dayKey = String(schedule?.dayKey || "").trim().toLowerCase();
+      const slotKey = String(schedule?.slotKey || "").trim();
       if (!roomKey || !dayKey || !slotKey) return;
-      if (!counts[roomKey]) counts[roomKey] = {};
-      counts[roomKey][dayKey] = (counts[roomKey][dayKey] || 0) + 1;
+      if (!allowedDays.has(dayKey)) return;
+      if (!map[roomKey]) map[roomKey] = {};
+      if (!map[roomKey][dayKey]) map[roomKey][dayKey] = new Set();
+      map[roomKey][dayKey].add(slotKey);
     });
-    return counts;
+    return map;
   }, [schedules]);
 
   const roomStatus = useMemo(() => {
     const totalSlots = TIME_SLOTS.length;
     return rooms.reduce((acc, room) => {
-      const dayCounts = roomDayCounts[room.id] || {};
-      const bookedCount = dayCounts[selectedDayKey] || 0;
+      const daySlots = roomDaySlots[room.id] || {};
+      const bookedCount = daySlots[selectedDayKey]?.size || 0;
       const dayStatus = DAY_OPTIONS.reduce((map, day) => {
-        const count = dayCounts[day.key] || 0;
+        const count = daySlots[day.key]?.size || 0;
         map[day.key] = count >= totalSlots ? "full" : "available";
         return map;
       }, {});
@@ -137,7 +141,26 @@ function RoomsPage() {
       };
       return acc;
     }, {});
-  }, [roomDayCounts, rooms, selectedDayKey]);
+  }, [roomDaySlots, rooms, selectedDayKey]);
+
+  useEffect(() => {
+    if (!isDev) return;
+    const roomCounts = schedules.reduce((acc, schedule) => {
+      const roomKey = String(schedule?.roomId || "").trim();
+      if (!roomKey) return acc;
+      acc[roomKey] = (acc[roomKey] || 0) + 1;
+      return acc;
+    }, {});
+    const slotsByDay = {};
+    Object.entries(roomDaySlots).forEach(([roomKey, dayMap]) => {
+      slotsByDay[roomKey] = {};
+      Object.entries(dayMap).forEach(([dayKey, slotSet]) => {
+        slotsByDay[roomKey][dayKey] = Array.from(slotSet || []);
+      });
+    });
+    console.debug("[RoomsPage] schedule docs per room", roomCounts);
+    console.debug("[RoomsPage] slotsByDay", slotsByDay);
+  }, [isDev, roomDaySlots, schedules]);
 
   const breadcrumbs = useMemo(() => {
     const name = building?.name || "Rooms";

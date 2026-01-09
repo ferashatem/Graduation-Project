@@ -169,6 +169,15 @@ export const subscribeSchedulesByBuilding = (
     const index = parts.indexOf(segment);
     return index >= 0 ? parts[index + 1] : "";
   };
+  const parseDocId = (docId) => {
+    const raw = String(docId || "");
+    const [rawDay, ...rest] = raw.split("_");
+    const slotKey = rest.join("_");
+    return {
+      dayKey: rawDay ? rawDay.trim().toLowerCase() : "",
+      slotKey: slotKey ? slotKey.trim() : "",
+    };
+  };
   const schedulesQuery = query(
     collectionGroup(db, "schedule"),
     where("collegeId", "==", collegeId)
@@ -181,11 +190,16 @@ export const subscribeSchedulesByBuilding = (
         const path = docSnap.ref?.path || "";
         const derivedBuildingId = data.buildingId || extractPathSegment(path, "buildings");
         const derivedRoomId = data.roomId || extractPathSegment(path, "rooms");
+        const derivedCollegeId = data.collegeId || extractPathSegment(path, "colleges");
+        const parsed = parseDocId(docSnap.id);
         return {
           id: docSnap.id,
           ...data,
+          collegeId: derivedCollegeId,
           buildingId: derivedBuildingId,
           roomId: derivedRoomId,
+          dayKey: parsed.dayKey || String(data.dayKey || "").trim().toLowerCase(),
+          slotKey: parsed.slotKey || String(data.slotKey || "").trim(),
         };
       });
       const filtered = schedules.filter(
