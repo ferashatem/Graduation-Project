@@ -4,16 +4,11 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import PageHeader from "../../components/common/PageHeader";
 import Loading from "../../components/common/Loading";
 import ErrorState from "../../components/common/ErrorState";
-import ScheduleCellModal from "../../components/Buildings/ScheduleCellModal";
+import AddCourseToSlotModal from "../../components/Schedule/AddCourseToSlotModal";
 import ConfirmDeleteModal from "../../components/Buildings/ConfirmDeleteModal";
 import { getBuilding } from "../../firebase/buildingsApi";
 import { getRoom } from "../../firebase/roomsApi";
-import {
-  createSchedule,
-  deleteSchedule,
-  subscribeSchedules,
-  updateSchedule,
-} from "../../firebase/scheduleApi";
+import { deleteSchedule, subscribeSchedules } from "../../firebase/scheduleApi";
 import { getErrorMessage } from "../../utils/errorHelpers";
 import { useAuth } from "../../context/AuthContext";
 import { DAY_OPTIONS, TIME_SLOTS, getDayLabel, getDefaultDayKey } from "./scheduleConstants";
@@ -52,7 +47,6 @@ function RoomSchedulePage() {
   const [activeSchedule, setActiveSchedule] = useState(null);
   const [confirmState, setConfirmState] = useState({ open: false, schedule: null });
   const [actionError, setActionError] = useState("");
-  const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
@@ -131,42 +125,10 @@ function RoomSchedulePage() {
     setActiveSchedule(null);
   }, []);
 
-  const handleSaveSchedule = useCallback(
-    async (payload) => {
-      if (!collegeId || !buildingId || !roomId || !activeSlot) {
-        setActionError("Missing schedule context.");
-        return;
-      }
-      setSaving(true);
-      setActionError("");
-      try {
-        if (activeSchedule?.id) {
-          await updateSchedule(collegeId, buildingId, roomId, activeSchedule.id, {
-            courseId: payload.courseId,
-            courseName: payload.courseName,
-            instructorId: payload.instructorId,
-            instructorName: payload.instructorName,
-            section: payload.section,
-          });
-        } else {
-          await createSchedule(collegeId, buildingId, roomId, payload);
-        }
-        handleCloseModal();
-      } catch (err) {
-        setActionError(getErrorMessage(err));
-      } finally {
-        setSaving(false);
-      }
-    },
-    [
-      activeSchedule,
-      activeSlot,
-      buildingId,
-      collegeId,
-      handleCloseModal,
-      roomId,
-    ]
-  );
+  const handleSaved = useCallback(() => {
+    setActionError("");
+    handleCloseModal();
+  }, [handleCloseModal]);
 
   const handleDeletePrompt = useCallback((schedule) => {
     if (!schedule) return;
@@ -326,16 +288,19 @@ function RoomSchedulePage() {
         </div>
       )}
 
-      <ScheduleCellModal
+      <AddCourseToSlotModal
         open={modalOpen}
-        slot={activeSlot}
+        collegeId={collegeId}
+        buildingId={buildingId}
+        roomId={roomId}
+        dayKey={activeSlot?.dayKey}
+        slotKey={activeSlot?.slotKey}
+        startTime={activeSlot?.startTime}
+        endTime={activeSlot?.endTime}
         schedule={activeSchedule}
         canManage={canManage}
-        loading={saving}
-        error={actionError}
         onClose={handleCloseModal}
-        onSave={handleSaveSchedule}
-        onDelete={handleDeletePrompt}
+        onSaved={handleSaved}
       />
 
       <ConfirmDeleteModal
@@ -352,4 +317,3 @@ function RoomSchedulePage() {
 }
 
 export default RoomSchedulePage;
-

@@ -107,6 +107,7 @@ export const createSchedule = async (collegeId, buildingId, roomId, payload) => 
     endTime: payload.endTime,
     courseId: payload.courseId || "",
     courseName: payload.courseName || "",
+    courseCode: payload.courseCode || "",
     instructorId: payload.instructorId || "",
     instructorName: payload.instructorName || "",
     section: payload.section || "",
@@ -151,4 +152,3 @@ export const deleteSchedule = async (collegeId, buildingId, roomId, scheduleId) 
   await deleteDoc(scheduleDoc(collegeId, buildingId, roomId, scheduleId));
   return scheduleId;
 };
-

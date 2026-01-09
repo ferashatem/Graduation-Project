@@ -21,10 +21,15 @@ export const createCourse = async (
   departmentId,
   { name, code, creditHours, description }
 ) => {
+  const trimmedName = name.trim();
   const payload = {
-    name: name.trim(),
+    name: trimmedName,
+    name_lc: trimmedName.toLowerCase(),
     code: code.trim(),
     creditHours: Number(creditHours),
+    collegeId,
+    yearId,
+    departmentId,
     createdAt: serverTimestamp(),
   };
 
@@ -54,11 +59,16 @@ export const updateCourse = async (
   courseId,
   updates
 ) => {
+  const trimmedName = updates.name.trim();
   const payload = {
-    name: updates.name.trim(),
+    name: trimmedName,
+    name_lc: trimmedName.toLowerCase(),
     code: updates.code.trim(),
     creditHours: Number(updates.creditHours),
     description: updates.description ? updates.description.trim() : "",
+    collegeId,
+    yearId,
+    departmentId,
   };
 
   const batch = writeBatch(db);
