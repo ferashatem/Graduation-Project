@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  addDoc,
   collection,
   getDocs,
   query,
-  serverTimestamp,
   where,
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
@@ -13,6 +11,8 @@ import { Link as RouterLink } from "react-router-dom";
 import PageHeader from "../../components/common/PageHeader";
 import Loading from "../../components/common/Loading";
 import { auth, db } from "../../firebase/firebaseConfig";
+import { addAssignment } from "../../firebase/firestoreAssignments";
+import { fetchColleges } from "../../firebase/firestoreColleges";
 import { getErrorMessage } from "../../utils/errorHelpers";
 
 const mapDoc = (snapshot) => ({ id: snapshot.id, ...snapshot.data() });
@@ -37,6 +37,7 @@ function CreateCourseAssignment() {
   );
 
   const [courses, setCourses] = useState([]);
+  const [colleges, setColleges] = useState([]);
   const [professors, setProfessors] = useState([]);
   const [assistants, setAssistants] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -45,10 +46,12 @@ function CreateCourseAssignment() {
   const [success, setSuccess] = useState("");
 
   const [courseId, setCourseId] = useState("");
+  const [collegeId, setCollegeId] = useState("");
   const [termId, setTermId] = useState("");
   const [termLabel, setTermLabel] = useState("");
   const [selectedProfessorIds, setSelectedProfessorIds] = useState([]);
   const [selectedAssistantIds, setSelectedAssistantIds] = useState([]);
+  const [collegeError, setCollegeError] = useState("");
 
   const loadOptions = useCallback(async () => {
     setLoading(true);
@@ -58,26 +61,31 @@ function CreateCourseAssignment() {
       // Wait for auth to resolve
       if (!userId) {
         setCourses([]);
+        setColleges([]);
         setProfessors([]);
         setAssistants([]);
         return;
       }
 
-      const [coursesSnap, profsSnap, assistantsSnap] = await Promise.all([
-        getDocs(coursesRef),
-        getDocs(query(usersRef, where("role", "==", "professor"))),
-        getDocs(query(usersRef, where("role", "==", "assistant"))),
-      ]);
+      const [coursesSnap, profsSnap, assistantsSnap, collegesList] =
+        await Promise.all([
+          getDocs(coursesRef),
+          getDocs(query(usersRef, where("role", "==", "professor"))),
+          getDocs(query(usersRef, where("role", "==", "assistant"))),
+          fetchColleges(),
+        ]);
 
       const nextCourses = coursesSnap.docs.map(mapDoc);
       const nextProfs = profsSnap.docs.map(mapDoc);
       const nextAssistants = assistantsSnap.docs.map(mapDoc);
+      const nextColleges = Array.isArray(collegesList) ? collegesList : [];
 
       nextCourses.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
       nextProfs.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
       nextAssistants.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
       setCourses(nextCourses);
+      setColleges(nextColleges);
       setProfessors(nextProfs);
       setAssistants(nextAssistants);
     } catch (err) {
@@ -93,6 +101,11 @@ function CreateCourseAssignment() {
 
   const handleCourseChange = useCallback((event) => {
     setCourseId(event.target.value);
+  }, []);
+
+  const handleCollegeChange = useCallback((event) => {
+    setCollegeId(event.target.value);
+    setCollegeError("");
   }, []);
 
   const handleTermIdChange = useCallback((event) => {
@@ -122,10 +135,16 @@ function CreateCourseAssignment() {
       event.preventDefault();
       setError("");
       setSuccess("");
+      setCollegeError("");
 
       const trimmedTermId = termId.trim();
       if (!courseId || !trimmedTermId) {
         setError("Course and term ID are required.");
+        return;
+      }
+
+      if (!collegeId) {
+        setCollegeError("College is required");
         return;
       }
 
@@ -143,22 +162,32 @@ function CreateCourseAssignment() {
           return;
         }
 
+        const selectedCourse = courses.find((course) => course.id === courseId);
+        const selectedCollege = colleges.find(
+          (college) => college.id === collegeId
+        );
+
         const payload = {
+          CourseName: selectedCourse?.name || "Untitled course",
           courseId,
           termId: trimmedTermId,
           termLabel: termLabel.trim(),
           professorIds: selectedProfessorIds,
           assistantIds: selectedAssistantIds,
-          createdAt: serverTimestamp(),
+          collegeId,
+          collegeName: selectedCollege?.name || "",
+          collegeCode: selectedCollege?.code || "",
         };
 
         const uid = auth?.currentUser?.uid;
         if (uid) payload.createdBy = uid;
 
-        await addDoc(assignmentsRef, payload);
+        await addAssignment(payload);
 
         setSuccess("Assignment created successfully.");
         setCourseId("");
+        setCollegeId("");
+        setCollegeError("");
         setTermId("");
         setTermLabel("");
         setSelectedProfessorIds([]);
@@ -171,7 +200,10 @@ function CreateCourseAssignment() {
     },
     [
       assignmentsRef,
+      collegeId,
+      colleges,
       courseId,
+      courses,
       selectedAssistantIds,
       selectedProfessorIds,
       termId,
@@ -194,13 +226,37 @@ function CreateCourseAssignment() {
       {success ? <Alert severity="success">{success}</Alert> : null}
 
       {loading ? (
-        <Loading label="Loading courses, professors, and assistants..." />
+        <Loading label="Loading courses, colleges, professors, and assistants..." />
       ) : (
         <form
           onSubmit={handleSubmit}
           className="space-y-6 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200"
         >
           <div className="grid gap-4 md:grid-cols-2">
+            <label className="flex flex-col gap-2 text-sm font-medium text-slate-700">
+              College
+              <select
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm"
+                value={collegeId}
+                onChange={handleCollegeChange}
+                required
+              >
+                <option value="" disabled>
+                  {colleges.length === 0 ? "No colleges found" : "Select a college"}
+                </option>
+                {colleges.map((college) => (
+                  <option key={college.id} value={college.id}>
+                    {college.code
+                      ? `${college.name || "Unnamed college"} (${college.code})`
+                      : college.name || "Unnamed college"}
+                  </option>
+                ))}
+              </select>
+              {collegeError ? (
+                <span className="text-xs text-red-600">{collegeError}</span>
+              ) : null}
+            </label>
+
             <label className="flex flex-col gap-2 text-sm font-medium text-slate-700">
               Course
               <select

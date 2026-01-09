@@ -1,24 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  collection,
-  deleteDoc,
-  doc,
-  getDocs,
-  query,
-  where,
-} from "firebase/firestore";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { Button } from "@mui/material";
-import { Link as RouterLink } from "react-router-dom";
 import PageHeader from "../../components/common/PageHeader";
 import ErrorState from "../../components/common/ErrorState";
 import Loading from "../../components/common/Loading";
-import EditAssignmentModal from "../../components/admin/EditAssignmentModal";
+import AssignmentFormModal from "../../components/admin/AssignmentFormModal";
 import ConfirmDeleteDialog from "../../components/admin/ConfirmDeleteDialog";
 import { auth, db } from "../../firebase/firebaseConfig";
+import {
+  deleteAssignment,
+  fetchAssignments,
+} from "../../firebase/firestoreAssignments";
 import { getErrorMessage } from "../../utils/errorHelpers";
 
-const ASSIGNMENTS_COLLECTION = "courseAssignments";
 const USERS_COLLECTION = "users";
 const EDITOR_ROLES = new Set(["admin", "professor"]);
 
@@ -45,10 +40,6 @@ const resolveCourseName = (assignment) =>
   "Untitled course";
 
 function AssignmentsPage() {
-  const assignmentsRef = useMemo(
-    () => collection(db, ASSIGNMENTS_COLLECTION),
-    [db]
-  );
   const usersRef = useMemo(() => collection(db, USERS_COLLECTION), [db]);
 
   const [assignments, setAssignments] = useState([]);
@@ -75,13 +66,12 @@ function AssignmentsPage() {
 
     try {
       // Load assignments and staff options together to keep the UI in sync.
-      const [assignmentSnap, profsSnap, assistantsSnap] = await Promise.all([
-        getDocs(assignmentsRef),
+      const [nextAssignments, profsSnap, assistantsSnap] = await Promise.all([
+        fetchAssignments(),
         getDocs(query(usersRef, where("role", "==", "professor"))),
         getDocs(query(usersRef, where("role", "==", "assistant"))),
       ]);
 
-      const nextAssignments = assignmentSnap.docs.map(mapDoc);
       const nextProfessors = profsSnap.docs.map(mapDoc);
       const nextAssistants = assistantsSnap.docs.map(mapDoc);
 
@@ -100,7 +90,17 @@ function AssignmentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [assignmentsRef, usersRef]);
+  }, [usersRef]);
+
+  const refreshAssignments = useCallback(async () => {
+    setError("");
+    try {
+      const nextAssignments = await fetchAssignments();
+      setAssignments(nextAssignments);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    }
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -176,6 +176,11 @@ function AssignmentsPage() {
     return "No assignments yet.";
   }, [searchTerm]);
 
+  const handleCreate = useCallback(() => {
+    setActiveAssignment(null);
+    setModalOpen(true);
+  }, []);
+
   const handleEdit = useCallback((assignment) => {
     setActiveAssignment(assignment);
     setModalOpen(true);
@@ -186,12 +191,9 @@ function AssignmentsPage() {
     setActiveAssignment(null);
   }, []);
 
-  const handleSaved = useCallback((updated) => {
-    if (!updated?.id) return;
-    setAssignments((prev) =>
-      prev.map((item) => (item.id === updated.id ? { ...item, ...updated } : item))
-    );
-  }, []);
+  const handleSaved = useCallback(() => {
+    refreshAssignments();
+  }, [refreshAssignments]);
 
   const handleDeleteClick = useCallback((assignment) => {
     setAssignmentToDelete(assignment);
@@ -211,7 +213,7 @@ function AssignmentsPage() {
     setDeleteError("");
 
     try {
-      await deleteDoc(doc(db, ASSIGNMENTS_COLLECTION, assignmentToDelete.id));
+      await deleteAssignment(assignmentToDelete.id);
       setAssignments((prev) =>
         prev.filter((assignment) => assignment.id !== assignmentToDelete.id)
       );
@@ -222,7 +224,7 @@ function AssignmentsPage() {
     } finally {
       setDeletingId("");
     }
-  }, [assignmentToDelete, db]);
+  }, [assignmentToDelete]);
 
   const actionLabel = useMemo(() => {
     if (roleLoading) return "Checking access...";
@@ -239,9 +241,9 @@ function AssignmentsPage() {
         title="Course Assignments"
         action={
           <Button
-            component={RouterLink}
-            to="/admin/assignments/new"
             variant="contained"
+            onClick={handleCreate}
+            disabled={!canManageAssignments || roleLoading}
           >
             Create Assignment
           </Button>
@@ -336,7 +338,7 @@ function AssignmentsPage() {
         </div>
       )}
 
-      <EditAssignmentModal
+      <AssignmentFormModal
         open={modalOpen}
         assignment={activeAssignment}
         professors={professors}
