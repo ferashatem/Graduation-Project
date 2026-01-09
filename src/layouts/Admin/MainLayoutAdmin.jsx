@@ -1,6 +1,7 @@
 import SideNavBar from "../../components/SideNavBar/SideNavBarRender";
 import profile from "../../assets/navbar/address-card-regular.svg"; 
 import book from "../../assets/navbar/book-solid.svg";
+import assignment from "../../assets/navbar/assignment.svg";
 import school from "../../assets/navbar/school-solid.svg";
 import users from "../../assets/navbar/user-solid.svg";
 import { Outlet } from "react-router-dom";
@@ -10,7 +11,7 @@ function MainLayout() {
     { icon: profile, title: "Home", link: "/admin/home" },
     { icon: school, title: "Academic Structure", link: "/admin/colleges" },
     { icon: book, title: "Courses", link: "/courses" },
-    { icon: book, title: "Assignments", link: "/admin/assignments" },
+    { icon: assignment, title: "Assignments", link: "/admin/assignments" },
     { icon: users, title: "User Management", link: "/admin/create-admin" },
   ];
 
