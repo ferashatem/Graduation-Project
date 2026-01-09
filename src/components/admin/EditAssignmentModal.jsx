@@ -11,10 +11,12 @@ import { doc, updateDoc } from "firebase/firestore";
 import { db } from "../../firebase/firebaseConfig";
 import { getErrorMessage } from "../../utils/errorHelpers";
 
+const formatUserLabel = (user) =>
+  user?.name || user?.fullName || user?.displayName || user?.email || "Unnamed";
+
 function EditAssignmentModal({
   open,
   assignment,
-  courseLabel,
   professors = [],
   assistants = [],
   onClose,
@@ -27,6 +29,9 @@ function EditAssignmentModal({
     [assignmentId, db]
   );
 
+  const [courseName, setCourseName] = useState("");
+  const [termId, setTermId] = useState("");
+  const [termLabel, setTermLabel] = useState("");
   const [selectedProfessorIds, setSelectedProfessorIds] = useState([]);
   const [selectedAssistantIds, setSelectedAssistantIds] = useState([]);
   const [saving, setSaving] = useState(false);
@@ -34,6 +39,9 @@ function EditAssignmentModal({
 
   useEffect(() => {
     if (!open) return;
+    setCourseName(assignment?.CourseName || assignment?.courseName || "");
+    setTermId(assignment?.termId || "");
+    setTermLabel(assignment?.termLabel || "");
     setSelectedProfessorIds(assignment?.professorIds || []);
     setSelectedAssistantIds(assignment?.assistantIds || []);
     setError("");
@@ -62,8 +70,22 @@ function EditAssignmentModal({
     setSaving(true);
     setError("");
 
+    const trimmedCourseName = courseName.trim();
+    const trimmedTermId = termId.trim();
+    const trimmedTermLabel = termLabel.trim();
+
+    if (!trimmedCourseName || !trimmedTermId) {
+      setError("Course name and term ID are required.");
+      setSaving(false);
+      return;
+    }
+
     try {
+      // Only update the editable fields.
       const payload = {
+        CourseName: trimmedCourseName,
+        termId: trimmedTermId,
+        termLabel: trimmedTermLabel,
         professorIds: selectedProfessorIds,
         assistantIds: selectedAssistantIds,
       };
@@ -80,20 +102,60 @@ function EditAssignmentModal({
   }, [
     assignmentId,
     assignmentRef,
+    courseName,
     onClose,
     onSaved,
     selectedAssistantIds,
     selectedProfessorIds,
+    termId,
+    termLabel,
   ]);
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
       <DialogTitle>Edit Assignment</DialogTitle>
       <DialogContent className="space-y-4">
-        {courseLabel ? (
-          <div className="text-sm font-medium text-slate-600">{courseLabel}</div>
-        ) : null}
         {error ? <Alert severity="error">{error}</Alert> : null}
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <label className="flex flex-col gap-2 text-sm font-medium text-slate-700">
+            Course Name
+            <input
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm"
+              type="text"
+              value={courseName}
+              onChange={(event) => setCourseName(event.target.value)}
+              placeholder="Course name"
+              required
+              disabled={saving}
+            />
+          </label>
+
+          <label className="flex flex-col gap-2 text-sm font-medium text-slate-700">
+            Term ID
+            <input
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm"
+              type="text"
+              value={termId}
+              onChange={(event) => setTermId(event.target.value)}
+              placeholder="2025-fall"
+              required
+              disabled={saving}
+            />
+          </label>
+
+          <label className="flex flex-col gap-2 text-sm font-medium text-slate-700 md:col-span-2">
+            Term Label
+            <input
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm"
+              type="text"
+              value={termLabel}
+              onChange={(event) => setTermLabel(event.target.value)}
+              placeholder="Fall 2025"
+              disabled={saving}
+            />
+          </label>
+        </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
@@ -112,11 +174,10 @@ function EditAssignmentModal({
                       className="mt-1"
                       checked={selectedProfessorIds.includes(prof.id)}
                       onChange={() => toggleProfessor(prof.id)}
+                      disabled={saving}
                     />
                     <span>
-                      <span className="font-medium">
-                        {prof.displayName || "Unnamed professor"}
-                      </span>
+                      <span className="font-medium">{formatUserLabel(prof)}</span>
                       {prof.email ? (
                         <span className="block text-xs text-slate-500">
                           {prof.email}
@@ -145,10 +206,11 @@ function EditAssignmentModal({
                       className="mt-1"
                       checked={selectedAssistantIds.includes(assistant.id)}
                       onChange={() => toggleAssistant(assistant.id)}
+                      disabled={saving}
                     />
                     <span>
                       <span className="font-medium">
-                        {assistant.displayName || "Unnamed assistant"}
+                        {formatUserLabel(assistant)}
                       </span>
                       {assistant.email ? (
                         <span className="block text-xs text-slate-500">
@@ -167,7 +229,11 @@ function EditAssignmentModal({
         <Button onClick={handleClose} disabled={saving}>
           Cancel
         </Button>
-        <Button variant="contained" onClick={handleSave} disabled={saving}>
+        <Button
+          variant="contained"
+          onClick={handleSave}
+          disabled={saving || !assignmentRef}
+        >
           {saving ? "Saving..." : "Save Changes"}
         </Button>
       </DialogActions>
