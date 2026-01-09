@@ -157,6 +157,60 @@ export const subscribeSchedulesByBuildingDay = (
   );
 };
 
+export const subscribeSchedulesByBuilding = (
+  collegeId,
+  buildingId,
+  onChange,
+  onError
+) => {
+  if (!collegeId || !buildingId) return () => {};
+  const extractPathSegment = (path, segment) => {
+    const parts = String(path || "").split("/");
+    const index = parts.indexOf(segment);
+    return index >= 0 ? parts[index + 1] : "";
+  };
+  const schedulesQuery = query(
+    collectionGroup(db, "schedule"),
+    where("collegeId", "==", collegeId)
+  );
+  return onSnapshot(
+    schedulesQuery,
+    (snapshot) => {
+      const schedules = snapshot.docs.map((docSnap) => {
+        const data = docSnap.data() || {};
+        const path = docSnap.ref?.path || "";
+        const derivedBuildingId = data.buildingId || extractPathSegment(path, "buildings");
+        const derivedRoomId = data.roomId || extractPathSegment(path, "rooms");
+        return {
+          id: docSnap.id,
+          ...data,
+          buildingId: derivedBuildingId,
+          roomId: derivedRoomId,
+        };
+      });
+      const filtered = schedules.filter(
+        (schedule) => schedule.buildingId === buildingId
+      );
+      if (onChange) onChange(filtered);
+    },
+    (error) => {
+      console.error("[scheduleApi] subscribeSchedulesByBuilding error", {
+        collegeId,
+        buildingId,
+        code: error?.code,
+        message: error?.message,
+      });
+      if (error?.code === "failed-precondition") {
+        console.error(
+          "[scheduleApi] subscribeSchedulesByBuilding index required:",
+          error?.message
+        );
+      }
+      if (onError) onError(error);
+    }
+  );
+};
+
 export const getSchedule = async (collegeId, buildingId, roomId, scheduleId) => {
   if (!collegeId || !buildingId || !roomId || !scheduleId) return null;
   const snapshot = await getDoc(scheduleDoc(collegeId, buildingId, roomId, scheduleId));

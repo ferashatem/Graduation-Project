@@ -9,7 +9,7 @@ import RoomFormModal from "../../components/Buildings/RoomFormModal";
 import ConfirmDeleteModal from "../../components/Buildings/ConfirmDeleteModal";
 import { getBuilding } from "../../firebase/buildingsApi";
 import { createRoom, deleteRoom, subscribeRooms, updateRoom } from "../../firebase/roomsApi";
-import { subscribeSchedulesByBuildingDay } from "../../firebase/scheduleApi";
+import { subscribeSchedulesByBuilding } from "../../firebase/scheduleApi";
 import { getErrorMessage } from "../../utils/errorHelpers";
 import { useAuth } from "../../context/AuthContext";
 import { DAY_OPTIONS, TIME_SLOTS, getDayLabel, getDefaultDayKey } from "./scheduleConstants";
@@ -41,7 +41,7 @@ function RoomsPage() {
   const [roomsError, setRoomsError] = useState("");
 
   const [selectedDayKey, setSelectedDayKey] = useState(getDefaultDayKey());
-  const [daySchedules, setDaySchedules] = useState([]);
+  const [schedules, setSchedules] = useState([]);
   const [scheduleError, setScheduleError] = useState("");
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -88,17 +88,16 @@ function RoomsPage() {
   }, [buildingId, collegeId]);
 
   useEffect(() => {
-    if (!collegeId || !buildingId || !selectedDayKey) {
-      setDaySchedules([]);
+    if (!collegeId || !buildingId) {
+      setSchedules([]);
       return;
     }
 
-    const unsubscribe = subscribeSchedulesByBuildingDay(
+    const unsubscribe = subscribeSchedulesByBuilding(
       collegeId,
       buildingId,
-      selectedDayKey,
       (data) => {
-        setDaySchedules(data);
+        setSchedules(data);
       },
       (error) => {
         setScheduleError(getErrorMessage(error));
@@ -106,29 +105,39 @@ function RoomsPage() {
     );
 
     return () => unsubscribe();
-  }, [buildingId, collegeId, selectedDayKey]);
+  }, [buildingId, collegeId]);
 
-  const roomSlotSets = useMemo(() => {
-    const map = {};
-    daySchedules.forEach((schedule) => {
-      if (!schedule?.roomId) return;
-      if (!map[schedule.roomId]) map[schedule.roomId] = new Set();
-      map[schedule.roomId].add(schedule.slotKey);
+  const roomDayCounts = useMemo(() => {
+    const counts = {};
+    schedules.forEach((schedule) => {
+      const roomKey = schedule?.roomId;
+      const dayKey = schedule?.dayKey;
+      const slotKey = schedule?.slotKey;
+      if (!roomKey || !dayKey || !slotKey) return;
+      if (!counts[roomKey]) counts[roomKey] = {};
+      counts[roomKey][dayKey] = (counts[roomKey][dayKey] || 0) + 1;
     });
-    return map;
-  }, [daySchedules]);
+    return counts;
+  }, [schedules]);
 
   const roomStatus = useMemo(() => {
     const totalSlots = TIME_SLOTS.length;
     return rooms.reduce((acc, room) => {
-      const bookedCount = roomSlotSets[room.id]?.size || 0;
+      const dayCounts = roomDayCounts[room.id] || {};
+      const bookedCount = dayCounts[selectedDayKey] || 0;
+      const dayStatus = DAY_OPTIONS.reduce((map, day) => {
+        const count = dayCounts[day.key] || 0;
+        map[day.key] = count >= totalSlots ? "full" : "available";
+        return map;
+      }, {});
       acc[room.id] = {
         available: Math.max(totalSlots - bookedCount, 0),
         isFull: bookedCount >= totalSlots,
+        dayStatus,
       };
       return acc;
     }, {});
-  }, [roomSlotSets, rooms]);
+  }, [roomDayCounts, rooms, selectedDayKey]);
 
   const breadcrumbs = useMemo(() => {
     const name = building?.name || "Rooms";
@@ -302,6 +311,7 @@ function RoomsPage() {
             const status = roomStatus[room.id] || {
               available: TIME_SLOTS.length,
               isFull: false,
+              dayStatus: {},
             };
             return (
               <RoomCard
@@ -310,6 +320,8 @@ function RoomsPage() {
                 isFull={status.isFull}
                 availableSlots={status.available}
                 totalSlots={TIME_SLOTS.length}
+                dayStatus={status.dayStatus}
+                dayOptions={DAY_OPTIONS}
                 onOpen={handleOpenRoom}
                 onEdit={handleEdit}
                 onDelete={handleDeletePrompt}
@@ -344,4 +356,3 @@ function RoomsPage() {
 }
 
 export default RoomsPage;
-

@@ -5,6 +5,8 @@ function RoomCard({
   isFull,
   availableSlots,
   totalSlots,
+  dayStatus,
+  dayOptions,
   onOpen,
   onEdit,
   onDelete,
@@ -18,8 +20,17 @@ function RoomCard({
     if (typeof availableSlots === "number" && typeof totalSlots === "number") {
       return `${availableSlots}/${totalSlots} slots available`;
     }
-    return "Slots: —";
+    return "Slots: -";
   }, [availableSlots, totalSlots]);
+
+  const dayStatusMap = useMemo(
+    () => (dayStatus && typeof dayStatus === "object" ? dayStatus : {}),
+    [dayStatus]
+  );
+  const orderedDays = useMemo(
+    () => (Array.isArray(dayOptions) ? dayOptions : []),
+    [dayOptions]
+  );
 
   const handleOpen = useCallback(() => {
     if (onOpen) onOpen(room);
@@ -67,6 +78,29 @@ function RoomCard({
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
           {statusLabel}
         </p>
+
+        <div className="pt-2">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+            Available days
+          </p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {orderedDays.map((day) => {
+              const status = dayStatusMap[day.key] === "full" ? "full" : "available";
+              const chipClasses =
+                status === "full"
+                  ? "border-red-200 bg-red-50 text-red-600"
+                  : "border-green-200 bg-green-50 text-green-600";
+              return (
+                <span
+                  key={day.key || day.label}
+                  className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${chipClasses}`}
+                >
+                  {day.label || day}
+                </span>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {canManage ? (
@@ -92,4 +126,3 @@ function RoomCard({
 }
 
 export default RoomCard;
-
