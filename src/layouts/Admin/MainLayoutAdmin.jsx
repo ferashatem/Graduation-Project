@@ -12,7 +12,6 @@ function MainLayout() {
     { icon: profile, title: "Home", link: "/admin/home" },
     { icon: school, title: "Academic Structure", link: "/admin/colleges" },
     { icon: building, title: "Buildings", link: "/buildings" },
-    { icon: book, title: "Courses", link: "/courses" },
     { icon: assignment, title: "Assignments", link: "/admin/assignments" },
     { icon: users, title: "User Management", link: "/admin/create-admin" },
   ];

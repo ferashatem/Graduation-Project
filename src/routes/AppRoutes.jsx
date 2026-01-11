@@ -10,7 +10,9 @@ import Unauthorized from "../pages/Unauthorized";
 import MainLayoutAdmin from "../layouts/Admin/MainLayoutAdmin";
 import MainLayoutSuperAdmin from "../layouts/Super_Admin/MainLayoutSuperAdmin";
 import MainLayoutProfessor from "../layouts/Professor/MainLayoutProfessor";
+import ProfessorLayout from "../layouts/ProfessorLayout";
 import RequireRole from "../auth/RequireRole";
+import ProtectedRoute from "../components/common/ProtectedRoute";
 import CreateAdminUser from "../pages/SuperAdmin/CreateAdminUser";
 import CollegesPage from "../features/colleges/pages/CollegesPage";
 import YearsPage from "../features/years/pages/YearsPage";
@@ -23,6 +25,8 @@ import CourseDetailsPage from "../pages/Courses/CourseDetailsPage";
 import BuildingsPage from "../pages/Buildings/BuildingsPage";
 import RoomsPage from "../pages/Buildings/RoomsPage";
 import RoomSchedulePage from "../pages/Buildings/RoomSchedulePage";
+import ProfessorHome from "../pages/professor/ProfessorHome";
+import ProfessorCourses from "../pages/professor/ProfessorCourses";
 
 function AppRoutes() {
   return (
@@ -30,6 +34,7 @@ function AppRoutes() {
       <Routes>
         {/* Public */}
         <Route path="/" element={<SignIn />} />
+        <Route path="/signin" element={<SignIn />} />
         <Route path="/signup" element={<SignUp />} />
 
         {/* Admin Routes */}
@@ -57,7 +62,7 @@ function AppRoutes() {
           <Route path="assignments/new" element={<CreateCourseAssignment />} />
         </Route>
 
-        <Route
+        {/* <Route
           path="/courses"
           element={
             <RequireRole role="admin">
@@ -67,7 +72,7 @@ function AppRoutes() {
         >
           <Route index element={<CoursesPage />} />
           <Route path=":courseId" element={<CourseDetailsPage />} />
-        </Route>
+        </Route> */}
 
         <Route
           path="/buildings"
@@ -106,6 +111,18 @@ function AppRoutes() {
         </Route>
 
         {/* Professor Routes */}
+        <Route
+          path="/prof"
+          element={
+            <ProtectedRoute requiredRole="professor" redirectTo="/signin">
+              <ProfessorLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<ProfessorHome />} />
+          <Route path="courses" element={<ProfessorCourses />} />
+        </Route>
+
         <Route
           path="/professor"
           element={
