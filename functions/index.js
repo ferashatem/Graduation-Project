@@ -4,6 +4,7 @@ Admins are limited to professor/assistant/student to prevent privilege escalatio
 Client-side before calling: await auth.currentUser.getIdToken(true);
 */
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { logger } = require("firebase-functions");
 const admin = require("firebase-admin");
 
@@ -17,6 +18,9 @@ const ASSISTANT_ELIGIBLE_ROLES = ["assistant", "ta"];
 const PROFESSOR_ROLE = "professor";
 const ASSISTANT_ROLE = "assistant";
 const ASSIGNMENT_COLLECTION = "assignments";
+const COURSE_ASSIGNMENTS_COLLECTION = "courseAssignments";
+const PROF_COURSES_COLLECTION = "prof_courses";
+const ASSISTANT_COURSES_COLLECTION = "assistant_courses";
 const ROLE_COLLECTIONS = {
   super_admin: "super_admins",
   admin: "admins",
@@ -51,6 +55,10 @@ const normalizeRole = (role) => {
 };
 const normalizeValue = (value) =>
   value === null || value === undefined ? "" : String(value).trim();
+const normalizeIdArray = (values) => {
+  if (!Array.isArray(values)) return [];
+  return Array.from(new Set(values.map(normalizeValue).filter(Boolean)));
+};
 const normalizeSection = (section) => normalizeValue(section).toUpperCase();
 const buildOfferingId = ({ courseId, termId, yearLevel, section }) =>
   `${courseId}__${termId}__Y${yearLevel}__S${section}`;
@@ -226,6 +234,182 @@ const buildUserSummary = (profile) => ({
   displayName: profile.displayName || "",
   email: profile.email || "",
 });
+
+const resolveCourseName = (data) =>
+  normalizeValue(data?.CourseName || data?.courseName || data?.courseLabel) ||
+  "Course";
+
+const buildProfCoursePayload = (assignmentId, profUid, data) => ({
+  assignmentId,
+  courseId: normalizeValue(data?.courseId),
+  courseName: resolveCourseName(data),
+  termId: normalizeValue(data?.termId),
+  collegeId: normalizeValue(data?.collegeId),
+  collegeName: normalizeValue(data?.collegeName),
+  collegeCode: normalizeValue(data?.collegeCode),
+  professorId: normalizeValue(profUid),
+  assistantIds: normalizeIdArray(data?.assistantIds),
+  createdAt: data?.createdAt || admin.firestore.FieldValue.serverTimestamp(),
+  createdBy: normalizeValue(data?.createdBy),
+  updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+});
+
+const buildAssistantCoursePayload = (assignmentId, assistantUid, data) => ({
+  assignmentId,
+  courseId: normalizeValue(data?.courseId),
+  courseName: resolveCourseName(data),
+  termId: normalizeValue(data?.termId),
+  collegeId: normalizeValue(data?.collegeId),
+  collegeName: normalizeValue(data?.collegeName),
+  collegeCode: normalizeValue(data?.collegeCode),
+  assistantId: normalizeValue(assistantUid),
+  professorIds: normalizeIdArray(data?.professorIds),
+  createdAt: data?.createdAt || admin.firestore.FieldValue.serverTimestamp(),
+  createdBy: normalizeValue(data?.createdBy),
+  updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+});
+
+const chunkArray = (array = [], size = 200) => {
+  const chunks = [];
+  for (let i = 0; i < array.length; i += size) {
+    chunks.push(array.slice(i, i + size));
+  }
+  return chunks;
+};
+
+const upsertProfCourses = async (professorIds, assignmentId, data) => {
+  const ids = normalizeIdArray(professorIds);
+  if (!ids.length || !assignmentId) return;
+
+  const db = admin.firestore();
+  const opsPerProfessor = 2;
+  const maxBatchOps = 450;
+  const chunkSize = Math.max(1, Math.floor(maxBatchOps / opsPerProfessor));
+
+  const batches = chunkArray(ids, chunkSize);
+  const commits = batches.map((batchIds) => {
+    const batch = db.batch();
+    batchIds.forEach((profUid) => {
+      const profRef = db.collection(PROF_COURSES_COLLECTION).doc(profUid);
+      const courseRef = profRef.collection("courses").doc(assignmentId);
+      const payload = buildProfCoursePayload(assignmentId, profUid, data);
+      batch.set(
+        profRef,
+        {
+          professorId: profUid,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+      batch.set(courseRef, payload, { merge: true });
+    });
+    return batch.commit();
+  });
+
+  await Promise.all(commits);
+};
+
+const removeProfCourses = async (professorIds, assignmentId) => {
+  const ids = normalizeIdArray(professorIds);
+  if (!ids.length || !assignmentId) return;
+
+  const db = admin.firestore();
+  const opsPerProfessor = 2;
+  const maxBatchOps = 450;
+  const chunkSize = Math.max(1, Math.floor(maxBatchOps / opsPerProfessor));
+
+  const batches = chunkArray(ids, chunkSize);
+  const commits = batches.map((batchIds) => {
+    const batch = db.batch();
+    batchIds.forEach((profUid) => {
+      const profRef = db.collection(PROF_COURSES_COLLECTION).doc(profUid);
+      const courseRef = profRef.collection("courses").doc(assignmentId);
+      batch.set(
+        profRef,
+        {
+          professorId: profUid,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+      batch.delete(courseRef);
+    });
+    return batch.commit();
+  });
+
+  await Promise.all(commits);
+};
+
+const upsertAssistantCourses = async (assistantIds, assignmentId, data) => {
+  const ids = normalizeIdArray(assistantIds);
+  if (!ids.length || !assignmentId) return;
+
+  const db = admin.firestore();
+  const opsPerAssistant = 2;
+  const maxBatchOps = 450;
+  const chunkSize = Math.max(1, Math.floor(maxBatchOps / opsPerAssistant));
+
+  const batches = chunkArray(ids, chunkSize);
+  const commits = batches.map((batchIds) => {
+    const batch = db.batch();
+    batchIds.forEach((assistantUid) => {
+      const assistantRef = db
+        .collection(ASSISTANT_COURSES_COLLECTION)
+        .doc(assistantUid);
+      const courseRef = assistantRef.collection("courses").doc(assignmentId);
+      const payload = buildAssistantCoursePayload(
+        assignmentId,
+        assistantUid,
+        data
+      );
+      batch.set(
+        assistantRef,
+        {
+          assistantId: assistantUid,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+      batch.set(courseRef, payload, { merge: true });
+    });
+    return batch.commit();
+  });
+
+  await Promise.all(commits);
+};
+
+const removeAssistantCourses = async (assistantIds, assignmentId) => {
+  const ids = normalizeIdArray(assistantIds);
+  if (!ids.length || !assignmentId) return;
+
+  const db = admin.firestore();
+  const opsPerAssistant = 2;
+  const maxBatchOps = 450;
+  const chunkSize = Math.max(1, Math.floor(maxBatchOps / opsPerAssistant));
+
+  const batches = chunkArray(ids, chunkSize);
+  const commits = batches.map((batchIds) => {
+    const batch = db.batch();
+    batchIds.forEach((assistantUid) => {
+      const assistantRef = db
+        .collection(ASSISTANT_COURSES_COLLECTION)
+        .doc(assistantUid);
+      const courseRef = assistantRef.collection("courses").doc(assignmentId);
+      batch.set(
+        assistantRef,
+        {
+          assistantId: assistantUid,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+      batch.delete(courseRef);
+    });
+    return batch.commit();
+  });
+
+  await Promise.all(commits);
+};
 
 const throwAsHttpsError = (error) => {
   if (error instanceof HttpsError) {
@@ -1086,3 +1270,66 @@ exports.upsertAssignment = onCall({ cors: true }, async (request) => {
     throwAsHttpsError(error);
   }
 });
+
+exports.syncCourseAssignmentsIndex = onDocumentWritten(
+  `${COURSE_ASSIGNMENTS_COLLECTION}/{assignmentId}`,
+  async (event) => {
+    const assignmentId = event.params?.assignmentId || "";
+    const beforeSnap = event.data?.before;
+    const afterSnap = event.data?.after;
+
+    const beforeData = beforeSnap?.exists ? beforeSnap.data() : null;
+    const afterData = afterSnap?.exists ? afterSnap.data() : null;
+
+    const beforeProfessorIds = normalizeIdArray(beforeData?.professorIds);
+    const afterProfessorIds = normalizeIdArray(afterData?.professorIds);
+    const beforeAssistantIds = normalizeIdArray(beforeData?.assistantIds);
+    const afterAssistantIds = normalizeIdArray(afterData?.assistantIds);
+
+    if (!assignmentId) {
+      logger.warn("syncCourseAssignmentsIndex missing assignmentId.");
+      return;
+    }
+
+    if (!afterData) {
+      const deletes = [];
+      if (beforeProfessorIds.length) {
+        deletes.push(removeProfCourses(beforeProfessorIds, assignmentId));
+      }
+      if (beforeAssistantIds.length) {
+        deletes.push(removeAssistantCourses(beforeAssistantIds, assignmentId));
+      }
+      if (deletes.length) {
+        await Promise.all(deletes);
+      }
+      return;
+    }
+
+    const removedProfessorIds = beforeProfessorIds.filter(
+      (profId) => !afterProfessorIds.includes(profId)
+    );
+    const removedAssistantIds = beforeAssistantIds.filter(
+      (assistantId) => !afterAssistantIds.includes(assistantId)
+    );
+
+    const writes = [];
+    if (removedProfessorIds.length) {
+      writes.push(removeProfCourses(removedProfessorIds, assignmentId));
+    }
+    if (removedAssistantIds.length) {
+      writes.push(removeAssistantCourses(removedAssistantIds, assignmentId));
+    }
+    if (afterProfessorIds.length) {
+      writes.push(upsertProfCourses(afterProfessorIds, assignmentId, afterData));
+    }
+    if (afterAssistantIds.length) {
+      writes.push(
+        upsertAssistantCourses(afterAssistantIds, assignmentId, afterData)
+      );
+    }
+
+    if (!writes.length) return;
+
+    await Promise.all(writes);
+  }
+);

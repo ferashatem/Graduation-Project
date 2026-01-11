@@ -26,7 +26,7 @@ import BuildingsPage from "../pages/Buildings/BuildingsPage";
 import RoomsPage from "../pages/Buildings/RoomsPage";
 import RoomSchedulePage from "../pages/Buildings/RoomSchedulePage";
 import ProfessorHome from "../pages/professor/ProfessorHome";
-import ProfessorCourses from "../pages/professor/ProfessorCourses";
+import ProfessorCoursesPage from "../pages/professor/ProfessorCoursesPage";
 
 function AppRoutes() {
   return (
@@ -120,7 +120,7 @@ function AppRoutes() {
           }
         >
           <Route index element={<ProfessorHome />} />
-          <Route path="courses" element={<ProfessorCourses />} />
+          <Route path="courses" element={<ProfessorCoursesPage />} />
         </Route>
 
         <Route
@@ -132,6 +132,7 @@ function AppRoutes() {
           }
         >
           <Route path="home" element={<Home />} />
+          <Route path="courses" element={<ProfessorCoursesPage />} />
         </Route>
 
         {/* <Route path="/not-allowed" element={<Unauthorized />} /> */}

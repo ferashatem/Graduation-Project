@@ -150,6 +150,47 @@ service cloud.firestore {
     }
 
     /* -------------------------
+       Professor/Assistant Indexes
+       /prof_courses/{profUid}/courses/{assignmentId}
+       /assistant_courses/{assistantUid}/courses/{assignmentId}
+    --------------------------*/
+    match /prof_courses/{profUid} {
+      allow read: if signedIn()
+        && (
+          (request.auth.uid == profUid && roleIn(["professor", "prof"])) ||
+          roleIn(["super_admin", "admin"])
+        );
+      allow write: if roleIn(["super_admin", "admin"]);
+
+      match /courses/{assignmentId} {
+        allow read: if signedIn()
+          && (
+            (request.auth.uid == profUid && roleIn(["professor", "prof"])) ||
+            roleIn(["super_admin", "admin"])
+          );
+        allow write: if roleIn(["super_admin", "admin"]);
+      }
+    }
+
+    match /assistant_courses/{assistantUid} {
+      allow read: if signedIn()
+        && (
+          (request.auth.uid == assistantUid && roleIs("assistant")) ||
+          roleIn(["super_admin", "admin"])
+        );
+      allow write: if roleIn(["super_admin", "admin"]);
+
+      match /courses/{assignmentId} {
+        allow read: if signedIn()
+          && (
+            (request.auth.uid == assistantUid && roleIs("assistant")) ||
+            roleIn(["super_admin", "admin"])
+          );
+        allow write: if roleIn(["super_admin", "admin"]);
+      }
+    }
+
+    /* -------------------------
        Students
        /students/{studentId}
     --------------------------*/

@@ -1,9 +1,13 @@
 import SideNavBar from "../../components/SideNavBar/SideNavBarRender";
 import profile from "../../assets/navbar/user-solid.svg";
+import assignment from "../../assets/navbar/assignment.svg";
 import { Outlet } from "react-router-dom";
 
 function MainLayoutProfessor() {
-  const professorNavItems = [{ icon: profile, title: "Home", link: "home" }];
+  const professorNavItems = [
+    { icon: profile, title: "Home", link: "home" },
+    { icon: assignment, title: "courses", link: "courses" }
+  ];
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-100">

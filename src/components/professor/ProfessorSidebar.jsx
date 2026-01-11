@@ -23,7 +23,7 @@ function ProfessorSidebar({ open = false, onClose, onNavigate, profile, user }) 
   const navItems = useMemo(
     () => [
       { label: "Home", to: "/prof", icon: HiHome, end: true },
-      { label: "My Courses", to: "/prof/courses", icon: HiBookOpen },
+      { label: "Courses", to: "/prof/courses", icon: HiBookOpen },
     ],
     []
   );
