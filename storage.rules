@@ -1,0 +1,26 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function role() {
+      return signedIn() ? request.auth.token.role : null;
+    }
+
+    function roleIn(list) {
+      return signedIn() && (role() in list);
+    }
+
+    match /materials/{professorId}/{courseId}/{fileName} {
+      allow read, write: if signedIn()
+        && roleIn(["professor", "prof"])
+        && request.auth.uid == professorId;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

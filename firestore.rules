@@ -21,6 +21,10 @@ service cloud.firestore {
       return signedIn() && (role() in list);
     }
 
+    function isProfessorOwner(profUid) {
+      return signedIn() && request.auth.uid == profUid && roleIn(["professor", "prof"]);
+    }
+
     /* -------------------------
        Users (Profiles)
        /users/{uid}
@@ -169,6 +173,13 @@ service cloud.firestore {
             roleIn(["super_admin", "admin"])
           );
         allow write: if roleIn(["super_admin", "admin"]);
+
+        match /materials/{materialId} {
+          allow read: if isProfessorOwner(profUid);
+          allow create: if isProfessorOwner(profUid)
+            && request.resource.data.professorId == request.auth.uid;
+          allow update, delete: if isProfessorOwner(profUid);
+        }
       }
     }
 
@@ -199,15 +210,6 @@ service cloud.firestore {
         || (signedIn() && request.auth.uid == studentId);
 
       allow create, update, delete: if roleIn(["super_admin", "admin"]);
-    }
-
-    /* -------------------------
-       Materials
-       /materials/{materialId}
-    --------------------------*/
-    match /materials/{materialId} {
-      allow read: if signedIn();
-      allow create, update, delete: if roleIn(["super_admin", "admin", "prof", "assistant"]);
     }
 
     /* -------------------------

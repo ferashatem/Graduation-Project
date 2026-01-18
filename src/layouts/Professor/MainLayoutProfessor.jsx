@@ -1,12 +1,14 @@
 import SideNavBar from "../../components/SideNavBar/SideNavBarRender";
 import profile from "../../assets/navbar/user-solid.svg";
 import assignment from "../../assets/navbar/assignment.svg";
+import materialsIcon from "../../assets/navbar/book-solid.svg";
 import { Outlet } from "react-router-dom";
 
 function MainLayoutProfessor() {
   const professorNavItems = [
     { icon: profile, title: "Home", link: "home" },
-    { icon: assignment, title: "courses", link: "courses" }
+    { icon: assignment, title: "Courses", link: "courses" },
+    { icon: materialsIcon, title: "Materials", link: "materials" }
   ];
 
   return (

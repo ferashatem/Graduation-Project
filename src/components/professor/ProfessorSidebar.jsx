@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { signOut } from "firebase/auth";
-import { HiBookOpen, HiHome, HiLogout } from "react-icons/hi";
+import { HiBookOpen, HiDocumentText, HiHome, HiLogout } from "react-icons/hi";
 import { auth } from "../../firebase/firebaseConfig";
 import logo from "../../assets/university-logo.png";
 import fallbackAvatar from "../../assets/imgs/profile.png";
@@ -24,6 +24,7 @@ function ProfessorSidebar({ open = false, onClose, onNavigate, profile, user }) 
     () => [
       { label: "Home", to: "/prof", icon: HiHome, end: true },
       { label: "Courses", to: "/prof/courses", icon: HiBookOpen },
+      { label: "Materials", to: "/prof/materials", icon: HiDocumentText },
     ],
     []
   );

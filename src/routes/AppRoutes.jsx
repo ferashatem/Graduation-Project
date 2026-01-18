@@ -27,6 +27,7 @@ import RoomsPage from "../pages/Buildings/RoomsPage";
 import RoomSchedulePage from "../pages/Buildings/RoomSchedulePage";
 import ProfessorHome from "../pages/professor/ProfessorHome";
 import ProfessorCoursesPage from "../pages/professor/ProfessorCoursesPage";
+import ProfessorMaterialsPage from "../pages/professor/ProfessorMaterialsPage";
 
 function AppRoutes() {
   return (
@@ -119,9 +120,10 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         >
-          <Route index element={<ProfessorHome />} />
-          <Route path="courses" element={<ProfessorCoursesPage />} />
-        </Route>
+        <Route index element={<ProfessorHome />} />
+        <Route path="courses" element={<ProfessorCoursesPage />} />
+        <Route path="materials" element={<ProfessorMaterialsPage />} />
+      </Route>
 
         <Route
           path="/professor"
@@ -133,6 +135,7 @@ function AppRoutes() {
         >
           <Route path="home" element={<Home />} />
           <Route path="courses" element={<ProfessorCoursesPage />} />
+          <Route path="materials" element={<ProfessorMaterialsPage />} />
         </Route>
 
         {/* <Route path="/not-allowed" element={<Unauthorized />} /> */}

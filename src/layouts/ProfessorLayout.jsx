@@ -49,6 +49,7 @@ function ProfessorLayout() {
   const pageTitle = useMemo(() => {
     const path = location.pathname;
     if (path.startsWith("/prof/courses")) return "Courses";
+    if (path.startsWith("/prof/materials")) return "Materials";
     if (path === "/prof" || path === "/prof/") return "Professor Home";
     return "Professor";
   }, [location.pathname]);
