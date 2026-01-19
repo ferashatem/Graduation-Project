@@ -48,6 +48,8 @@ const ROLE_ALIASES = {
   "department_admin": "departmentadmin",
 };
 
+const E164_REGEX = /^\+[1-9]\d{1,14}$/;
+
 const normalizeRole = (role) => {
   if (!role) return "";
   const cleaned = String(role).trim().toLowerCase();
@@ -515,6 +517,162 @@ exports.createUserWithRole = onCall({ cors: true }, async (request) => {
     logger.error("Create user error:", error);
     throwAsHttpsError(error);
   }
+});
+
+exports.bulkCreateUsers = onCall({ cors: true }, async (request) => {
+  assertAuthenticated(request);
+
+  const callerRole = getCallerRole(request);
+  logger.info(
+    `Caller UID ${request.auth.uid} Role ${callerRole} Action bulkCreateUsers`
+  );
+
+  assertCallerIsAdminOrSuperAdmin(request, callerRole, "bulk create");
+
+  const users = Array.isArray(request.data?.users) ? request.data.users : [];
+  if (!users.length) {
+    throw new HttpsError(
+      "invalid-argument",
+      "users must be a non-empty array."
+    );
+  }
+
+  const results = [];
+
+  for (let index = 0; index < users.length; index += 1) {
+    const row = users[index] || {};
+    const username = normalizeValue(
+      row.username || row.name || row.fullName || row.displayName
+    );
+    const email = normalizeValue(row.email).toLowerCase();
+    const password = normalizeValue(row.password);
+    const role = normalizeRole(row.role);
+    const phone = normalizeValue(row.phone || row.phoneNumber);
+
+    const result = {
+      index,
+      email,
+      status: "failed",
+    };
+
+    let userRecord = null;
+
+    try {
+      if (!username || username.length < 2) {
+        throw new HttpsError(
+          "invalid-argument",
+          "username must be at least 2 characters."
+        );
+      }
+      if (!email) {
+        throw new HttpsError("invalid-argument", "email is required.");
+      }
+      if (!password || String(password).length < 6) {
+        throw new HttpsError(
+          "invalid-argument",
+          "password must be at least 6 characters."
+        );
+      }
+      if (!role) {
+        throw new HttpsError("invalid-argument", "role is required.");
+      }
+      if (!VALID_ROLES.includes(role)) {
+        throw new HttpsError(
+          "invalid-argument",
+          "The specified role is not valid."
+        );
+      }
+
+      assertAdminAllowedRole(request, callerRole, role, "create");
+
+      const warnings = [];
+      let phoneNumber = "";
+
+      if (phone) {
+        if (E164_REGEX.test(phone)) {
+          phoneNumber = phone;
+        } else {
+          warnings.push("Phone number ignored because it is not in E.164 format.");
+        }
+      }
+
+      const authPayload = {
+        email,
+        password: String(password),
+        displayName: username,
+      };
+      if (phoneNumber) {
+        authPayload.phoneNumber = phoneNumber;
+      }
+
+      userRecord = await admin.auth().createUser(authPayload);
+
+      await admin.auth().setCustomUserClaims(userRecord.uid, {
+        role,
+      });
+
+      const userProfile = {
+        uid: userRecord.uid,
+        name: username,
+        email,
+        role,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdBy: request.auth.uid,
+      };
+      if (phoneNumber) {
+        userProfile.phoneNumber = phoneNumber;
+      }
+
+      const batch = admin.firestore().batch();
+      const userDocRef = admin.firestore().collection("users").doc(userRecord.uid);
+      batch.set(userDocRef, userProfile);
+
+      const roleDocRef = getRoleUserDocRef(userRecord.uid, role);
+      if (roleDocRef) {
+        batch.set(roleDocRef, userProfile);
+      }
+
+      await batch.commit();
+
+      result.status = "success";
+      result.uid = userRecord.uid;
+      if (warnings.length) {
+        result.warnings = warnings;
+      }
+    } catch (error) {
+      if (userRecord?.uid) {
+        try {
+          await admin.auth().deleteUser(userRecord.uid);
+        } catch (cleanupError) {
+          logger.warn(
+            "Failed to rollback auth user after bulk create error.",
+            cleanupError
+          );
+        }
+      }
+
+      const errorCode = String(error?.code || "");
+      if (errorCode === "auth/email-already-exists") {
+        result.error = "Email already exists.";
+      } else if (error instanceof HttpsError) {
+        result.error = error.message;
+      } else if (errorCode.startsWith("auth/")) {
+        result.error = error.message || "Invalid request.";
+      } else {
+        result.error = error?.message || "Failed to create user.";
+      }
+
+      logger.warn("Bulk create user failed.", {
+        index,
+        email,
+        error: result.error,
+      });
+    }
+
+    results.push(result);
+  }
+
+  return results;
 });
 
 exports.editUserAccount = onCall({ cors: true }, async (request) => {

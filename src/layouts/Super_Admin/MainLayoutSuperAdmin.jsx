@@ -7,6 +7,7 @@ function MainLayoutSuperAdmin() {
   const SuperAdminNavItems = [
     { icon: profile, title: "Home", link: "home" },
     { icon: users, title: "User Management", link: "create-admin" },
+    { icon: users, title: "Bulk Import Users", link: "bulk-import-users" },
   ];
 
   return (

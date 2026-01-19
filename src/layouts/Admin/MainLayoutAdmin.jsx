@@ -14,6 +14,7 @@ function MainLayout() {
     { icon: building, title: "Buildings", link: "/buildings" },
     { icon: assignment, title: "Assignments", link: "/admin/assignments" },
     { icon: users, title: "User Management", link: "/admin/create-admin" },
+    { icon: users, title: "Bulk Import Users", link: "/admin/bulk-import-users" },
   ];
 
   return (

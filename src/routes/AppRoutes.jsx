@@ -20,6 +20,7 @@ import DepartmentsPage from "../features/departments/pages/DepartmentsPage";
 import DepartmentCoursesPage from "../features/courses/pages/CoursesPage";
 import AssignmentsPage from "../pages/admin/AssignmentsPage";
 import CreateCourseAssignment from "../pages/admin/CreateCourseAssignment";
+import BulkImportUsersPage from "../pages/admin/BulkImportUsersPage";
 import CoursesPage from "../pages/Courses/CoursesPage";
 import CourseDetailsPage from "../pages/Courses/CourseDetailsPage";
 import BuildingsPage from "../pages/Buildings/BuildingsPage";
@@ -61,6 +62,7 @@ function AppRoutes() {
           />
           <Route path="assignments" element={<AssignmentsPage />} />
           <Route path="assignments/new" element={<CreateCourseAssignment />} />
+          <Route path="bulk-import-users" element={<BulkImportUsersPage />} />
         </Route>
 
         {/* <Route
@@ -109,6 +111,7 @@ function AppRoutes() {
               </RequireRole>
             }
           />
+          <Route path="bulk-import-users" element={<BulkImportUsersPage />} />
         </Route>
 
         {/* Professor Routes */}
