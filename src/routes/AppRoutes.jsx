@@ -29,6 +29,7 @@ import RoomSchedulePage from "../pages/Buildings/RoomSchedulePage";
 import ProfessorHome from "../pages/professor/ProfessorHome";
 import ProfessorCoursesPage from "../pages/professor/ProfessorCoursesPage";
 import ProfessorMaterialsPage from "../pages/professor/ProfessorMaterialsPage";
+import OfferingsListPage from "../pages/offerings/OfferingsListPage";
 import OfferingDashboardPage from "../pages/offerings/OfferingDashboardPage";
 import CreateSessionPage from "../pages/offerings/CreateSessionPage";
 import SessionDetailsPage from "../pages/sessions/SessionDetailsPage";
@@ -104,6 +105,7 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         >
+          <Route index element={<OfferingsListPage />} />
           <Route
             path=":offeringId/dashboard"
             element={<OfferingDashboardPage />}
