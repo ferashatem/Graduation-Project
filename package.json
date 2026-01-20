@@ -5,6 +5,7 @@
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
+    "@mediapipe/tasks-vision": "^0.10.12",
     "@mui/icons-material": "^5.14.17",
     "@mui/material": "^5.17.1",
     "@mui/x-data-grid": "^5.17.24",

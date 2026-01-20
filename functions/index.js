@@ -49,6 +49,8 @@ const ROLE_ALIASES = {
 };
 
 const E164_REGEX = /^\+[1-9]\d{1,14}$/;
+const ATTENDANCE_STATUSES = ["present", "late", "absent", "excused"];
+const INSTRUCTOR_ROLES = ["super_admin", "admin", "professor", "assistant"];
 
 const normalizeRole = (role) => {
   if (!role) return "";
@@ -57,6 +59,13 @@ const normalizeRole = (role) => {
 };
 const normalizeValue = (value) =>
   value === null || value === undefined ? "" : String(value).trim();
+const normalizeAttendanceStatus = (status) =>
+  normalizeValue(status).toLowerCase();
+const toNonNegativeInt = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 0;
+  return Math.floor(parsed);
+};
 const normalizeIdArray = (values) => {
   if (!Array.isArray(values)) return [];
   return Array.from(new Set(values.map(normalizeValue).filter(Boolean)));
@@ -110,6 +119,17 @@ const assertCallerIsAdminOrSuperAdmin = (request, callerRole, action) => {
   throw new HttpsError(
     "permission-denied",
     `Only Super Admins or Admins can ${action} users.`
+  );
+};
+
+const assertInstructorOrAdmin = (request, callerRole, action) => {
+  if (INSTRUCTOR_ROLES.includes(callerRole)) {
+    return;
+  }
+  logPermissionDenied(request, callerRole, `Action ${action}`);
+  throw new HttpsError(
+    "permission-denied",
+    "Only instructors or admins can manage attendance."
   );
 };
 
@@ -673,6 +693,167 @@ exports.bulkCreateUsers = onCall({ cors: true }, async (request) => {
   }
 
   return results;
+});
+
+exports.setAttendance = onCall({ cors: true }, async (request) => {
+  assertAuthenticated(request);
+
+  const callerRole = getCallerRole(request);
+  logger.info(
+    `Caller UID ${request.auth.uid} Role ${callerRole} Action setAttendance`
+  );
+
+  assertInstructorOrAdmin(request, callerRole, "set attendance");
+
+  const { sessionId, offeringId, studentId, status, method } =
+    request.data || {};
+  const trimmedSessionId = normalizeValue(sessionId);
+  const trimmedOfferingId = normalizeValue(offeringId);
+  const trimmedStudentId = normalizeValue(studentId);
+  const normalizedStatus = normalizeAttendanceStatus(status);
+  const normalizedMethod = normalizeValue(method) || "manual";
+
+  if (!trimmedSessionId || !trimmedStudentId || !trimmedOfferingId) {
+    throw new HttpsError(
+      "invalid-argument",
+      "sessionId, offeringId, and studentId are required."
+    );
+  }
+
+  if (!ATTENDANCE_STATUSES.includes(normalizedStatus)) {
+    throw new HttpsError(
+      "invalid-argument",
+      `status must be one of: ${ATTENDANCE_STATUSES.join(", ")}.`
+    );
+  }
+
+  const docId = `${trimmedSessionId}_${trimmedStudentId}`;
+  const attendanceRef = admin.firestore().collection("attendance").doc(docId);
+  const now = admin.firestore.FieldValue.serverTimestamp();
+
+  await admin.firestore().runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(attendanceRef);
+    const payload = {
+      sessionId: trimmedSessionId,
+      offeringId: trimmedOfferingId,
+      studentId: trimmedStudentId,
+      status: normalizedStatus,
+      method: normalizedMethod || "manual",
+      checkInAt: now,
+      updatedAt: now,
+    };
+
+    if (!snapshot.exists) {
+      payload.createdAt = now;
+    }
+
+    transaction.set(attendanceRef, payload, { merge: true });
+  });
+
+  return {
+    docId,
+    sessionId: trimmedSessionId,
+    studentId: trimmedStudentId,
+    status: normalizedStatus,
+  };
+});
+
+exports.pushEngagement = onCall({ cors: true }, async (request) => {
+  assertAuthenticated(request);
+
+  const callerRole = getCallerRole(request);
+  logger.info(
+    `Caller UID ${request.auth.uid} Role ${callerRole} Action pushEngagement`
+  );
+
+  const {
+    sessionId,
+    offeringId,
+    studentId,
+    focusedCount,
+    distractedCount,
+    awayCount,
+    samplesCount,
+  } = request.data || {};
+
+  const trimmedSessionId = normalizeValue(sessionId);
+  const trimmedOfferingId = normalizeValue(offeringId);
+  const trimmedStudentId = normalizeValue(studentId);
+
+  if (!trimmedSessionId || !trimmedStudentId) {
+    throw new HttpsError(
+      "invalid-argument",
+      "sessionId and studentId are required."
+    );
+  }
+
+  const focusedValue = toNonNegativeInt(focusedCount);
+  const distractedValue = toNonNegativeInt(distractedCount);
+  const awayValue = toNonNegativeInt(awayCount);
+  const computedSamples = focusedValue + distractedValue + awayValue;
+  const sampleValue = toNonNegativeInt(samplesCount) || computedSamples;
+
+  if (!sampleValue) {
+    throw new HttpsError(
+      "invalid-argument",
+      "At least one engagement sample is required."
+    );
+  }
+
+  let resolvedOfferingId = trimmedOfferingId;
+  if (!resolvedOfferingId) {
+    try {
+      const sessionSnap = await admin
+        .firestore()
+        .collection("sessions")
+        .doc(trimmedSessionId)
+        .get();
+      resolvedOfferingId = normalizeValue(sessionSnap.data()?.offeringId);
+    } catch (error) {
+      logger.warn("Unable to resolve offeringId for engagement.", error);
+    }
+  }
+
+  const docId = `${trimmedSessionId}_${trimmedStudentId}`;
+  const engagementRef = admin.firestore().collection("engagementAgg").doc(docId);
+  const now = admin.firestore.FieldValue.serverTimestamp();
+
+  await admin.firestore().runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(engagementRef);
+    const prev = snapshot.exists ? snapshot.data() : {};
+
+    const nextFocused = (prev.focusedCount || 0) + focusedValue;
+    const nextDistracted = (prev.distractedCount || 0) + distractedValue;
+    const nextAway = (prev.awayCount || 0) + awayValue;
+    const nextSamples = (prev.samplesCount || 0) + sampleValue;
+    const focusPct = nextSamples ? nextFocused / nextSamples : 0;
+    const awayPct = nextSamples ? nextAway / nextSamples : 0;
+
+    transaction.set(
+      engagementRef,
+      {
+        sessionId: trimmedSessionId,
+        offeringId:
+          resolvedOfferingId || prev?.offeringId || prev?.offering_id || "",
+        studentId: trimmedStudentId,
+        samplesCount: nextSamples,
+        focusedCount: nextFocused,
+        distractedCount: nextDistracted,
+        awayCount: nextAway,
+        focusPct,
+        awayPct,
+        updatedAt: now,
+      },
+      { merge: true }
+    );
+  });
+
+  return {
+    docId,
+    sessionId: trimmedSessionId,
+    studentId: trimmedStudentId,
+    samplesCount: sampleValue,
+  };
 });
 
 exports.editUserAccount = onCall({ cors: true }, async (request) => {
@@ -1428,6 +1609,89 @@ exports.upsertAssignment = onCall({ cors: true }, async (request) => {
     throwAsHttpsError(error);
   }
 });
+
+exports.syncAttendanceAggBySession = onDocumentWritten(
+  "attendance/{docId}",
+  async (event) => {
+    const afterSnap = event.data?.after;
+    const beforeSnap = event.data?.before;
+
+    const afterData = afterSnap?.exists ? afterSnap.data() : null;
+    const beforeData = beforeSnap?.exists ? beforeSnap.data() : null;
+
+    const sessionId =
+      normalizeValue(afterData?.sessionId) ||
+      normalizeValue(beforeData?.sessionId) ||
+      "";
+
+    if (!sessionId) {
+      logger.warn("syncAttendanceAggBySession missing sessionId.");
+      return;
+    }
+
+    const attendanceSnap = await admin
+      .firestore()
+      .collection("attendance")
+      .where("sessionId", "==", sessionId)
+      .get();
+
+    let presentCount = 0;
+    let lateCount = 0;
+    let absentCount = 0;
+    let excusedCount = 0;
+    let offeringId = "";
+
+    attendanceSnap.forEach((docSnap) => {
+      const data = docSnap.data() || {};
+      const status = normalizeAttendanceStatus(data.status);
+      if (!offeringId) {
+        offeringId = normalizeValue(data.offeringId);
+      }
+
+      switch (status) {
+        case "present":
+          presentCount += 1;
+          break;
+        case "late":
+          lateCount += 1;
+          break;
+        case "absent":
+          absentCount += 1;
+          break;
+        case "excused":
+          excusedCount += 1;
+          break;
+        default:
+          break;
+      }
+    });
+
+    // TODO: Replace with enrollment-based count when available.
+    const enrolledCount = attendanceSnap.size;
+    const attendanceRate = enrolledCount
+      ? presentCount / Math.max(enrolledCount, 1)
+      : 0;
+
+    await admin
+      .firestore()
+      .collection("attendanceAgg_session")
+      .doc(sessionId)
+      .set(
+        {
+          sessionId,
+          offeringId,
+          presentCount,
+          lateCount,
+          absentCount,
+          excusedCount,
+          enrolledCount,
+          attendanceRate,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+  }
+);
 
 exports.syncCourseAssignmentsIndex = onDocumentWritten(
   `${COURSE_ASSIGNMENTS_COLLECTION}/{assignmentId}`,

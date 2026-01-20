@@ -29,6 +29,9 @@ import RoomSchedulePage from "../pages/Buildings/RoomSchedulePage";
 import ProfessorHome from "../pages/professor/ProfessorHome";
 import ProfessorCoursesPage from "../pages/professor/ProfessorCoursesPage";
 import ProfessorMaterialsPage from "../pages/professor/ProfessorMaterialsPage";
+import OfferingDashboardPage from "../pages/offerings/OfferingDashboardPage";
+import CreateSessionPage from "../pages/offerings/CreateSessionPage";
+import SessionDetailsPage from "../pages/sessions/SessionDetailsPage";
 
 function AppRoutes() {
   return (
@@ -91,6 +94,35 @@ function AppRoutes() {
             path=":buildingId/rooms/:roomId"
             element={<RoomSchedulePage />}
           />
+        </Route>
+
+        <Route
+          path="/offerings"
+          element={
+            <ProtectedRoute redirectTo="/signin">
+              <MainLayoutAdmin />
+            </ProtectedRoute>
+          }
+        >
+          <Route
+            path=":offeringId/dashboard"
+            element={<OfferingDashboardPage />}
+          />
+          <Route
+            path=":offeringId/sessions/new"
+            element={<CreateSessionPage />}
+          />
+        </Route>
+
+        <Route
+          path="/sessions"
+          element={
+            <ProtectedRoute redirectTo="/signin">
+              <MainLayoutAdmin />
+            </ProtectedRoute>
+          }
+        >
+          <Route path=":sessionId" element={<SessionDetailsPage />} />
         </Route>
 
         {/* Super Admin Routes */}

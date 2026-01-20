@@ -21,6 +21,26 @@ service cloud.firestore {
       return signedIn() && (role() in list);
     }
 
+    function roleFromProfile() {
+      return signedIn()
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+        : null;
+    }
+
+    function resolvedRole() {
+      return role() != null ? role() : roleFromProfile();
+    }
+
+    function resolvedRoleIn(list) {
+      return signedIn() && (resolvedRole() in list);
+    }
+
+    function canManageSessions() {
+      return resolvedRoleIn(["super_admin", "admin", "professor", "assistant", "prof"])
+        // TODO: remove fallback once every user has a role stored.
+        || (signedIn() && resolvedRole() == null);
+    }
+
     function isProfessorOwner(profUid) {
       return signedIn() && request.auth.uid == profUid && roleIn(["professor", "prof"]);
     }
@@ -136,6 +156,48 @@ service cloud.firestore {
       allow read: if roleIs("assistant") && request.auth.uid == assistantId;
 
       allow create, update, delete: if roleIn(["super_admin", "admin"]);
+    }
+
+    /* -------------------------
+       Offerings (manual attendance)
+       /offerings/{offeringId}
+    --------------------------*/
+    match /offerings/{offeringId} {
+      allow read: if signedIn();
+      allow create, update, delete: if resolvedRoleIn(["super_admin", "admin"]);
+    }
+
+    /* -------------------------
+       Sessions
+       /sessions/{sessionId}
+    --------------------------*/
+    match /sessions/{sessionId} {
+      allow read: if signedIn();
+      allow create, update, delete: if canManageSessions();
+    }
+
+    /* -------------------------
+       Attendance (server-only writes)
+       /attendance/{sessionId}_{studentId}
+       /attendanceAgg_session/{sessionId}
+    --------------------------*/
+    match /attendance/{docId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    match /attendanceAgg_session/{sessionId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    /* -------------------------
+       Engagement Aggregates (server-only writes)
+       /engagementAgg/{sessionId}_{studentId}
+    --------------------------*/
+    match /engagementAgg/{docId} {
+      allow read: if signedIn();
+      allow write: if false;
     }
 
     /* -------------------------

@@ -1,6 +1,7 @@
 import SideNavBar from "../../components/SideNavBar/SideNavBarRender";
 import profile from "../../assets/navbar/address-card-regular.svg"; 
 import book from "../../assets/navbar/book-solid.svg";
+import people from "../../assets/navbar/people-group-solid.svg";
 import assignment from "../../assets/navbar/assignment.svg";
 import school from "../../assets/navbar/school-solid.svg";
 import users from "../../assets/navbar/user-solid.svg";
@@ -14,7 +15,7 @@ function MainLayout() {
     { icon: building, title: "Buildings", link: "/buildings" },
     { icon: assignment, title: "Assignments", link: "/admin/assignments" },
     { icon: users, title: "User Management", link: "/admin/create-admin" },
-    { icon: users, title: "Bulk Import Users", link: "/admin/bulk-import-users" },
+    { icon: people, title: "Bulk Import Users", link: "/admin/bulk-import-users" },
   ];
 
   return (
