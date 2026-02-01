@@ -132,6 +132,7 @@ export const callCourseAiAssistant = async ({
   conversationId,
   courseDocId,
   responseMessageId,
+  lecture,
   recentMessages,
 }) => {
   const fn = httpsCallable(functions, "courseAiAssistant");
@@ -139,6 +140,7 @@ export const callCourseAiAssistant = async ({
     conversationId,
     courseDocId,
     responseMessageId,
+    lecture,
     recentMessages,
   });
   return result?.data;

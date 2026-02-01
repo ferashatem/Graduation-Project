@@ -1779,6 +1779,7 @@ exports.courseAiAssistant = onCall(
       courseDocId,
       responseMessageId,
       recentMessages,
+      lecture,
     } = request.data || {};
 
     const trimmedConversationId = normalizeValue(conversationId);
@@ -1853,7 +1854,33 @@ exports.courseAiAssistant = onCall(
           }))
       : [];
 
-    const systemPrompt = `You are the Course AI Assistant for course ${trimmedCourseDocId}. Answer as a helpful teaching assistant for professors. Keep responses concise, clear, and classroom-ready.`;
+    const lectureTitle = normalizeValue(lecture?.lectureTitle || lecture?.title);
+    const lectureNumber = normalizeValue(lecture?.lectureNumber);
+    const lectureNotes = normalizeValue(lecture?.notes);
+    const lecturePdfUrl = normalizeValue(lecture?.pdfUrl);
+    const lectureId = normalizeValue(lecture?.lectureId);
+
+    const lectureContextLines = [
+      lectureTitle ? `Lecture Title: ${lectureTitle}` : "",
+      lectureNumber ? `Lecture Number: ${lectureNumber}` : "",
+      lectureId ? `Lecture Id: ${lectureId}` : "",
+      lectureNotes ? `Lecture Notes: ${lectureNotes}` : "",
+      lecturePdfUrl ? `Lecture PDF URL: ${lecturePdfUrl}` : "",
+    ].filter(Boolean);
+
+    const lectureContext = lectureContextLines.length
+      ? lectureContextLines.join("\n")
+      : "No lecture content was provided.";
+
+    const systemPrompt = [
+      `You are the Course AI Assistant for course ${trimmedCourseDocId}.`,
+      "You MUST use only the lecture content provided below.",
+      "Do NOT use external knowledge or information from other lectures.",
+      "If the lecture content is insufficient, respond with: Insufficient lecture information.",
+      "",
+      "LECTURE CONTENT:",
+      lectureContext,
+    ].join("\n");
 
     let aiResponseText = "";
 

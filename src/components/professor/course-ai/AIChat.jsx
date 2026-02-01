@@ -9,6 +9,7 @@ import {
   listenCourseAiMessages,
   updateCourseAiMessage,
 } from "../../../firebase/courseAiApi";
+import { fetchMaterialsForCourse } from "../../../firebase/materialsApi";
 import { getErrorMessage } from "../../../utils/errorHelpers";
 
 const toTimestampValue = (timestamp) => {
@@ -28,12 +29,50 @@ const normalizeRecentMessages = (items) =>
       content: message.content,
     }));
 
+const normalizeLectureNumber = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const formatDate = (timestamp) => {
+  if (!timestamp) return "";
+  if (typeof timestamp.toDate === "function") {
+    return timestamp.toDate().toLocaleDateString("en-US");
+  }
+  if (typeof timestamp.seconds === "number") {
+    return new Date(timestamp.seconds * 1000).toLocaleDateString("en-US");
+  }
+  if (timestamp instanceof Date) {
+    return timestamp.toLocaleDateString("en-US");
+  }
+  return "";
+};
+
+const sortMaterials = (items) => {
+  const sorted = [...items];
+  sorted.sort((a, b) => {
+    const aLecture = normalizeLectureNumber(a.lectureNumber);
+    const bLecture = normalizeLectureNumber(b.lectureNumber);
+    if (aLecture !== null && bLecture !== null) {
+      return aLecture - bLecture;
+    }
+    if (aLecture !== null) return -1;
+    if (bLecture !== null) return 1;
+    return toTimestampValue(b.createdAt) - toTimestampValue(a.createdAt);
+  });
+  return sorted;
+};
+
 function AIChat({ professorId, courseDocId, courseName }) {
   const [conversationId, setConversationId] = useState("");
   const [messages, setMessages] = useState([]);
   const [conversationLoading, setConversationLoading] = useState(true);
   const [conversationError, setConversationError] = useState("");
   const [sendError, setSendError] = useState("");
+  const [materials, setMaterials] = useState([]);
+  const [materialsLoading, setMaterialsLoading] = useState(true);
+  const [materialsError, setMaterialsError] = useState("");
+  const [selectedLectureId, setSelectedLectureId] = useState("");
 
   const listRef = useRef(null);
 
@@ -74,6 +113,58 @@ function AIChat({ professorId, courseDocId, courseName }) {
   }, [courseDocId, professorId]);
 
   useEffect(() => {
+    let isActive = true;
+
+    if (!professorId || !courseDocId) {
+      setMaterials([]);
+      setMaterialsLoading(false);
+      setMaterialsError("");
+      return () => {
+        isActive = false;
+      };
+    }
+
+    setMaterialsLoading(true);
+    setMaterialsError("");
+
+    fetchMaterialsForCourse(professorId, courseDocId)
+      .then((items) => {
+        if (!isActive) return;
+        const sorted = sortMaterials(items);
+        setMaterials(sorted);
+      })
+      .catch((err) => {
+        if (!isActive) return;
+        setMaterialsError(
+          getErrorMessage(err, "Failed to load lecture materials.")
+        );
+      })
+      .finally(() => {
+        if (!isActive) return;
+        setMaterialsLoading(false);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [courseDocId, professorId]);
+
+  useEffect(() => {
+    if (materials.length === 0) {
+      if (selectedLectureId) setSelectedLectureId("");
+      return;
+    }
+    if (!selectedLectureId) {
+      setSelectedLectureId(materials[0].id);
+      return;
+    }
+    const exists = materials.some((material) => material.id === selectedLectureId);
+    if (!exists) {
+      setSelectedLectureId(materials[0].id);
+    }
+  }, [materials, selectedLectureId]);
+
+  useEffect(() => {
     if (!conversationId) return () => {};
 
     // Listen in real time to message updates inside this conversation.
@@ -96,6 +187,28 @@ function AIChat({ professorId, courseDocId, courseName }) {
     return sorted;
   }, [messages]);
 
+  const selectedLecture = useMemo(
+    () => materials.find((material) => material.id === selectedLectureId) || null,
+    [materials, selectedLectureId]
+  );
+
+  const lectureOptions = useMemo(
+    () =>
+      materials.map((material) => {
+        const lectureNumber = normalizeLectureNumber(material.lectureNumber);
+        const lectureTitle = material.lectureTitle || "Untitled lecture";
+        const lectureLabel = lectureNumber
+          ? `Lecture ${lectureNumber}: ${lectureTitle}`
+          : lectureTitle;
+        const createdAtLabel = formatDate(material.createdAt);
+        return {
+          id: material.id,
+          label: createdAtLabel ? `${lectureLabel} • ${createdAtLabel}` : lectureLabel,
+        };
+      }),
+    [materials]
+  );
+
   const isAiProcessing = useMemo(
     () => orderedMessages.some((message) => message.role === "ai" && message.status === "processing"),
     [orderedMessages]
@@ -104,6 +217,10 @@ function AIChat({ professorId, courseDocId, courseName }) {
   const handleSend = useCallback(
     async (prompt) => {
       if (!conversationId || !professorId || !courseDocId) return;
+      if (!selectedLecture) {
+        setSendError("Please select a lecture before asking the assistant.");
+        return;
+      }
       setSendError("");
 
       // 1) Save professor message + placeholder AI message.
@@ -125,6 +242,14 @@ function AIChat({ professorId, courseDocId, courseName }) {
           conversationId,
           courseDocId,
           responseMessageId: aiMessageId,
+          lecture: {
+            lectureId: selectedLecture.id,
+            lectureTitle: selectedLecture.lectureTitle || "",
+            lectureNumber: normalizeLectureNumber(selectedLecture.lectureNumber),
+            notes: selectedLecture.notes || "",
+            pdfUrl: selectedLecture.pdfUrl || "",
+            createdAt: selectedLecture.createdAt || null,
+          },
           recentMessages,
         });
       } catch (err) {
@@ -139,7 +264,7 @@ function AIChat({ professorId, courseDocId, courseName }) {
         setSendError(getErrorMessage(err, "Failed to reach AI assistant."));
       }
     },
-    [conversationId, courseDocId, orderedMessages, professorId]
+    [conversationId, courseDocId, orderedMessages, professorId, selectedLecture]
   );
 
   useEffect(() => {
@@ -154,6 +279,31 @@ function AIChat({ professorId, courseDocId, courseName }) {
         <p className="text-xs text-slate-500">
           Ask questions about {courseName || "this course"} and generate quizzes.
         </p>
+        <div className="mt-3">
+          <label className="text-xs font-semibold text-slate-600">
+            Select lecture
+          </label>
+          <select
+            className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm"
+            value={selectedLectureId}
+            onChange={(event) => setSelectedLectureId(event.target.value)}
+            disabled={materialsLoading || lectureOptions.length === 0}
+          >
+            {lectureOptions.length === 0 ? (
+              <option value="">
+                {materialsLoading ? "Loading lectures..." : "No lectures found"}
+              </option>
+            ) : null}
+            {lectureOptions.map((lecture) => (
+              <option key={lecture.id} value={lecture.id}>
+                {lecture.label}
+              </option>
+            ))}
+          </select>
+          {materialsError ? (
+            <p className="mt-2 text-xs text-rose-500">{materialsError}</p>
+          ) : null}
+        </div>
       </div>
 
       {conversationError ? (
@@ -200,7 +350,8 @@ function AIChat({ professorId, courseDocId, courseName }) {
           isAiProcessing ||
           !conversationId ||
           !professorId ||
-          !courseDocId
+          !courseDocId ||
+          !selectedLecture
         }
       />
     </div>
