@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useOutletContext } from "react-router-dom";
+import { useLocation, useNavigate, useOutletContext } from "react-router-dom";
+import { Button } from "@mui/material";
 import PageHeader from "../../components/common/PageHeader";
 import Loading from "../../components/common/Loading";
 import ErrorState from "../../components/common/ErrorState";
@@ -18,6 +19,8 @@ function ProfessorCoursesPage() {
   const { user: outletUser } = outletContext;
   const { user: authUser, authLoading } = useAuthUser();
   const user = outletUser || authUser;
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const [courses, setCourses] = useState([]);
   const [loadingCourses, setLoadingCourses] = useState(true);
@@ -64,6 +67,19 @@ function ProfessorCoursesPage() {
         termId: course.termId || "-",
       })),
     [courses]
+  );
+
+  const basePath = useMemo(
+    () => (location.pathname.startsWith("/professor") ? "/professor" : "/prof"),
+    [location.pathname]
+  );
+
+  const handleOpenCourse = useCallback(
+    (courseId) => {
+      if (!courseId) return;
+      navigate(`${basePath}/courses/${courseId}`);
+    },
+    [basePath, navigate]
   );
 
   const handleRetry = useCallback(() => {
@@ -113,6 +129,16 @@ function ProfessorCoursesPage() {
                   <span className="font-medium text-slate-700">Term</span>
                   <span className="text-slate-500">{course.termId}</span>
                 </div>
+              </div>
+
+              <div className="mt-4">
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() => handleOpenCourse(course.id)}
+                >
+                  View course
+                </Button>
               </div>
             </article>
           ))

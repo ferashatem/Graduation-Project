@@ -1,4 +1,12 @@
-import { collection, getDocs, onSnapshot, orderBy, query } from "firebase/firestore";
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  onSnapshot,
+  orderBy,
+  query,
+} from "firebase/firestore";
 import { db } from "./firebaseConfig";
 
 const PROF_COURSES_COLLECTION = "prof_courses";
@@ -31,3 +39,17 @@ export const listenProfCourses = (profUid, onChange, onError) => {
 
 export const listenProfessorCourses = (profUid, onChange, onError) =>
   listenProfCourses(profUid, onChange, onError);
+
+export const getProfessorCourseById = async (profUid, courseDocId) => {
+  if (!profUid || !courseDocId) return null;
+  const courseRef = doc(
+    db,
+    PROF_COURSES_COLLECTION,
+    profUid,
+    "courses",
+    courseDocId
+  );
+  const snapshot = await getDoc(courseRef);
+  if (!snapshot.exists()) return null;
+  return mapCourseDoc(snapshot);
+};

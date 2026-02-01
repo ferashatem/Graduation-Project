@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 
 // Pages
 import SignIn from "../pages/SignIn";
@@ -28,7 +28,7 @@ import RoomsPage from "../pages/Buildings/RoomsPage";
 import RoomSchedulePage from "../pages/Buildings/RoomSchedulePage";
 import ProfessorHome from "../pages/professor/ProfessorHome";
 import ProfessorCoursesPage from "../pages/professor/ProfessorCoursesPage";
-import ProfessorMaterialsPage from "../pages/professor/ProfessorMaterialsPage";
+import ProfessorCourseDetailsPage from "../pages/professor/ProfessorCourseDetailsPage";
 import OfferingsListPage from "../pages/offerings/OfferingsListPage";
 import OfferingDashboardPage from "../pages/offerings/OfferingDashboardPage";
 import CreateSessionPage from "../pages/offerings/CreateSessionPage";
@@ -157,10 +157,17 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         >
-        <Route index element={<ProfessorHome />} />
-        <Route path="courses" element={<ProfessorCoursesPage />} />
-        <Route path="materials" element={<ProfessorMaterialsPage />} />
-      </Route>
+          <Route index element={<ProfessorHome />} />
+          <Route path="courses" element={<ProfessorCoursesPage />} />
+          <Route
+            path="courses/:courseDocId"
+            element={<ProfessorCourseDetailsPage />}
+          />
+          <Route
+            path="materials"
+            element={<Navigate to="/prof/courses" replace />}
+          />
+        </Route>
 
         <Route
           path="/professor"
@@ -172,7 +179,14 @@ function AppRoutes() {
         >
           <Route path="home" element={<Home />} />
           <Route path="courses" element={<ProfessorCoursesPage />} />
-          <Route path="materials" element={<ProfessorMaterialsPage />} />
+          <Route
+            path="courses/:courseDocId"
+            element={<ProfessorCourseDetailsPage />}
+          />
+          <Route
+            path="materials"
+            element={<Navigate to="/professor/courses" replace />}
+          />
         </Route>
 
         {/* <Route path="/not-allowed" element={<Unauthorized />} /> */}
