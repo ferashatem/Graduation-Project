@@ -245,6 +245,41 @@ service cloud.firestore {
       }
     }
 
+    /* -------------------------
+       Course AI Conversations (Professor only)
+       /ai_conversations/{conversationId}
+    --------------------------*/
+    match /ai_conversations/{conversationId} {
+      allow read: if signedIn()
+        && resolvedRoleIn(["professor", "prof"])
+        && resource.data.professorId == request.auth.uid;
+
+      allow create: if signedIn()
+        && resolvedRoleIn(["professor", "prof"])
+        && request.resource.data.professorId == request.auth.uid;
+
+      allow update, delete: if signedIn()
+        && resolvedRoleIn(["professor", "prof"])
+        && resource.data.professorId == request.auth.uid;
+
+      match /messages/{messageId} {
+        allow read: if signedIn()
+          && resolvedRoleIn(["professor", "prof"])
+          && get(/databases/$(database)/documents/ai_conversations/$(conversationId))
+            .data.professorId == request.auth.uid;
+
+        allow create: if signedIn()
+          && resolvedRoleIn(["professor", "prof"])
+          && get(/databases/$(database)/documents/ai_conversations/$(conversationId))
+            .data.professorId == request.auth.uid;
+
+        allow update, delete: if signedIn()
+          && resolvedRoleIn(["professor", "prof"])
+          && get(/databases/$(database)/documents/ai_conversations/$(conversationId))
+            .data.professorId == request.auth.uid;
+      }
+    }
+
     match /assistant_courses/{assistantUid} {
       allow read: if signedIn()
         && (

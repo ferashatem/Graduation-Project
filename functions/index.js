@@ -21,6 +21,7 @@ const ASSIGNMENT_COLLECTION = "assignments";
 const COURSE_ASSIGNMENTS_COLLECTION = "courseAssignments";
 const PROF_COURSES_COLLECTION = "prof_courses";
 const ASSISTANT_COURSES_COLLECTION = "assistant_courses";
+const AI_CONVERSATIONS_COLLECTION = "ai_conversations";
 const ROLE_COLLECTIONS = {
   super_admin: "super_admins",
   admin: "admins",
@@ -1753,5 +1754,175 @@ exports.syncCourseAssignmentsIndex = onDocumentWritten(
     if (!writes.length) return;
 
     await Promise.all(writes);
+  }
+);
+
+/* ------------------------------------------------------------------
+   Course AI Assistant (Professor only, isolated from other AI code)
+-------------------------------------------------------------------*/
+exports.courseAiAssistant = onCall(
+  { cors: true, timeoutSeconds: 60 },
+  async (request) => {
+    assertAuthenticated(request);
+
+    const callerRole = getCallerRole(request);
+    if (callerRole !== PROFESSOR_ROLE) {
+      logPermissionDenied(request, callerRole, "Course AI Assistant");
+      throw new HttpsError(
+        "permission-denied",
+        "Only professors can use the course AI assistant."
+      );
+    }
+
+    const {
+      conversationId,
+      courseDocId,
+      responseMessageId,
+      recentMessages,
+    } = request.data || {};
+
+    const trimmedConversationId = normalizeValue(conversationId);
+    const trimmedCourseDocId = normalizeValue(courseDocId);
+    const trimmedMessageId = normalizeValue(responseMessageId);
+
+    if (!trimmedConversationId || !trimmedCourseDocId || !trimmedMessageId) {
+      throw new HttpsError(
+        "invalid-argument",
+        "conversationId, courseDocId, and responseMessageId are required."
+      );
+    }
+
+    const conversationRef = admin
+      .firestore()
+      .collection(AI_CONVERSATIONS_COLLECTION)
+      .doc(trimmedConversationId);
+    const conversationSnap = await conversationRef.get();
+
+    if (!conversationSnap.exists) {
+      throw new HttpsError("not-found", "Conversation not found.");
+    }
+
+    const conversation = conversationSnap.data() || {};
+    if (conversation.professorId !== request.auth.uid) {
+      throw new HttpsError(
+        "permission-denied",
+        "You do not own this conversation."
+      );
+    }
+    if (conversation.courseDocId !== trimmedCourseDocId) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Course does not match the conversation."
+      );
+    }
+
+    // Ensure the professor actually owns the course in the professor index.
+    const courseSnap = await admin
+      .firestore()
+      .collection(PROF_COURSES_COLLECTION)
+      .doc(request.auth.uid)
+      .collection("courses")
+      .doc(trimmedCourseDocId)
+      .get();
+    if (!courseSnap.exists) {
+      throw new HttpsError(
+        "permission-denied",
+        "You do not have access to this course."
+      );
+    }
+
+    const apiUrl = String(process.env.COURSE_AI_API_URL || "");
+    const apiKey = String(process.env.COURSE_AI_API_KEY || "");
+    const model = String(process.env.COURSE_AI_MODEL || "course-ai-model");
+    const temperature = Number(process.env.COURSE_AI_TEMPERATURE || 0.3);
+
+    if (!apiUrl || !apiKey) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Course AI environment variables are not set."
+      );
+    }
+
+    const sanitizedMessages = Array.isArray(recentMessages)
+      ? recentMessages
+          .filter((message) => normalizeValue(message?.content))
+          .slice(-12)
+          .map((message) => ({
+            role: message.role === "ai" ? "assistant" : "user",
+            content: normalizeValue(message.content),
+          }))
+      : [];
+
+    const systemPrompt = `You are the Course AI Assistant for course ${trimmedCourseDocId}. Answer as a helpful teaching assistant for professors. Keep responses concise, clear, and classroom-ready.`;
+
+    let aiResponseText = "";
+
+    try {
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          temperature: Number.isFinite(temperature) ? temperature : 0.3,
+          messages: [{ role: "system", content: systemPrompt }, ...sanitizedMessages],
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `AI API error ${response.status}: ${errorText || response.statusText}`
+        );
+      }
+
+      const payload = await response.json();
+      aiResponseText =
+        payload?.choices?.[0]?.message?.content ||
+        payload?.choices?.[0]?.text ||
+        "";
+
+      if (!aiResponseText) {
+        throw new Error("AI response was empty.");
+      }
+
+      await conversationRef
+        .collection("messages")
+        .doc(trimmedMessageId)
+        .set(
+          {
+            content: aiResponseText,
+            status: "done",
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+
+      await conversationRef.set(
+        { updatedAt: admin.firestore.FieldValue.serverTimestamp() },
+        { merge: true }
+      );
+
+      return { ok: true };
+    } catch (error) {
+      logger.error("courseAiAssistant error:", error);
+      await conversationRef
+        .collection("messages")
+        .doc(trimmedMessageId)
+        .set(
+          {
+            content: "AI response failed. Please try again.",
+            status: "error",
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+      throw new HttpsError(
+        "internal",
+        error?.message || "Failed to generate AI response."
+      );
+    }
   }
 );

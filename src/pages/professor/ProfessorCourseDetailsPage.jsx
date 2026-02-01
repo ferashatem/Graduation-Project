@@ -10,6 +10,7 @@ import PageHeader from "../../components/common/PageHeader";
 import Loading from "../../components/common/Loading";
 import ErrorState from "../../components/common/ErrorState";
 import CourseMaterialsSection from "../../components/professor/CourseMaterialsSection";
+import AIChat from "../../components/professor/course-ai/AIChat";
 import { useAuthUser } from "../../auth/useAuthUser";
 import { getProfessorCourseById } from "../../firebase/profCoursesApi";
 import { getErrorMessage } from "../../utils/errorHelpers";
@@ -159,6 +160,14 @@ function ProfessorCourseDetailsPage() {
           </div>
 
           <CourseMaterialsSection professorId={user?.uid} course={course} />
+
+          <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+            <AIChat
+              professorId={user?.uid}
+              courseDocId={course?.id}
+              courseName={courseSummary?.name}
+            />
+          </div>
         </>
       )}
     </div>
