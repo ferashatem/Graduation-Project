@@ -13,6 +13,8 @@
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",
     "@testing-library/user-event": "^13.5.0",
+    "@react-three/drei": "^9.122.0",
+    "@react-three/fiber": "^8.18.1",
     "apexcharts": "^4.7.0",
     "axios": "^1.10.0",
     "file-saver": "^2.0.5",
@@ -29,6 +31,7 @@
     "react-router-dom": "^7.3.0",
     "react-scripts": "5.0.1",
     "react-top-loading-bar": "^3.0.2",
+    "three": "^0.164.1",
     "web-vitals": "^2.1.4",
     "xlsx": "^0.18.5"
   },

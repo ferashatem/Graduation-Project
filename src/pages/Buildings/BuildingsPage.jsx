@@ -135,6 +135,13 @@ function BuildingsPage() {
     [navigate, selectedCollegeId]
   );
 
+  const handleOpenViewer = useCallback(() => {
+    if (!selectedCollegeId) return;
+    navigate(`/buildings/viewer?collegeId=${selectedCollegeId}`, {
+      state: { collegeId: selectedCollegeId },
+    });
+  }, [navigate, selectedCollegeId]);
+
   const handleAdd = useCallback(() => {
     setEditing(null);
     setActionError("");
@@ -227,15 +234,24 @@ function BuildingsPage() {
         title="Buildings"
         breadcrumbs={breadcrumbs}
         action={
-          canManage ? (
+          <div className="flex flex-wrap gap-2">
             <Button
-              variant="contained"
-              onClick={handleAdd}
+              variant="outlined"
+              onClick={handleOpenViewer}
               disabled={!selectedCollegeId}
             >
-              Add Building
+              3D Viewer
             </Button>
-          ) : null
+            {canManage ? (
+              <Button
+                variant="contained"
+                onClick={handleAdd}
+                disabled={!selectedCollegeId}
+              >
+                Add Building
+              </Button>
+            ) : null}
+          </div>
         }
       />
 
@@ -335,4 +351,3 @@ function BuildingsPage() {
 }
 
 export default BuildingsPage;
-

@@ -26,6 +26,7 @@ import CourseDetailsPage from "../pages/Courses/CourseDetailsPage";
 import BuildingsPage from "../pages/Buildings/BuildingsPage";
 import RoomsPage from "../pages/Buildings/RoomsPage";
 import RoomSchedulePage from "../pages/Buildings/RoomSchedulePage";
+import CampusViewerPage from "../pages/Buildings/CampusViewerPage";
 import ProfessorHome from "../pages/professor/ProfessorHome";
 import ProfessorCoursesPage from "../pages/professor/ProfessorCoursesPage";
 import ProfessorCourseDetailsPage from "../pages/professor/ProfessorCourseDetailsPage";
@@ -90,6 +91,7 @@ function AppRoutes() {
           }
         >
           <Route index element={<BuildingsPage />} />
+          <Route path="viewer" element={<CampusViewerPage />} />
           <Route path=":buildingId/rooms" element={<RoomsPage />} />
           <Route
             path=":buildingId/rooms/:roomId"

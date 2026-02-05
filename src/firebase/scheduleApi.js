@@ -89,11 +89,32 @@ export const listenRoomDaySchedule = (
     roomId,
     "schedule"
   );
-  const schedulesQuery = query(scheduleRef, where("dayKey", "==", dayKey));
+  const parseDocId = (docId) => {
+    const raw = String(docId || "");
+    const [rawDay, ...rest] = raw.split("_");
+    return {
+      dayKey: rawDay ? rawDay.trim().toLowerCase() : "",
+      slotKey: rest.join("_"),
+    };
+  };
+  const schedulesQuery = query(scheduleRef);
   return onSnapshot(
     schedulesQuery,
     (snapshot) => {
-      if (onChange) onChange(snapshot.docs.map(mapDoc));
+      const docs = snapshot.docs.map((docSnap) => {
+        const data = docSnap.data() || {};
+        const parsed = parseDocId(docSnap.id);
+        return {
+          id: docSnap.id,
+          ...data,
+          dayKey: parsed.dayKey || String(data.dayKey || "").toLowerCase(),
+          slotKey: parsed.slotKey || String(data.slotKey || ""),
+        };
+      });
+      const filtered = docs.filter(
+        (item) => String(item.dayKey || "") === String(dayKey || "")
+      );
+      if (onChange) onChange(filtered);
     },
     (error) => {
       console.error("[scheduleApi] listenRoomDaySchedule error", {
@@ -241,6 +262,10 @@ export const createSchedule = async (collegeId, buildingId, roomId, payload) => 
   const data = {
     dayKey: payload.dayKey,
     slotKey: payload.slotKey,
+    day: payload.dayKey || payload.day || "",
+    start: payload.startTime || payload.start || "",
+    end: payload.endTime || payload.end || "",
+    status: payload.status || "reserved",
     startTime: payload.startTime,
     endTime: payload.endTime,
     courseId: payload.courseId || "",
@@ -279,10 +304,17 @@ export const updateSchedule = async (
   if (!collegeId || !buildingId || !roomId || !scheduleId)
     throw new Error("Missing schedule details.");
   const { dayKey, slotKey, createdAt, ...rest } = payload || {};
+  const dayValue = payload?.day || payload?.dayKey;
+  const startValue = payload?.start || payload?.startTime;
+  const endValue = payload?.end || payload?.endTime;
   const data = {
     ...rest,
+    status: payload?.status || "reserved",
     updatedAt: serverTimestamp(),
   };
+  if (dayValue) data.day = dayValue;
+  if (startValue) data.start = startValue;
+  if (endValue) data.end = endValue;
   await updateDoc(scheduleDoc(collegeId, buildingId, roomId, scheduleId), data);
   return { id: scheduleId, ...data };
 };
