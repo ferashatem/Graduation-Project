@@ -35,6 +35,60 @@ const roomDoc = (buildingId, floorId, roomId) =>
 
 const mapSnapshot = (snapshot) => ({ id: snapshot.id, ...snapshot.data() });
 
+const BUILDING_DEFAULTS = {
+  size3d: { width: 12, heightPerFloor: 3, depth: 12 },
+  floorsCount: 4,
+  roomsPerFloor: 13,
+};
+
+const ROOM_LAYOUT = {
+  columns: 4,
+  cellSize: 2.6,
+  gap: 0.3,
+  size3d: { width: 2.6, height: 1, depth: 2.6 },
+};
+
+const isNumber = (value) =>
+  typeof value === "number" && Number.isFinite(value);
+
+const normalizePosition3d = (position) => {
+  if (
+    position &&
+    isNumber(position.x) &&
+    isNumber(position.y) &&
+    isNumber(position.z)
+  ) {
+    return position;
+  }
+  return { x: 0, y: 0, z: 0 };
+};
+
+const normalizeSize3d = (size3d) => {
+  if (
+    size3d &&
+    isNumber(size3d.width) &&
+    isNumber(size3d.depth) &&
+    isNumber(size3d.heightPerFloor)
+  ) {
+    return size3d;
+  }
+  return { ...BUILDING_DEFAULTS.size3d };
+};
+
+const buildRoomGrid = (index) => {
+  const col = index % ROOM_LAYOUT.columns;
+  const row = Math.floor(index / ROOM_LAYOUT.columns);
+  return { col, row };
+};
+
+const buildRoomLocalPosition = (gridPos, heightOffset = 0) => {
+  if (!gridPos) return { x: 0, y: heightOffset + 0.5, z: 0 };
+  const step = ROOM_LAYOUT.cellSize + ROOM_LAYOUT.gap;
+  const x = (gridPos.col - 1.5) * step;
+  const z = (gridPos.row - 1.5) * step;
+  return { x, y: heightOffset + 0.5, z };
+};
+
 const logError = (context, error, meta = {}) => {
   console.error(`[campusBuildings.service] ${context}`, {
     ...meta,
@@ -113,10 +167,19 @@ export const subscribeRooms = (buildingId, floorId, onChange, onError) => {
 };
 
 export const createBuilding = async (payload) => {
+  const size3d = normalizeSize3d(payload?.size3d);
+  const position3d = normalizePosition3d(payload?.position3d);
   const data = {
     name: payload?.name?.trim() || "",
     code: payload?.code?.trim() || "",
-    position3d: payload?.position3d ?? null,
+    position3d,
+    size3d,
+    floorsCount: isNumber(payload?.floorsCount)
+      ? payload.floorsCount
+      : BUILDING_DEFAULTS.floorsCount,
+    roomsPerFloor: isNumber(payload?.roomsPerFloor)
+      ? payload.roomsPerFloor
+      : BUILDING_DEFAULTS.roomsPerFloor,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
@@ -149,10 +212,18 @@ export const deleteBuilding = async (buildingId) => {
 
 export const createFloor = async (buildingId, payload) => {
   if (!buildingId) throw new Error("Building ID is required.");
+  const floorNumber = Number(payload?.floorNumber);
+  const heightPerFloor = isNumber(payload?.heightPerFloor)
+    ? payload.heightPerFloor
+    : BUILDING_DEFAULTS.size3d.heightPerFloor;
+  const heightOffset = isNumber(payload?.heightOffset)
+    ? payload.heightOffset
+    : (floorNumber - 1) * heightPerFloor;
   const data = {
     buildingId,
-    floorNumber: Number(payload?.floorNumber),
+    floorNumber,
     label: payload?.label?.trim() || "",
+    heightOffset,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
@@ -181,13 +252,37 @@ export const deleteFloor = async (buildingId, floorId) => {
 
 export const createRoom = async (buildingId, floorId, payload) => {
   if (!buildingId || !floorId) throw new Error("Room details are required.");
+  const roomNumber = payload?.roomNumber?.trim() || "";
+  const label = payload?.label?.trim() || roomNumber;
+  const gridIndex = isNumber(payload?.gridIndex) ? payload.gridIndex : 0;
+  const gridPos =
+    payload?.gridPos && isNumber(payload.gridPos.col) && isNumber(payload.gridPos.row)
+      ? payload.gridPos
+      : buildRoomGrid(gridIndex);
+  const heightOffset = isNumber(payload?.heightOffset) ? payload.heightOffset : 0;
+  const localPosition3d =
+    payload?.localPosition3d &&
+    isNumber(payload.localPosition3d.x) &&
+    isNumber(payload.localPosition3d.y) &&
+    isNumber(payload.localPosition3d.z)
+      ? payload.localPosition3d
+      : buildRoomLocalPosition(gridPos, heightOffset);
+  const size3d =
+    payload?.size3d &&
+    isNumber(payload.size3d.width) &&
+    isNumber(payload.size3d.height) &&
+    isNumber(payload.size3d.depth)
+      ? payload.size3d
+      : { ...ROOM_LAYOUT.size3d };
   const data = {
     buildingId,
-    campusBuildingId: buildingId,
     floorId,
-    roomNumber: payload?.roomNumber?.trim() || "",
+    roomNumber,
     name: payload?.name?.trim() || "",
-    label: payload?.label?.trim() || "",
+    label,
+    gridPos,
+    localPosition3d,
+    size3d,
     capacity:
       payload?.capacity === "" || payload?.capacity === null
         ? null
@@ -246,6 +341,7 @@ export const generateDemoData = async (buildingId) => {
         buildingId,
         floorNumber,
         label: `Floor ${floorNumber}`,
+        heightOffset: (floorNumber - 1) * BUILDING_DEFAULTS.size3d.heightPerFloor,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
@@ -267,17 +363,22 @@ export const generateDemoData = async (buildingId) => {
     const batch = writeBatch(db);
     let batchCount = 0;
 
-    demoRoomNumbers(floorNumber).forEach((roomNumber) => {
+    demoRoomNumbers(floorNumber).forEach((roomNumber, index) => {
       if (existingRooms.has(roomNumber)) return;
       const roomRef = doc(roomsCol);
+      const gridPos = buildRoomGrid(index);
+      const heightOffset =
+        (floorNumber - 1) * BUILDING_DEFAULTS.size3d.heightPerFloor;
       batch.set(roomRef, {
         buildingId,
-        campusBuildingId: buildingId,
         floorId,
         roomNumber,
         name: `Room ${roomNumber}`,
-        label: "",
+        label: roomNumber,
         capacity: 40,
+        gridPos,
+        localPosition3d: buildRoomLocalPosition(gridPos, heightOffset),
+        size3d: { ...ROOM_LAYOUT.size3d },
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });

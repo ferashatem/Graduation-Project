@@ -8,6 +8,7 @@ import FloorsList from "../../components/campusBuildings/FloorsList";
 import FloorFormModal from "../../components/campusBuildings/FloorFormModal";
 import RoomsList from "../../components/campusBuildings/RoomsList";
 import RoomFormModal from "../../components/campusBuildings/RoomFormModal";
+import CampusBuildings3DViewer from "../../components/campus3d/CampusBuildings3DViewer";
 import {
   createBuilding,
   createFloor,
@@ -16,13 +17,15 @@ import {
   deleteFloor,
   deleteRoom,
   generateDemoData,
-  subscribeBuildings,
-  subscribeFloors,
-  subscribeRooms,
   updateBuilding,
   updateFloor,
   updateRoom,
 } from "../../services/campusBuildings.service";
+import {
+  listenBuildings,
+  listenFloors,
+  listenRooms,
+} from "../../services/campus3dFirestore";
 import { getErrorMessage } from "../../utils/errorHelpers";
 
 function CampusBuildingsPage() {
@@ -84,15 +87,17 @@ function CampusBuildingsPage() {
   // Subscribe to buildings list once and keep it live.
   useEffect(() => {
     setBuildingsLoading(true);
-    const unsubscribe = subscribeBuildings(
+    const unsubscribe = listenBuildings(
       (data) => {
         setBuildings(data);
         setBuildingsError("");
         setBuildingsLoading(false);
+        console.log("[3D] buildings snapshot", data.length);
       },
       (error) => {
         setBuildingsError(getErrorMessage(error));
         setBuildingsLoading(false);
+        console.error("[3D] buildings snapshot error", error);
       }
     );
 
@@ -110,16 +115,22 @@ function CampusBuildingsPage() {
 
     setFloors([]);
     setFloorsLoading(true);
-    const unsubscribe = subscribeFloors(
+    const unsubscribe = listenFloors(
       selectedBuildingId,
       (data) => {
         setFloors(data);
         setFloorsError("");
         setFloorsLoading(false);
+        console.log(
+          "[3D] floors snapshot",
+          selectedBuildingId,
+          data.length
+        );
       },
       (error) => {
         setFloorsError(getErrorMessage(error));
         setFloorsLoading(false);
+        console.error("[3D] floors snapshot error", error);
       }
     );
 
@@ -137,17 +148,23 @@ function CampusBuildingsPage() {
 
     setRooms([]);
     setRoomsLoading(true);
-    const unsubscribe = subscribeRooms(
+    const unsubscribe = listenRooms(
       selectedBuildingId,
       selectedFloorId,
       (data) => {
         setRooms(data);
         setRoomsError("");
         setRoomsLoading(false);
+        console.log(
+          "[3D] rooms snapshot",
+          selectedFloorId,
+          data.length
+        );
       },
       (error) => {
         setRoomsError(getErrorMessage(error));
         setRoomsLoading(false);
+        console.error("[3D] rooms snapshot error", error);
       }
     );
 
@@ -211,22 +228,43 @@ function CampusBuildingsPage() {
     setBuildingSearch(value);
   }, []);
 
-  const handleSelectBuilding = useCallback((building) => {
-    setSelectedBuildingId(building?.id || "");
+  const handleSelectBuildingId = useCallback((buildingId) => {
+    setSelectedBuildingId(buildingId || "");
     setSelectedFloorId("");
     setSelectedRoomId("");
     setActionError("");
   }, []);
 
-  const handleSelectFloor = useCallback((floor) => {
-    setSelectedFloorId(floor?.id || "");
+  const handleSelectBuilding = useCallback(
+    (building) => {
+      handleSelectBuildingId(building?.id || "");
+    },
+    [handleSelectBuildingId]
+  );
+
+  const handleSelectFloorId = useCallback((floorId) => {
+    setSelectedFloorId(floorId || "");
     setSelectedRoomId("");
     setActionError("");
   }, []);
 
-  const handleSelectRoom = useCallback((room) => {
-    setSelectedRoomId(room?.id || "");
+  const handleSelectFloor = useCallback(
+    (floor) => {
+      handleSelectFloorId(floor?.id || "");
+    },
+    [handleSelectFloorId]
+  );
+
+  const handleSelectRoomId = useCallback((roomId) => {
+    setSelectedRoomId(roomId || "");
   }, []);
+
+  const handleSelectRoom = useCallback(
+    (room) => {
+      handleSelectRoomId(room?.id || "");
+    },
+    [handleSelectRoomId]
+  );
 
   const handleOpenBuildingModal = useCallback(() => {
     setEditingBuilding(null);
@@ -254,7 +292,22 @@ function CampusBuildingsPage() {
         if (editingBuilding?.id) {
           await updateBuilding(editingBuilding.id, values);
         } else {
-          await createBuilding(values);
+          const index = buildings.length;
+          const col = index % 4;
+          const row = Math.floor(index / 4);
+          const position3d =
+            values.position3d || {
+              x: col * 20,
+              y: 0,
+              z: row * 20,
+            };
+          await createBuilding({
+            ...values,
+            position3d,
+            size3d: { width: 12, heightPerFloor: 3, depth: 12 },
+            floorsCount: 4,
+            roomsPerFloor: 13,
+          });
         }
         setBuildingModalOpen(false);
         setEditingBuilding(null);
@@ -264,7 +317,7 @@ function CampusBuildingsPage() {
         setBuildingSaving(false);
       }
     },
-    [editingBuilding]
+    [buildings.length, editingBuilding]
   );
 
   const handleOpenFloorModal = useCallback(() => {
@@ -295,11 +348,21 @@ function CampusBuildingsPage() {
       setFloorFormError("");
       setActionError("");
       try {
+        const heightPerFloor =
+          selectedBuilding?.size3d?.heightPerFloor || 3;
+        const heightOffset = (values.floorNumber - 1) * heightPerFloor;
         const payload = { ...values, buildingId: selectedBuildingId };
         if (editingFloor?.id) {
-          await updateFloor(selectedBuildingId, editingFloor.id, payload);
+          await updateFloor(selectedBuildingId, editingFloor.id, {
+            ...payload,
+            heightOffset,
+          });
         } else {
-          await createFloor(selectedBuildingId, payload);
+          await createFloor(selectedBuildingId, {
+            ...payload,
+            heightOffset,
+            heightPerFloor,
+          });
         }
         setFloorModalOpen(false);
         setEditingFloor(null);
@@ -309,7 +372,7 @@ function CampusBuildingsPage() {
         setFloorSaving(false);
       }
     },
-    [editingFloor, selectedBuildingId]
+    [editingFloor, selectedBuilding, selectedBuildingId]
   );
 
   const handleOpenRoomModal = useCallback(() => {
@@ -340,11 +403,49 @@ function CampusBuildingsPage() {
       setRoomFormError("");
       setActionError("");
       try {
+        const heightPerFloor =
+          selectedBuilding?.size3d?.heightPerFloor || 3;
+        const floorNumber = selectedFloor?.floorNumber || 1;
+        const heightOffset = (floorNumber - 1) * heightPerFloor;
+        const existingGrid = editingRoom?.gridPos;
+        const existingPosition = editingRoom?.localPosition3d;
+        const existingSize = editingRoom?.size3d;
+        const index = rooms.length;
+        const col =
+          typeof existingGrid?.col === "number" ? existingGrid.col : index % 4;
+        const row =
+          typeof existingGrid?.row === "number"
+            ? existingGrid.row
+            : Math.floor(index / 4);
+        const cellSize = 2.6;
+        const gap = 0.3;
+        const x =
+          typeof existingPosition?.x === "number"
+            ? existingPosition.x
+            : (col - 1.5) * (cellSize + gap);
+        const z =
+          typeof existingPosition?.z === "number"
+            ? existingPosition.z
+            : (row - 1.5) * (cellSize + gap);
+        const y =
+          typeof existingPosition?.y === "number"
+            ? existingPosition.y
+            : heightOffset + 0.5;
         const payload = {
           ...values,
           buildingId: selectedBuildingId,
-          campusBuildingId: selectedBuildingId,
           floorId: selectedFloorId,
+          gridIndex: index,
+          gridPos: { col, row },
+          localPosition3d: { x, y, z },
+          size3d:
+            existingSize &&
+            typeof existingSize.width === "number" &&
+            typeof existingSize.height === "number" &&
+            typeof existingSize.depth === "number"
+              ? existingSize
+              : { width: 2.6, height: 1, depth: 2.6 },
+          heightOffset,
         };
         if (editingRoom?.id) {
           await updateRoom(
@@ -364,7 +465,14 @@ function CampusBuildingsPage() {
         setRoomSaving(false);
       }
     },
-    [editingRoom, selectedBuildingId, selectedFloorId]
+    [
+      editingRoom,
+      rooms.length,
+      selectedBuilding,
+      selectedBuildingId,
+      selectedFloor,
+      selectedFloorId,
+    ]
   );
 
   const handleDeleteBuildingPrompt = useCallback((building) => {
@@ -540,6 +648,31 @@ function CampusBuildingsPage() {
           onAdd={handleOpenRoomModal}
           onEdit={handleEditRoom}
           onDelete={handleDeleteRoomPrompt}
+        />
+      </div>
+
+      <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="text-base font-semibold text-slate-800">3D Preview</h3>
+            <p className="text-sm text-slate-500">
+              Live preview of campus buildings, floors, and rooms.
+            </p>
+          </div>
+          <span className="text-xs text-slate-400">
+            Click a mesh to sync selection
+          </span>
+        </div>
+        <CampusBuildings3DViewer
+          buildings={buildings}
+          floors={floors}
+          rooms={rooms}
+          selectedBuildingId={selectedBuildingId}
+          selectedFloorId={selectedFloorId}
+          selectedRoomId={selectedRoomId}
+          onSelectBuilding={handleSelectBuildingId}
+          onSelectFloor={handleSelectFloorId}
+          onSelectRoom={handleSelectRoomId}
         />
       </div>
 

@@ -7,6 +7,7 @@ import ErrorState from "../../components/common/ErrorState";
 import FilterBar from "../../components/CampusViewer/FilterBar";
 import CampusScene from "../../components/CampusViewer/CampusScene";
 import UIPanels from "../../components/CampusViewer/UIPanels";
+import useBuildingPositions from "../../components/campus3d/useBuildingPositions";
 import {
   CAMPUS_DAY_KEYS,
   CAMPUS_DAY_OPTIONS_WITH_FRI,
@@ -70,6 +71,11 @@ function CampusViewerPage() {
   const [roomsError, setRoomsError] = useState("");
 
   const [scheduleError, setScheduleError] = useState("");
+
+  const {
+    positionsByCode,
+    error: positionsError,
+  } = useBuildingPositions();
 
   const [activeBuildingId, setActiveBuildingId] = useState("");
   const [activeFloorKey, setActiveFloorKey] = useState("");
@@ -188,8 +194,8 @@ function CampusViewerPage() {
   }, [allRooms]);
 
   const layoutMap = useMemo(() => {
-    // Precompute a grid layout so buildings remain stable in 3D space.
-    const map = new Map();
+    // Default grid layout stays as a fallback when geo coordinates are missing.
+    const gridPositions = new Map();
     const gridColumns = 4;
     const spacing = 18;
     const totalRows = Math.ceil(buildings.length / gridColumns) || 1;
@@ -202,7 +208,11 @@ function CampusViewerPage() {
       const row = Math.floor(index / gridColumns);
       const x = column * spacing - offsetX;
       const z = row * spacing - offsetZ;
+      gridPositions.set(building.id, [x, 0, z]);
+    });
 
+    const map = new Map();
+    buildings.forEach((building) => {
       const buildingRooms = roomsByBuildingKeyed[building.id] || [];
       const maxRoomsPerFloor = Math.max(
         1,
@@ -214,7 +224,10 @@ function CampusViewerPage() {
         )
       );
 
-      const rowsNeeded = Math.max(1, Math.ceil(maxRoomsPerFloor / ROOM_GRID_COLUMNS));
+      const rowsNeeded = Math.max(
+        1,
+        Math.ceil(maxRoomsPerFloor / ROOM_GRID_COLUMNS)
+      );
       const floorSize = {
         width: ROOM_GRID_COLUMNS * ROOM_SPACING + FLOOR_PADDING * 2,
         depth: rowsNeeded * ROOM_SPACING + FLOOR_PADDING * 2,
@@ -223,8 +236,15 @@ function CampusViewerPage() {
       const height =
         (FLOOR_DEFS.length - 1) * 0.9 + FLOOR_THICKNESS + ROOM_HEIGHT;
 
+      const codeKey = String(building?.code || "").trim().toUpperCase();
+      const geoPosition = codeKey ? positionsByCode.get(codeKey) : null;
+      const fallbackPosition = gridPositions.get(building.id) || [0, 0, 0];
+      const position = geoPosition
+        ? [geoPosition.x, 0, geoPosition.z]
+        : fallbackPosition;
+
       map.set(building.id, {
-        position: [x, 0, z],
+        position,
         floorSize,
         columns: ROOM_GRID_COLUMNS,
         height,
@@ -232,7 +252,7 @@ function CampusViewerPage() {
     });
 
     return map;
-  }, [buildings, roomsByBuildingKeyed]);
+  }, [buildings, positionsByCode, roomsByBuildingKeyed]);
 
   const ensureSchedule = useCallback(
     (room) => {
@@ -466,6 +486,7 @@ function CampusViewerPage() {
       {buildingsError ? <ErrorState message={buildingsError} /> : null}
       {roomsError ? <ErrorState message={roomsError} /> : null}
       {scheduleError ? <ErrorState message={scheduleError} /> : null}
+      {positionsError ? <ErrorState message={positionsError} /> : null}
 
       {buildingsLoading && buildings.length === 0 ? (
         <Loading label="Loading campus..." />
