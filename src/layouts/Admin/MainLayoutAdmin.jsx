@@ -12,7 +12,8 @@ function MainLayout() {
   const AdminNavItems = [
     { icon: profile, title: "Home", link: "/admin/home" },
     { icon: school, title: "Academic Structure", link: "/admin/colleges" },
-    { icon: building, title: "Buildings", link: "/buildings" },
+    // { icon: building, title: "Buildings", link: "/buildings" },
+    { icon: building, title: "Campus Buildings", link: "/admin/campus-buildings" },
     { icon: assignment, title: "Assignments", link: "/admin/assignments" },
     { icon: people, title: "Attendance", link: "/offerings" },
     { icon: users, title: "User Management", link: "/admin/create-admin" },
