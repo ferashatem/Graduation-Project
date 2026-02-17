@@ -135,13 +135,6 @@ function BuildingsPage() {
     [navigate, selectedCollegeId]
   );
 
-  const handleOpenViewer = useCallback(() => {
-    if (!selectedCollegeId) return;
-    navigate(`/buildings/viewer?collegeId=${selectedCollegeId}`, {
-      state: { collegeId: selectedCollegeId },
-    });
-  }, [navigate, selectedCollegeId]);
-
   const handleAdd = useCallback(() => {
     setEditing(null);
     setActionError("");
@@ -235,13 +228,6 @@ function BuildingsPage() {
         breadcrumbs={breadcrumbs}
         action={
           <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outlined"
-              onClick={handleOpenViewer}
-              disabled={!selectedCollegeId}
-            >
-              3D Viewer
-            </Button>
             {canManage ? (
               <Button
                 variant="contained"

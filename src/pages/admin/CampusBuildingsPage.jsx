@@ -8,7 +8,6 @@ import FloorsList from "../../components/campusBuildings/FloorsList";
 import FloorFormModal from "../../components/campusBuildings/FloorFormModal";
 import RoomsList from "../../components/campusBuildings/RoomsList";
 import RoomFormModal from "../../components/campusBuildings/RoomFormModal";
-import CampusBuildings3DViewer from "../../components/campus3d/CampusBuildings3DViewer";
 import {
   createBuilding,
   createFloor,
@@ -292,19 +291,8 @@ function CampusBuildingsPage() {
         if (editingBuilding?.id) {
           await updateBuilding(editingBuilding.id, values);
         } else {
-          const index = buildings.length;
-          const col = index % 4;
-          const row = Math.floor(index / 4);
-          const position3d =
-            values.position3d || {
-              x: col * 20,
-              y: 0,
-              z: row * 20,
-            };
           await createBuilding({
             ...values,
-            position3d,
-            size3d: { width: 12, heightPerFloor: 3, depth: 12 },
             floorsCount: 4,
             roomsPerFloor: 13,
           });
@@ -648,31 +636,6 @@ function CampusBuildingsPage() {
           onAdd={handleOpenRoomModal}
           onEdit={handleEditRoom}
           onDelete={handleDeleteRoomPrompt}
-        />
-      </div>
-
-      <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h3 className="text-base font-semibold text-slate-800">3D Preview</h3>
-            <p className="text-sm text-slate-500">
-              Live preview of campus buildings, floors, and rooms.
-            </p>
-          </div>
-          <span className="text-xs text-slate-400">
-            Click a mesh to sync selection
-          </span>
-        </div>
-        <CampusBuildings3DViewer
-          buildings={buildings}
-          floors={floors}
-          rooms={rooms}
-          selectedBuildingId={selectedBuildingId}
-          selectedFloorId={selectedFloorId}
-          selectedRoomId={selectedRoomId}
-          onSelectBuilding={handleSelectBuildingId}
-          onSelectFloor={handleSelectFloorId}
-          onSelectRoom={handleSelectRoomId}
         />
       </div>
 

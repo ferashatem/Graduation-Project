@@ -6,7 +6,6 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  Grid,
   TextField,
 } from "@mui/material";
 
@@ -22,25 +21,12 @@ function BuildingFormModal({
   const isEdit = Boolean(initialValues?.id);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
-  const [position3D, setPosition3D] = useState({ x: 0, y: 0, z: 0 });
   const [validationError, setValidationError] = useState("");
 
   useEffect(() => {
     if (!open) return;
     setName(initialValues?.name || "");
     setCode(initialValues?.code || "");
-    const initialPosition = initialValues?.position3d || {};
-    setPosition3D({
-      x: Number.isFinite(Number(initialPosition.x))
-        ? Number(initialPosition.x)
-        : 0,
-      y: Number.isFinite(Number(initialPosition.y))
-        ? Number(initialPosition.y)
-        : 0,
-      z: Number.isFinite(Number(initialPosition.z))
-        ? Number(initialPosition.z)
-        : 0,
-    });
     setValidationError("");
   }, [initialValues, open]);
 
@@ -77,23 +63,13 @@ function BuildingFormModal({
       return;
     }
 
-    const x = Number(position3D.x);
-    const y = Number(position3D.y);
-    const z = Number(position3D.z);
-
-    if (![x, y, z].every((value) => Number.isFinite(value))) {
-      setValidationError("Position coordinates must be valid numbers.");
-      return;
-    }
-
     if (onSubmit) {
       onSubmit({
         name: trimmedName,
         code: trimmedCode,
-        position3d: { x, y, z },
       });
     }
-  }, [code, name, normalizedExistingCodes, onSubmit, position3D]);
+  }, [code, name, normalizedExistingCodes, onSubmit]);
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
@@ -120,53 +96,6 @@ function BuildingFormModal({
           disabled={loading}
         />
 
-        <Grid container spacing={2}>
-          <Grid item xs={12} sm={4}>
-            <TextField
-              label="X"
-              type="number"
-              value={position3D.x}
-              onChange={(event) =>
-                setPosition3D((prev) => ({
-                  ...prev,
-                  x: event.target.value === "" ? 0 : Number(event.target.value),
-                }))
-              }
-              fullWidth
-              disabled={loading}
-            />
-          </Grid>
-          <Grid item xs={12} sm={4}>
-            <TextField
-              label="Y"
-              type="number"
-              value={position3D.y}
-              onChange={(event) =>
-                setPosition3D((prev) => ({
-                  ...prev,
-                  y: event.target.value === "" ? 0 : Number(event.target.value),
-                }))
-              }
-              fullWidth
-              disabled={loading}
-            />
-          </Grid>
-          <Grid item xs={12} sm={4}>
-            <TextField
-              label="Z"
-              type="number"
-              value={position3D.z}
-              onChange={(event) =>
-                setPosition3D((prev) => ({
-                  ...prev,
-                  z: event.target.value === "" ? 0 : Number(event.target.value),
-                }))
-              }
-              fullWidth
-              disabled={loading}
-            />
-          </Grid>
-        </Grid>
       </DialogContent>
       <DialogActions>
         <Button onClick={handleClose} disabled={loading}>

@@ -9,8 +9,6 @@
     "@mui/icons-material": "^5.14.17",
     "@mui/material": "^5.17.1",
     "@mui/x-data-grid": "^5.17.24",
-    "@react-three/drei": "^9.122.0",
-    "@react-three/fiber": "^8.18.0",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",
@@ -31,7 +29,6 @@
     "react-router-dom": "^7.3.0",
     "react-scripts": "5.0.1",
     "react-top-loading-bar": "^3.0.2",
-    "three": "^0.164.1",
     "web-vitals": "^2.1.4",
     "xlsx": "^0.18.5"
   },
@@ -41,8 +38,7 @@
     "build": "set CI=false&& react-scripts build",
     "deploy": "react-scripts build && firebase deploy",
     "test": "react-scripts test",
-    "eject": "react-scripts eject",
-    "migrate:campus3d": "node scripts/migrateCampus3DFields.js"
+    "eject": "react-scripts eject"
   },
   "eslintConfig": {
     "extends": [
