@@ -17,6 +17,7 @@ import {
   getAssistantsByCollegeId,
   getProfsByCollegeId,
 } from "../../../services/users.service";
+import { assignCourseStaff } from "../../../services/courses.service";
 import { upsertAssignment } from "../api/courseAssignmentsApi";
 import { buildTermOptions } from "../utils/courseOfferingsUtils";
 import {
@@ -57,7 +58,7 @@ const buildUserSummary = (user) => {
 };
 
 function AssignStaffDialog({ open, course, onClose }) {
-  const { collegeId = "" } = useParams();
+  const { collegeId = "", yearId = "", deptId = "" } = useParams();
   const [termId, setTermId] = useState("");
   const [yearLevel, setYearLevel] = useState("");
   const [section, setSection] = useState("");
@@ -318,6 +319,11 @@ function AssignStaffDialog({ open, course, onClose }) {
     if (!course?.id) return;
     setError("");
 
+    if (!collegeId || !yearId || !deptId) {
+      setError("Course path is missing. Please refresh and try again.");
+      return;
+    }
+
     if (!canSave) {
       setError("Please complete all required fields.");
       return;
@@ -356,6 +362,14 @@ function AssignStaffDialog({ open, course, onClose }) {
     setSaving(true);
 
     try {
+      await assignCourseStaff({
+        collegeId,
+        yearId,
+        departmentId: deptId,
+        courseId: course.id,
+        professorId,
+        assistantIds,
+      });
       const data = await upsertAssignment(payload);
       const assignment = data?.assignment || optimisticAssignment;
       setSavedAssignment(assignment);
@@ -385,13 +399,16 @@ function AssignStaffDialog({ open, course, onClose }) {
   }, [
     assistantIds,
     canSave,
+    collegeId,
     course,
+    deptId,
     normalizedSection,
     normalizedTermId,
     professorId,
     savedAssignment,
     selectedAssistants,
     selectedProfessor,
+    yearId,
     yearLevelNumber,
   ]);
 

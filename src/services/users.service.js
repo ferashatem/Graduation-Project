@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   query,
   serverTimestamp,
@@ -22,6 +23,8 @@ const ROLE_REQUIRES_COLLEGE = ["professor", "assistant", "student"];
 const normalizeRole = (role) => String(role || "").trim().toLowerCase();
 const normalizeValue = (value) =>
   value === null || value === undefined ? "" : String(value).trim();
+
+const professorCache = new Map();
 
 export const getRoleCollection = (role) =>
   ROLE_COLLECTIONS[normalizeRole(role)] || "";
@@ -107,4 +110,25 @@ export const getAssistantsByCollegeId = async (collegeId, dbRef = appDb) => {
   );
 
   return snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+};
+
+export const getProfessorById = async ({ db, professorId } = {}) => {
+  const dbRef = db || appDb;
+  if (!dbRef) throw new Error("db is required.");
+  const trimmedProfessorId = normalizeValue(professorId);
+  if (!trimmedProfessorId) return null;
+
+  if (professorCache.has(trimmedProfessorId)) {
+    return professorCache.get(trimmedProfessorId);
+  }
+
+  const snapshot = await getDoc(
+    doc(dbRef, "users", "roles", "profs", trimmedProfessorId)
+  );
+  const data = snapshot.exists()
+    ? { id: snapshot.id, ...snapshot.data() }
+    : null;
+
+  professorCache.set(trimmedProfessorId, data);
+  return data;
 };

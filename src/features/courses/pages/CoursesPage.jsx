@@ -100,6 +100,17 @@ function CoursesPage() {
     setAssignStaffOpen(true);
   }, []);
 
+  const handleRowClick = useCallback(
+    (params) => {
+      const courseId = params?.row?.id;
+      if (!courseId) return;
+      navigate(
+        `/admin/colleges/${collegeId}/years/${yearId}/departments/${deptId}/courses/${courseId}`
+      );
+    },
+    [collegeId, deptId, navigate, yearId]
+  );
+
   const handleCloseAssignStaff = useCallback(() => {
     setAssignStaffOpen(false);
     setAssignStaffCourse(null);
@@ -168,6 +179,7 @@ function CoursesPage() {
           onEdit={handleEdit}
           onDelete={handleDeletePrompt}
           onAssignStaff={handleAssignStaff}
+          onRowClick={handleRowClick}
         />
       )}
 

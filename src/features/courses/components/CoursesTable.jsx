@@ -21,10 +21,25 @@ function CourseRowActions({
   onDelete,
   onAssignStaff,
 }) {
-  const handleEdit = useCallback(() => onEdit(row), [onEdit, row]);
-  const handleDelete = useCallback(() => onDelete(row), [onDelete, row]);
+  const handleEdit = useCallback(
+    (event) => {
+      event.stopPropagation();
+      onEdit(row);
+    },
+    [onEdit, row]
+  );
+  const handleDelete = useCallback(
+    (event) => {
+      event.stopPropagation();
+      onDelete(row);
+    },
+    [onDelete, row]
+  );
   const handleAssignStaff = useCallback(
-    () => onAssignStaff(row),
+    (event) => {
+      event.stopPropagation();
+      onAssignStaff(row);
+    },
     [onAssignStaff, row]
   );
 
@@ -49,6 +64,7 @@ function CoursesTable({
   onEdit,
   onDelete,
   onAssignStaff,
+  onRowClick,
 }) {
   const gridRows = useMemo(() => rows || [], [rows]);
 
@@ -91,6 +107,7 @@ function CoursesTable({
         rows={gridRows}
         columns={columns}
         loading={loading}
+        onRowClick={onRowClick}
         disableRowSelectionOnClick
         pageSizeOptions={[5, 10, 25]}
         initialState={{

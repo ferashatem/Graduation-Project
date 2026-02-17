@@ -7,6 +7,7 @@ import Loading from "../../components/common/Loading";
 import ErrorState from "../../components/common/ErrorState";
 import { db } from "../../firebase/firebaseConfig";
 import { resolveUsersByIds } from "../../features/users/api/usersApi";
+import { getProfessorById } from "../../services/users.service";
 import { getErrorMessage } from "../../utils/errorHelpers";
 import { fetchCourseById } from "./courseService";
 
@@ -33,6 +34,9 @@ function CourseDetailsPage() {
   const [assignments, setAssignments] = useState([]);
   const [assignmentsLoading, setAssignmentsLoading] = useState(false);
   const [assignmentsError, setAssignmentsError] = useState("");
+  const [professorProfile, setProfessorProfile] = useState(null);
+  const [professorLoading, setProfessorLoading] = useState(false);
+  const [professorError, setProfessorError] = useState("");
 
   const loadCourse = useCallback(async () => {
     if (!courseId) {
@@ -120,6 +124,29 @@ function CourseDetailsPage() {
     }
   }, [assignmentsRef, courseId, db]);
 
+  const loadProfessor = useCallback(async () => {
+    const professorId = course?.professorId || "";
+    if (!professorId) {
+      setProfessorProfile(null);
+      setProfessorError("");
+      setProfessorLoading(false);
+      return;
+    }
+
+    setProfessorLoading(true);
+    setProfessorError("");
+
+    try {
+      const profile = await getProfessorById({ db, professorId });
+      setProfessorProfile(profile);
+    } catch (err) {
+      setProfessorProfile(null);
+      setProfessorError(getErrorMessage(err));
+    } finally {
+      setProfessorLoading(false);
+    }
+  }, [course?.professorId, db]);
+
   useEffect(() => {
     loadCourse();
   }, [loadCourse]);
@@ -127,6 +154,11 @@ function CourseDetailsPage() {
   useEffect(() => {
     loadAssignments();
   }, [loadAssignments]);
+
+  useEffect(() => {
+    if (!course) return;
+    loadProfessor();
+  }, [course, loadProfessor]);
 
   const primaryKeys = useMemo(
     () => ["name", "code", "creditHours", "department", "description"],
@@ -228,6 +260,38 @@ function CourseDetailsPage() {
               <p className="mt-1 whitespace-pre-line text-sm text-slate-700">
                 {formatValue(course?.description)}
               </p>
+            </div>
+
+            <div className="mt-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                Professor
+              </p>
+              {professorLoading ? (
+                <p className="mt-1 text-sm text-slate-500">Loading professor...</p>
+              ) : professorError ? (
+                <p className="mt-1 text-sm text-red-600">{professorError}</p>
+              ) : professorProfile ? (
+                <div className="mt-1 space-y-1 text-sm text-slate-700">
+                  <p>
+                    {formatValue(
+                      professorProfile?.name ||
+                        professorProfile?.fullName ||
+                        professorProfile?.displayName,
+                      "Unnamed professor"
+                    )}
+                  </p>
+                  <p className="text-slate-500">
+                    {formatValue(professorProfile?.email, "No email")}
+                  </p>
+                  <p className="text-slate-500">
+                    {formatValue(professorProfile?.phoneNumber, "No phone")}
+                  </p>
+                </div>
+              ) : (
+                <p className="mt-1 text-sm text-slate-500">
+                  No professor assigned.
+                </p>
+              )}
             </div>
           </div>
 
