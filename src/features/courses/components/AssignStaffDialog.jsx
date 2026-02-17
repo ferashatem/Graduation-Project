@@ -12,7 +12,11 @@ import {
   Snackbar,
   TextField,
 } from "@mui/material";
-import { searchUsersByRole } from "../../users/api/usersApi";
+import { useParams } from "react-router-dom";
+import {
+  getAssistantsByCollegeId,
+  getProfsByCollegeId,
+} from "../../../services/users.service";
 import { upsertAssignment } from "../api/courseAssignmentsApi";
 import { buildTermOptions } from "../utils/courseOfferingsUtils";
 import {
@@ -24,13 +28,18 @@ import {
 import { getErrorMessage } from "../../../utils/errorHelpers";
 
 const TERM_OPTIONS = buildTermOptions();
-const MIN_SEARCH_LENGTH = 2;
-const SEARCH_DEBOUNCE_MS = 350;
 
 const getUserId = (user) => user?.uid || user?.id || "";
 
-const getUserLabel = (user) =>
-  user?.name || user?.displayName || user?.fullName || user?.email || "Unnamed user";
+const getUserLabel = (user) => {
+  const name =
+    user?.name || user?.displayName || user?.fullName || user?.email || "";
+  const email = user?.email || "";
+  if (name && email && !name.includes(email)) {
+    return `${name} (${email})`;
+  }
+  return name || email || "Unnamed user";
+};
 
 const buildCourseLabel = (course) => {
   if (!course) return "Course";
@@ -48,6 +57,7 @@ const buildUserSummary = (user) => {
 };
 
 function AssignStaffDialog({ open, course, onClose }) {
+  const { collegeId = "" } = useParams();
   const [termId, setTermId] = useState("");
   const [yearLevel, setYearLevel] = useState("");
   const [section, setSection] = useState("");
@@ -57,6 +67,8 @@ function AssignStaffDialog({ open, course, onClose }) {
   const [assistantSearch, setAssistantSearch] = useState("");
   const [professorOptions, setProfessorOptions] = useState([]);
   const [assistantOptions, setAssistantOptions] = useState([]);
+  const [professorsLoadedFor, setProfessorsLoadedFor] = useState("");
+  const [assistantsLoadedFor, setAssistantsLoadedFor] = useState("");
   const [professorLoading, setProfessorLoading] = useState(false);
   const [assistantLoading, setAssistantLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -94,6 +106,51 @@ function AssignStaffDialog({ open, course, onClose }) {
       ),
     [selectedAssistants]
   );
+  const filteredProfessorOptions = useMemo(() => {
+    const query = professorSearch.trim().toLowerCase();
+    const base = (professorOptions || []).filter(
+      (user) => getUserId(user) && getUserId(user) !== professorId
+    );
+    if (!query) return base;
+    return base.filter((user) => {
+      const name = String(
+        user?.name || user?.displayName || user?.fullName || ""
+      ).toLowerCase();
+      const email = String(user?.email || "").toLowerCase();
+      return name.includes(query) || email.includes(query);
+    });
+  }, [professorOptions, professorSearch, professorId]);
+
+  const filteredAssistantOptions = useMemo(() => {
+    const query = assistantSearch.trim().toLowerCase();
+    const base = (assistantOptions || []).filter(
+      (user) => !assistantIds.includes(getUserId(user))
+    );
+    if (!query) return base;
+    return base.filter((user) => {
+      const name = String(
+        user?.name || user?.displayName || user?.fullName || ""
+      ).toLowerCase();
+      const email = String(user?.email || "").toLowerCase();
+      return name.includes(query) || email.includes(query);
+    });
+  }, [assistantOptions, assistantSearch, assistantIds]);
+
+  const professorNoOptionsText = useMemo(() => {
+    if (!collegeId) return "College is missing for this route.";
+    if (professorLoading) return "Loading professors...";
+    if (!professorOptions.length) return "No professors found";
+    if (professorSearch.trim()) return "No professors match your search";
+    return "No professors found";
+  }, [collegeId, professorLoading, professorOptions.length, professorSearch]);
+
+  const assistantNoOptionsText = useMemo(() => {
+    if (!collegeId) return "College is missing for this route.";
+    if (assistantLoading) return "Loading assistants...";
+    if (!assistantOptions.length) return "No assistants found";
+    if (assistantSearch.trim()) return "No assistants match your search";
+    return "No assistants found";
+  }, [collegeId, assistantLoading, assistantOptions.length, assistantSearch]);
 
   const offeringId = useMemo(() => {
     if (!course?.id || !normalizedTermId || !normalizedSection) {
@@ -138,6 +195,80 @@ function AssignStaffDialog({ open, course, onClose }) {
     ]
   );
 
+  const loadProfessors = useCallback(
+    async (targetCollegeId) => {
+      if (!targetCollegeId) {
+        setProfessorOptions([]);
+        setProfessorsLoadedFor("");
+        return;
+      }
+
+      if (professorsLoadedFor === targetCollegeId && professorOptions.length) {
+        return;
+      }
+
+      setProfessorLoading(true);
+      try {
+        const users = await getProfsByCollegeId(targetCollegeId);
+        setProfessorOptions(users);
+        setProfessorsLoadedFor(targetCollegeId);
+      } catch (err) {
+        setError(getErrorMessage(err));
+        setProfessorOptions([]);
+        setProfessorsLoadedFor("");
+      } finally {
+        setProfessorLoading(false);
+      }
+    },
+    [professorsLoadedFor, professorOptions.length]
+  );
+
+  const loadAssistants = useCallback(
+    async (targetCollegeId) => {
+      if (!targetCollegeId) {
+        setAssistantOptions([]);
+        setAssistantsLoadedFor("");
+        return;
+      }
+
+      if (assistantsLoadedFor === targetCollegeId && assistantOptions.length) {
+        return;
+      }
+
+      setAssistantLoading(true);
+      try {
+        const users = await getAssistantsByCollegeId(targetCollegeId);
+        setAssistantOptions(users);
+        setAssistantsLoadedFor(targetCollegeId);
+      } catch (err) {
+        setError(getErrorMessage(err));
+        setAssistantOptions([]);
+        setAssistantsLoadedFor("");
+      } finally {
+        setAssistantLoading(false);
+      }
+    },
+    [assistantOptions.length, assistantsLoadedFor]
+  );
+
+  const handleProfessorOpen = useCallback(() => {
+    if (!open) return;
+    if (!collegeId) {
+      setProfessorOptions([]);
+      return;
+    }
+    loadProfessors(collegeId);
+  }, [collegeId, loadProfessors, open]);
+
+  const handleAssistantOpen = useCallback(() => {
+    if (!open) return;
+    if (!collegeId) {
+      setAssistantOptions([]);
+      return;
+    }
+    loadAssistants(collegeId);
+  }, [collegeId, loadAssistants, open]);
+
   useEffect(() => {
     if (!open) return;
     setTermId("");
@@ -151,87 +282,29 @@ function AssignStaffDialog({ open, course, onClose }) {
     setSelectedAssistants([]);
     setProfessorSearch("");
     setAssistantSearch("");
-    setProfessorOptions([]);
-    setAssistantOptions([]);
     setSavedAssignment(null);
     setError("");
   }, [course, open]);
 
   useEffect(() => {
-    if (!open) return;
-    const trimmedSearch = professorSearch.trim();
-    if (trimmedSearch.length < MIN_SEARCH_LENGTH) {
+    if (!collegeId) {
       setProfessorOptions([]);
-      setProfessorLoading(false);
-      return;
-    }
-
-    let active = true;
-    const handler = setTimeout(async () => {
-      setProfessorLoading(true);
-      try {
-        const field = trimmedSearch.includes("@") ? "email" : "name";
-        const users = await searchUsersByRole({
-          roles: ["professor"],
-          search: trimmedSearch,
-          field,
-          limitCount: 8,
-        });
-        if (!active) return;
-        const filtered = users.filter(
-          (user) => getUserId(user) && getUserId(user) !== professorId
-        );
-        setProfessorOptions(filtered);
-      } catch (err) {
-        if (active) setError(getErrorMessage(err));
-      } finally {
-        if (active) setProfessorLoading(false);
-      }
-    }, SEARCH_DEBOUNCE_MS);
-
-    return () => {
-      active = false;
-      clearTimeout(handler);
-    };
-  }, [open, professorId, professorSearch]);
-
-  useEffect(() => {
-    if (!open) return;
-    const trimmedSearch = assistantSearch.trim();
-    if (trimmedSearch.length < MIN_SEARCH_LENGTH) {
       setAssistantOptions([]);
-      setAssistantLoading(false);
+      setProfessorsLoadedFor("");
+      setAssistantsLoadedFor("");
       return;
     }
 
-    let active = true;
-    const handler = setTimeout(async () => {
-      setAssistantLoading(true);
-      try {
-        const field = trimmedSearch.includes("@") ? "email" : "name";
-        const users = await searchUsersByRole({
-          roles: ["assistant"],
-          search: trimmedSearch,
-          field,
-          limitCount: 10,
-        });
-        if (!active) return;
-        const filtered = users.filter(
-          (user) => !assistantIds.includes(getUserId(user))
-        );
-        setAssistantOptions(filtered);
-      } catch (err) {
-        if (active) setError(getErrorMessage(err));
-      } finally {
-        if (active) setAssistantLoading(false);
-      }
-    }, SEARCH_DEBOUNCE_MS);
+    if (professorsLoadedFor && professorsLoadedFor !== collegeId) {
+      setProfessorOptions([]);
+      setProfessorsLoadedFor("");
+    }
 
-    return () => {
-      active = false;
-      clearTimeout(handler);
-    };
-  }, [assistantIds, assistantSearch, open]);
+    if (assistantsLoadedFor && assistantsLoadedFor !== collegeId) {
+      setAssistantOptions([]);
+      setAssistantsLoadedFor("");
+    }
+  }, [collegeId, professorsLoadedFor, assistantsLoadedFor]);
 
   const handleClose = useCallback(() => {
     if (onClose) onClose();
@@ -374,8 +447,10 @@ function AssignStaffDialog({ open, course, onClose }) {
             onChange={(event, value) => setSelectedProfessor(value)}
             inputValue={professorSearch}
             onInputChange={(event, value) => setProfessorSearch(value)}
-            options={professorOptions}
+            options={filteredProfessorOptions}
             loading={professorLoading}
+            onOpen={handleProfessorOpen}
+            noOptionsText={professorNoOptionsText}
             getOptionLabel={getUserLabel}
             isOptionEqualToValue={(option, value) =>
               getUserId(option) === getUserId(value)
@@ -421,8 +496,10 @@ function AssignStaffDialog({ open, course, onClose }) {
             onChange={(event, value) => setSelectedAssistants(value)}
             inputValue={assistantSearch}
             onInputChange={(event, value) => setAssistantSearch(value)}
-            options={assistantOptions}
+            options={filteredAssistantOptions}
             loading={assistantLoading}
+            onOpen={handleAssistantOpen}
+            noOptionsText={assistantNoOptionsText}
             filterSelectedOptions
             getOptionLabel={getUserLabel}
             isOptionEqualToValue={(option, value) =>

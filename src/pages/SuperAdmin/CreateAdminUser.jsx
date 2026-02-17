@@ -1,9 +1,19 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { getApps, initializeApp } from "firebase/app";
+import {
+  createUserWithEmailAndPassword,
+  deleteUser,
+  getAuth,
+  signOut,
+  updateProfile,
+} from "firebase/auth";
 import { httpsCallable } from "firebase/functions";
 import { collection, getDocs } from "firebase/firestore";
-import { db, functions } from "../../firebase/firebaseConfig";
+import app, { db, functions } from "../../firebase/firebaseConfig";
 import { useAuthUser } from "../../auth/useAuthUser";
 import BigLogo from "../../assets/university-logo.png";
+import { fetchColleges } from "../../services/colleges.service";
+import { createUserProfile } from "../../services/users.service";
 
 const ROLE_TABS = [
   { value: "all", label: "All" },
@@ -16,6 +26,21 @@ const ROLE_TABS = [
 
 const ROLE_OPTIONS = ROLE_TABS.filter((tab) => tab.value !== "all");
 const USERS_PER_PAGE = 4;
+const ROLE_REQUIRES_COLLEGE = ["student", "assistant", "professor"];
+
+const resolveCollegeName = (college) =>
+  college?.name ||
+  college?.collegeName ||
+  college?.displayName ||
+  college?.title ||
+  college?.id ||
+  "Unknown";
+
+const getSecondaryAuth = () => {
+  const existing = getApps().find((item) => item.name === "secondaryAuth");
+  const secondaryApp = existing || initializeApp(app.options, "secondaryAuth");
+  return getAuth(secondaryApp);
+};
 
 const getUserRoleKey = (user) => {
   const rawRole = user?.role ?? user?.Role ?? "";
@@ -34,7 +59,8 @@ const getUserEmail = (user) => user?.email ?? user?.Email ?? "N/A";
 
 const getUserPhone = (user) => user?.phoneNumber ?? user?.Phone_Number ?? "N/A";
 
-const getUserCollegeId = (user) => user?.collegeUserId ?? user?.College_User_ID ?? "N/A";
+const getUserCollegeId = (user) =>
+  user?.collegeId ?? user?.collegeUserId ?? user?.College_User_ID ?? "N/A";
 
 const formatCreatedAt = (timestamp) => {
   if (!timestamp) return "N/A";
@@ -57,6 +83,10 @@ function CreateAdminUser() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("student");
+  const [colleges, setColleges] = useState([]);
+  const [collegesLoading, setCollegesLoading] = useState(false);
+  const [collegesError, setCollegesError] = useState("");
+  const [collegeId, setCollegeId] = useState("");
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -78,10 +108,6 @@ function CreateAdminUser() {
   const [editFormError, setEditFormError] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
-  const createUserWithRole = useMemo(
-    () => httpsCallable(functions, "createUserWithRole"),
-    [functions]
-  );
   const deleteUserAccount = useMemo(
     () => httpsCallable(functions, "deleteUserAccount"),
     [functions]
@@ -99,6 +125,37 @@ function CreateAdminUser() {
     if (isSuperAdmin) return ROLE_OPTIONS;
     return ROLE_OPTIONS.filter((tab) => tab.value !== "super_admin");
   }, [isSuperAdmin]);
+
+  const roleNeedsCollege = useMemo(
+    () => ROLE_REQUIRES_COLLEGE.includes(role),
+    [role]
+  );
+  const collegeOptions = useMemo(
+    () =>
+      colleges.map((college) => ({
+        value: college.id,
+        label: resolveCollegeName(college),
+      })),
+    [colleges]
+  );
+  const isCollegeMissing = useMemo(
+    () => roleNeedsCollege && !collegesLoading && collegeOptions.length === 0,
+    [roleNeedsCollege, collegesLoading, collegeOptions.length]
+  );
+  const isCollegeSelectionInvalid = useMemo(
+    () =>
+      roleNeedsCollege &&
+      !collegesLoading &&
+      collegeOptions.length > 0 &&
+      !collegeId,
+    [roleNeedsCollege, collegesLoading, collegeOptions.length, collegeId]
+  );
+  const isCreateDisabled = useMemo(() => {
+    if (!roleNeedsCollege) return loading;
+    if (collegesLoading) return true;
+    if (collegeOptions.length === 0) return true;
+    return loading || !collegeId;
+  }, [roleNeedsCollege, collegesLoading, collegeOptions.length, collegeId, loading]);
 
   const loadUsers = useCallback(async () => {
     if (!user) return;
@@ -140,6 +197,25 @@ function CreateAdminUser() {
     }
   }, [user]);
 
+  const loadColleges = useCallback(async () => {
+    setCollegesLoading(true);
+    setCollegesError("");
+
+    try {
+      const data = await fetchColleges(db);
+      setColleges(data);
+      if (data.length > 0 && !collegeId) {
+        setCollegeId(data[0].id);
+      }
+    } catch (error) {
+      console.error("Load colleges error:", error);
+      setColleges([]);
+      setCollegesError(error?.message || "Failed to load colleges.");
+    } finally {
+      setCollegesLoading(false);
+    }
+  }, [collegeId]);
+
   const handleCreateAccount = useCallback(
     async (e) => {
       e.preventDefault();
@@ -149,49 +225,88 @@ function CreateAdminUser() {
       const trimmedEmail = email.trim();
       const trimmedName = name.trim();
       const trimmedPhoneNumber = phoneNumber.trim();
+      const normalizedRole = String(role || "").trim().toLowerCase();
+      const needsCollege = ROLE_REQUIRES_COLLEGE.includes(normalizedRole);
 
-      if (!trimmedEmail || !trimmedName || !password || !role) {
+      if (!trimmedEmail || !trimmedName || !password || !normalizedRole) {
         setFormError("Full name, email, password, and role are required.");
         return;
       }
 
-      if (isAdmin && role === "super_admin") {
+      if (isAdmin && normalizedRole === "super_admin") {
         setFormError("Admins cannot assign the super admin role.");
         return;
       }
 
+      if (needsCollege && !collegeId) {
+        setFormError("Select a college for this role.");
+        return;
+      }
+
+      if (needsCollege && isCollegeMissing) {
+        setFormError("Create at least one college before adding this role.");
+        return;
+      }
+
       setLoading(true);
+      let createdUser = null;
+      const secondaryAuth = getSecondaryAuth();
 
       try {
-        const payload = {
-          email: trimmedEmail,
-          password,
-          name: trimmedName,
-          role,
-        };
+        const userCred = await createUserWithEmailAndPassword(
+          secondaryAuth,
+          trimmedEmail,
+          password
+        );
+        createdUser = userCred.user;
 
-        if (trimmedPhoneNumber) {
-          payload.phoneNumber = trimmedPhoneNumber;
-        }
-
-        const result = await createUserWithRole(payload);
-
-        const { uid, message } = result?.data || {};
-        if (!uid) {
+        if (!createdUser?.uid) {
           throw new Error("Create user failed to return uid.");
         }
 
-        setSuccessMessage(message || "Account created successfully.");
+        if (trimmedName) {
+          try {
+            await updateProfile(createdUser, { displayName: trimmedName });
+          } catch (profileError) {
+            console.warn("Unable to update display name:", profileError);
+          }
+        }
+
+        await createUserProfile({
+          db,
+          uid: createdUser.uid,
+          name: trimmedName,
+          email: trimmedEmail,
+          phoneNumber: trimmedPhoneNumber,
+          role: normalizedRole,
+          collegeId: needsCollege ? collegeId : "",
+        });
+
+        setSuccessMessage("Account created successfully.");
         await loadUsers();
         setEmail("");
         setName("");
         setPhoneNumber("");
         setPassword("");
         setRole("student");
+        setCollegeId("");
       } catch (error) {
-        console.error("Create account error:", error.message);
-        setFormError(error.message || "Account creation failed.");
+        console.error("Create account error:", error);
+        setFormError(error?.message || "Account creation failed.");
+
+        if (createdUser) {
+          try {
+            await deleteUser(createdUser);
+          } catch (cleanupError) {
+            console.warn("Failed to remove auth user after error:", cleanupError);
+          }
+        }
       } finally {
+        try {
+          await signOut(secondaryAuth);
+        } catch (signOutError) {
+          console.warn("Secondary auth sign out failed:", signOutError);
+        }
         setLoading(false);
       }
     },
@@ -201,8 +316,9 @@ function CreateAdminUser() {
       password,
       phoneNumber,
       role,
+      collegeId,
+      isCollegeMissing,
       isAdmin,
-      createUserWithRole,
       loadUsers,
     ]
   );
@@ -363,6 +479,29 @@ function CreateAdminUser() {
     }
     loadUsers();
   }, [authLoading, user, loadUsers]);
+
+  useEffect(() => {
+    if (!isModalOpen) return;
+    if (roleNeedsCollege && !collegesLoading && colleges.length === 0) {
+      loadColleges();
+    }
+  }, [
+    isModalOpen,
+    roleNeedsCollege,
+    collegesLoading,
+    colleges.length,
+    loadColleges,
+  ]);
+
+  useEffect(() => {
+    if (!roleNeedsCollege) {
+      setCollegeId("");
+      return;
+    }
+    if (!collegeId && collegeOptions.length > 0) {
+      setCollegeId(collegeOptions[0].value);
+    }
+  }, [roleNeedsCollege, collegeId, collegeOptions]);
 
   const filteredUsers = useMemo(() => {
     const roleFiltered =
@@ -713,6 +852,47 @@ function CreateAdminUser() {
                     </select>
                   </div>
 
+                  {roleNeedsCollege ? (
+                    <div className="md:col-span-2">
+                      <label htmlFor="admin-college" className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                        College
+                      </label>
+                      <select
+                        id="admin-college"
+                        value={collegeId}
+                        onChange={(e) => setCollegeId(e.target.value)}
+                        disabled={collegesLoading || collegeOptions.length === 0}
+                        className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10 disabled:bg-slate-100"
+                        required
+                      >
+                        {collegesLoading ? (
+                          <option value="">Loading colleges...</option>
+                        ) : null}
+                        {!collegesLoading && collegeOptions.length === 0 ? (
+                          <option value="">No colleges found</option>
+                        ) : null}
+                        {collegeOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                      {collegesError ? (
+                        <p className="mt-2 text-xs text-red-600">{collegesError}</p>
+                      ) : null}
+                      {isCollegeMissing ? (
+                        <p className="mt-2 text-xs text-amber-600">
+                          No colleges found. Create a college first.
+                        </p>
+                      ) : null}
+                      {isCollegeSelectionInvalid ? (
+                        <p className="mt-2 text-xs text-amber-600">
+                          Select a college to continue.
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
+
                   <div>
                     <label htmlFor="admin-password" className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                       Password
@@ -748,7 +928,7 @@ function CreateAdminUser() {
                 <div className="mt-6 flex flex-wrap items-center gap-4">
                   <button
                     type="submit"
-                    disabled={loading}
+                    disabled={isCreateDisabled}
                     className="flex items-center justify-center gap-3 rounded-2xl bg-[#0b2c4a] px-6 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-white shadow-lg transition hover:translate-y-[-1px] hover:bg-[#153a63] disabled:cursor-not-allowed disabled:opacity-70"
                   >
                     {loading ? (
