@@ -14,8 +14,8 @@ function MainLayout() {
     { icon: school, title: "Academic Structure", link: "/admin/colleges" },
     // { icon: building, title: "Buildings", link: "/buildings" },
     { icon: building, title: "Campus Buildings", link: "/admin/campus-buildings" },
-    { icon: assignment, title: "Assignments", link: "/admin/assignments" },
-    { icon: people, title: "Attendance", link: "/offerings" },
+    // { icon: assignment, title: "Assignments", link: "/admin/assignments" },
+    // { icon: people, title: "Attendance", link: "/offerings" },
     { icon: users, title: "User Management", link: "/admin/create-admin" },
     { icon: users, title: "Bulk Import Users", link: "/admin/bulk-import-users" },
   ];
