@@ -8,6 +8,7 @@ import FloorsList from "../../components/campusBuildings/FloorsList";
 import FloorFormModal from "../../components/campusBuildings/FloorFormModal";
 import RoomsList from "../../components/campusBuildings/RoomsList";
 import RoomFormModal from "../../components/campusBuildings/RoomFormModal";
+import RoomSchedulePanel from "../../components/campusBuildings/RoomSchedulePanel";
 import {
   createBuilding,
   createFloor,
@@ -15,7 +16,10 @@ import {
   deleteBuilding,
   deleteFloor,
   deleteRoom,
+  generateSlots,
   generateDemoData,
+  listOccupiedRoomIds,
+  timeToMinutes,
   updateBuilding,
   updateFloor,
   updateRoom,
@@ -43,6 +47,15 @@ function CampusBuildingsPage() {
   const [selectedBuildingId, setSelectedBuildingId] = useState("");
   const [selectedFloorId, setSelectedFloorId] = useState("");
   const [selectedRoomId, setSelectedRoomId] = useState("");
+
+  const [availabilityFilter, setAvailabilityFilter] = useState({
+    day: "MON",
+    startTime: "09:00",
+    endTime: "10:00",
+  });
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
+  const [availabilityError, setAvailabilityError] = useState("");
+  const [availableRoomIds, setAvailableRoomIds] = useState(null);
 
   const [buildingSearch, setBuildingSearch] = useState("");
   const [actionError, setActionError] = useState("");
@@ -199,6 +212,11 @@ function CampusBuildingsPage() {
     }
   }, [rooms, selectedRoomId]);
 
+  useEffect(() => {
+    setAvailableRoomIds(null);
+    setAvailabilityError("");
+  }, [selectedBuildingId, selectedFloorId]);
+
   const selectedBuilding = useMemo(
     () => buildings.find((building) => building.id === selectedBuildingId) || null,
     [buildings, selectedBuildingId]
@@ -207,6 +225,11 @@ function CampusBuildingsPage() {
   const selectedFloor = useMemo(
     () => floors.find((floor) => floor.id === selectedFloorId) || null,
     [floors, selectedFloorId]
+  );
+
+  const selectedRoom = useMemo(
+    () => rooms.find((room) => room.id === selectedRoomId) || null,
+    [rooms, selectedRoomId]
   );
 
   const normalizedSearch = useMemo(
@@ -264,6 +287,89 @@ function CampusBuildingsPage() {
     },
     [handleSelectRoomId]
   );
+
+  const handleAvailabilityDayChange = useCallback((day) => {
+    setAvailabilityFilter((prev) => ({ ...prev, day }));
+    setAvailableRoomIds(null);
+    setAvailabilityError("");
+  }, []);
+
+  const handleAvailabilityStartChange = useCallback((startTime) => {
+    setAvailabilityFilter((prev) => ({ ...prev, startTime }));
+    setAvailableRoomIds(null);
+    setAvailabilityError("");
+  }, []);
+
+  const handleAvailabilityEndChange = useCallback((endTime) => {
+    setAvailabilityFilter((prev) => ({ ...prev, endTime }));
+    setAvailableRoomIds(null);
+    setAvailabilityError("");
+  }, []);
+
+  const handleClearAvailability = useCallback(() => {
+    setAvailableRoomIds(null);
+    setAvailabilityError("");
+  }, []);
+
+  const handleCheckAvailability = useCallback(async () => {
+    if (!selectedBuildingId || !selectedFloorId) {
+      setAvailabilityError("Select a building and floor first.");
+      return;
+    }
+    setAvailabilityLoading(true);
+    setAvailabilityError("");
+
+    try {
+      const startMin = timeToMinutes(availabilityFilter.startTime);
+      const endMin = timeToMinutes(availabilityFilter.endTime);
+
+      if (!Number.isFinite(startMin) || !Number.isFinite(endMin)) {
+        throw new Error("Select a valid start and end time.");
+      }
+      if (startMin >= endMin) {
+        throw new Error("Start time must be before end time.");
+      }
+      if (startMin % 30 !== 0 || endMin % 30 !== 0) {
+        throw new Error("Times must align with 30-minute steps.");
+      }
+
+      const requestedSlots = generateSlots(
+        availabilityFilter.day,
+        startMin,
+        endMin,
+        30
+      );
+      if (requestedSlots.length === 0) {
+        throw new Error("Select a valid time range.");
+      }
+      if (requestedSlots.length > 10) {
+        throw new Error("Please select up to 5 hours (10 slots).");
+      }
+
+      const occupiedRoomIds = await listOccupiedRoomIds(
+        selectedBuildingId,
+        selectedFloorId,
+        requestedSlots
+      );
+      const occupiedSet = new Set(occupiedRoomIds);
+      const availableSet = new Set(
+        rooms.filter((room) => !occupiedSet.has(room.id)).map((room) => room.id)
+      );
+      setAvailableRoomIds(availableSet);
+    } catch (error) {
+      setAvailableRoomIds(null);
+      setAvailabilityError(getErrorMessage(error, "Failed to check availability."));
+    } finally {
+      setAvailabilityLoading(false);
+    }
+  }, [
+    availabilityFilter.day,
+    availabilityFilter.endTime,
+    availabilityFilter.startTime,
+    rooms,
+    selectedBuildingId,
+    selectedFloorId,
+  ]);
 
   const handleOpenBuildingModal = useCallback(() => {
     setEditingBuilding(null);
@@ -597,7 +703,7 @@ function CampusBuildingsPage() {
 
       {actionError ? <Alert severity="error">{actionError}</Alert> : null}
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-4">
         <BuildingsList
           buildings={filteredBuildings}
           loading={buildingsLoading}
@@ -632,10 +738,25 @@ function CampusBuildingsPage() {
           selectedBuilding={selectedBuilding}
           selectedFloor={selectedFloor}
           selectedRoomId={selectedRoomId}
+          availabilityFilter={availabilityFilter}
+          availabilityLoading={availabilityLoading}
+          availabilityError={availabilityError}
+          availableRoomIds={availableRoomIds}
+          onAvailabilityDayChange={handleAvailabilityDayChange}
+          onAvailabilityStartChange={handleAvailabilityStartChange}
+          onAvailabilityEndChange={handleAvailabilityEndChange}
+          onCheckAvailability={handleCheckAvailability}
+          onClearAvailability={handleClearAvailability}
           onSelect={handleSelectRoom}
           onAdd={handleOpenRoomModal}
           onEdit={handleEditRoom}
           onDelete={handleDeleteRoomPrompt}
+        />
+
+        <RoomSchedulePanel
+          selectedBuilding={selectedBuilding}
+          selectedFloor={selectedFloor}
+          selectedRoom={selectedRoom}
         />
       </div>
 

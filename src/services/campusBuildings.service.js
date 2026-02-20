@@ -7,8 +7,11 @@ import {
   onSnapshot,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
+  setDoc,
   updateDoc,
+  where,
   writeBatch,
 } from "firebase/firestore";
 import { db } from "../firebase/firebaseConfig";
@@ -32,6 +35,31 @@ const roomDoc = (buildingId, floorId, roomId) =>
     "rooms",
     roomId
   );
+const schedulesCollection = (buildingId, floorId, roomId) =>
+  collection(
+    db,
+    "campusBuildings",
+    buildingId,
+    "floors",
+    floorId,
+    "rooms",
+    roomId,
+    "schedules"
+  );
+const scheduleDoc = (buildingId, floorId, roomId, scheduleId) =>
+  doc(
+    db,
+    "campusBuildings",
+    buildingId,
+    "floors",
+    floorId,
+    "rooms",
+    roomId,
+    "schedules",
+    scheduleId
+  );
+const roomSchedulesCollection = () => collection(db, "roomSchedules");
+const roomScheduleDoc = (scheduleId) => doc(db, "roomSchedules", scheduleId);
 
 const mapSnapshot = (snapshot) => ({ id: snapshot.id, ...snapshot.data() });
 
@@ -50,6 +78,58 @@ const ROOM_LAYOUT = {
 
 const isNumber = (value) =>
   typeof value === "number" && Number.isFinite(value);
+
+export const minutesToTime = (minutes) => {
+  const total = Number(minutes);
+  if (!Number.isFinite(total)) return "";
+  const clamped = Math.min(Math.max(Math.floor(total), 0), 1439);
+  const hours = Math.floor(clamped / 60);
+  const mins = clamped % 60;
+  return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
+};
+
+export const timeToMinutes = (value) => {
+  const raw = String(value || "").trim();
+  if (!raw) return Number.NaN;
+  const [hoursPart, minutesPart] = raw.split(":");
+  const hours = Number(hoursPart);
+  const minutes = Number(minutesPart);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return Number.NaN;
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59)
+    return Number.NaN;
+  return hours * 60 + minutes;
+};
+
+export const generateSlots = (day, startMin, endMin, step = 30) => {
+  const dayKey = String(day || "").trim().toUpperCase();
+  if (!dayKey) return [];
+  const start = Number(startMin);
+  const end = Number(endMin);
+  const safeStep = Number(step) > 0 ? Number(step) : 30;
+  if (!Number.isFinite(start) || !Number.isFinite(end) || start >= end)
+    return [];
+  const slots = [];
+  for (let cursor = start; cursor < end; cursor += safeStep) {
+    const timeKey = minutesToTime(cursor).replace(":", "");
+    slots.push(`${dayKey}_${timeKey}`);
+  }
+  return slots;
+};
+
+export const isOverlapping = (aStart, aEnd, bStart, bEnd) => {
+  const aStartNum = Number(aStart);
+  const aEndNum = Number(aEnd);
+  const bStartNum = Number(bStart);
+  const bEndNum = Number(bEnd);
+  if (
+    !Number.isFinite(aStartNum) ||
+    !Number.isFinite(aEndNum) ||
+    !Number.isFinite(bStartNum) ||
+    !Number.isFinite(bEndNum)
+  )
+    return false;
+  return aStartNum < bEndNum && aEndNum > bStartNum;
+};
 
 const normalizePosition3d = (position) => {
   if (
@@ -100,10 +180,12 @@ const logError = (context, error, meta = {}) => {
 // Helper used by cascading deletes to keep batches under Firestore limits.
 const deleteDocsInBatches = async (docs) => {
   const batchSize = 400;
+  const resolveRef = (docOrRef) => (docOrRef?.ref ? docOrRef.ref : docOrRef);
   for (let i = 0; i < docs.length; i += batchSize) {
     const batch = writeBatch(db);
-    docs.slice(i, i + batchSize).forEach((snapshot) => {
-      batch.delete(snapshot.ref);
+    docs.slice(i, i + batchSize).forEach((entry) => {
+      const ref = resolveRef(entry);
+      if (ref) batch.delete(ref);
     });
     await batch.commit();
   }
@@ -245,7 +327,9 @@ export const updateFloor = async (buildingId, floorId, payload) => {
 export const deleteFloor = async (buildingId, floorId) => {
   if (!buildingId || !floorId) throw new Error("Floor details are required.");
   const roomsSnapshot = await getDocs(roomsCollection(buildingId, floorId));
-  await deleteDocsInBatches(roomsSnapshot.docs);
+  for (const roomSnapshot of roomsSnapshot.docs) {
+    await deleteRoom(buildingId, floorId, roomSnapshot.id);
+  }
   await deleteDoc(floorDoc(buildingId, floorId));
   return floorId;
 };
@@ -308,8 +392,237 @@ export const updateRoom = async (buildingId, floorId, roomId, payload) => {
 export const deleteRoom = async (buildingId, floorId, roomId) => {
   if (!buildingId || !floorId || !roomId)
     throw new Error("Room details are required.");
-  await deleteDoc(roomDoc(buildingId, floorId, roomId));
+  const schedulesSnapshot = await getDocs(
+    schedulesCollection(buildingId, floorId, roomId)
+  );
+  const deleteTargets = [];
+  schedulesSnapshot.docs.forEach((scheduleSnap) => {
+    deleteTargets.push(scheduleSnap);
+    deleteTargets.push(roomScheduleDoc(scheduleSnap.id));
+  });
+  deleteTargets.push(roomDoc(buildingId, floorId, roomId));
+  await deleteDocsInBatches(deleteTargets);
   return roomId;
+};
+
+export const listSchedules = async (buildingId, floorId, roomId) => {
+  if (!buildingId || !floorId || !roomId) return [];
+  const schedulesQuery = query(
+    schedulesCollection(buildingId, floorId, roomId),
+    orderBy("day", "asc"),
+    orderBy("startMin", "asc")
+  );
+  const snapshot = await getDocs(schedulesQuery);
+  return snapshot.docs.map(mapSnapshot);
+};
+
+export const upsertRoomScheduleMirror = async (scheduleId, payload, writer) => {
+  if (!scheduleId) throw new Error("Schedule ID is required.");
+  const data = {
+    ...payload,
+    updatedAt: serverTimestamp(),
+  };
+  if (payload?.createdAt) {
+    data.createdAt = payload.createdAt;
+  }
+  const ref = roomScheduleDoc(scheduleId);
+  if (writer?.set) {
+    writer.set(ref, data, { merge: true });
+    return { id: scheduleId, ...data };
+  }
+  await setDoc(ref, data, { merge: true });
+  return { id: scheduleId, ...data };
+};
+
+export const deleteRoomScheduleMirror = async (scheduleId, writer) => {
+  if (!scheduleId) throw new Error("Schedule ID is required.");
+  const ref = roomScheduleDoc(scheduleId);
+  if (writer?.delete) {
+    writer.delete(ref);
+    return scheduleId;
+  }
+  await deleteDoc(ref);
+  return scheduleId;
+};
+
+const resolveSchedulePayload = (payload) => ({
+  day: String(payload?.day || "").trim().toUpperCase(),
+  startMin: Number(payload?.startMin),
+  endMin: Number(payload?.endMin),
+  courseId: payload?.courseId ? String(payload.courseId).trim() : "",
+  courseName: payload?.courseName ? String(payload.courseName).trim() : "",
+  slots: Array.isArray(payload?.slots) ? payload.slots : [],
+});
+
+const ensureNoOverlap = ({ schedules = [], startMin, endMin, day, ignoreId }) => {
+  const conflict = schedules.find((schedule) => {
+    if (ignoreId && schedule.id === ignoreId) return false;
+    return (
+      String(schedule.day || "").toUpperCase() ===
+        String(day || "").toUpperCase() &&
+      isOverlapping(startMin, endMin, schedule.startMin, schedule.endMin)
+    );
+  });
+  if (conflict) {
+    const conflictStart = minutesToTime(conflict.startMin);
+    const conflictEnd = minutesToTime(conflict.endMin);
+    const message = `This room is already booked on ${
+      conflict.day || day
+    } from ${conflictStart} to ${conflictEnd}`;
+    const error = new Error(message);
+    error.code = "room-overlap";
+    throw error;
+  }
+};
+
+// Schedule CRUD keeps room-level schedules and the roomSchedules mirror in sync.
+export const addSchedule = async (buildingId, floorId, roomId, payload) => {
+  if (!buildingId || !floorId || !roomId)
+    throw new Error("Schedule details are required.");
+  const scheduleRef = doc(schedulesCollection(buildingId, floorId, roomId));
+  const scheduleId = scheduleRef.id;
+  const resolved = resolveSchedulePayload(payload);
+  if (!resolved.day) throw new Error("Day is required.");
+  if (!Number.isFinite(resolved.startMin) || !Number.isFinite(resolved.endMin)) {
+    throw new Error("Start and end times are required.");
+  }
+  if (resolved.startMin >= resolved.endMin)
+    throw new Error("Start time must be before end time.");
+
+  const schedulesQuery = query(
+    schedulesCollection(buildingId, floorId, roomId),
+    where("day", "==", resolved.day)
+  );
+
+  const scheduleData = {
+    buildingId,
+    floorId,
+    roomId,
+    day: resolved.day,
+    startMin: resolved.startMin,
+    endMin: resolved.endMin,
+    courseId: resolved.courseId || null,
+    courseName: resolved.courseName || "",
+    slots: resolved.slots,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+  const mirrorData = {
+    buildingId,
+    floorId,
+    roomId,
+    day: resolved.day,
+    startMin: resolved.startMin,
+    endMin: resolved.endMin,
+    courseId: resolved.courseId || null,
+    courseName: resolved.courseName || "",
+    slots: resolved.slots,
+    createdAt: serverTimestamp(),
+  };
+
+  await runTransaction(db, async (transaction) => {
+    const existingSnapshot = await getDocs(schedulesQuery);
+    const existingSchedules = existingSnapshot.docs.map(mapSnapshot);
+    ensureNoOverlap({
+      schedules: existingSchedules,
+      startMin: resolved.startMin,
+      endMin: resolved.endMin,
+      day: resolved.day,
+    });
+    transaction.set(scheduleRef, scheduleData);
+    await upsertRoomScheduleMirror(scheduleId, mirrorData, transaction);
+  });
+
+  return { id: scheduleId, ...scheduleData };
+};
+
+export const updateSchedule = async (
+  buildingId,
+  floorId,
+  roomId,
+  scheduleId,
+  payload
+) => {
+  if (!buildingId || !floorId || !roomId || !scheduleId)
+    throw new Error("Schedule details are required.");
+  const resolved = resolveSchedulePayload(payload);
+  if (!resolved.day) throw new Error("Day is required.");
+  if (!Number.isFinite(resolved.startMin) || !Number.isFinite(resolved.endMin)) {
+    throw new Error("Start and end times are required.");
+  }
+  if (resolved.startMin >= resolved.endMin)
+    throw new Error("Start time must be before end time.");
+
+  const schedulesQuery = query(
+    schedulesCollection(buildingId, floorId, roomId),
+    where("day", "==", resolved.day)
+  );
+
+  const scheduleRef = scheduleDoc(buildingId, floorId, roomId, scheduleId);
+  const scheduleData = {
+    day: resolved.day,
+    startMin: resolved.startMin,
+    endMin: resolved.endMin,
+    courseId: resolved.courseId || null,
+    courseName: resolved.courseName || "",
+    slots: resolved.slots,
+    updatedAt: serverTimestamp(),
+  };
+  const mirrorData = {
+    buildingId,
+    floorId,
+    roomId,
+    day: resolved.day,
+    startMin: resolved.startMin,
+    endMin: resolved.endMin,
+    courseId: resolved.courseId || null,
+    courseName: resolved.courseName || "",
+    slots: resolved.slots,
+  };
+
+  await runTransaction(db, async (transaction) => {
+    const existingSnapshot = await getDocs(schedulesQuery);
+    const existingSchedules = existingSnapshot.docs.map(mapSnapshot);
+    ensureNoOverlap({
+      schedules: existingSchedules,
+      startMin: resolved.startMin,
+      endMin: resolved.endMin,
+      day: resolved.day,
+      ignoreId: scheduleId,
+    });
+    transaction.update(scheduleRef, scheduleData);
+    await upsertRoomScheduleMirror(scheduleId, mirrorData, transaction);
+  });
+
+  return { id: scheduleId, ...scheduleData };
+};
+
+export const deleteSchedule = async (buildingId, floorId, roomId, scheduleId) => {
+  if (!buildingId || !floorId || !roomId || !scheduleId)
+    throw new Error("Schedule details are required.");
+  const batch = writeBatch(db);
+  batch.delete(scheduleDoc(buildingId, floorId, roomId, scheduleId));
+  await deleteRoomScheduleMirror(scheduleId, batch);
+  await batch.commit();
+  return scheduleId;
+};
+
+export const listOccupiedRoomIds = async (buildingId, floorId, slots) => {
+  if (!buildingId || !floorId || !Array.isArray(slots) || slots.length === 0)
+    return [];
+  const schedulesQuery = query(
+    roomSchedulesCollection(),
+    where("buildingId", "==", buildingId),
+    where("floorId", "==", floorId),
+    where("slots", "array-contains-any", slots)
+  );
+  const snapshot = await getDocs(schedulesQuery);
+  const roomIds = new Set();
+  snapshot.docs.forEach((docSnap) => {
+    const data = docSnap.data() || {};
+    if (data.roomId) roomIds.add(data.roomId);
+  });
+  return Array.from(roomIds);
 };
 
 const demoRoomNumbers = (floorNumber) => {
