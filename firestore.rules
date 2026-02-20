@@ -130,6 +130,26 @@ service cloud.firestore {
        /courses, /profs, /assistants
        (Keep them only if you still use them)
     --------------------------*/
+    match /buildings/{buildingId} {
+      allow read: if signedIn();
+      allow write: if roleIn(["super_admin", "admin"]);
+
+      match /floors/{floorId} {
+        allow read: if signedIn();
+        allow write: if roleIn(["super_admin", "admin"]);
+
+        match /rooms/{roomId} {
+          allow read: if signedIn();
+          allow write: if roleIn(["super_admin", "admin"]);
+
+          match /schedule/{sessionId} {
+            allow read: if signedIn();
+            allow write: if roleIn(["super_admin", "admin"]);
+          }
+        }
+      }
+    }
+
     match /courses/{courseId} {
       allow read: if signedIn();
       allow create, update, delete: if roleIn(["super_admin", "admin"]);

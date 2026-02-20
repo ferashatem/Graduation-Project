@@ -47,6 +47,7 @@ function CampusBuildingsPage() {
   const [selectedBuildingId, setSelectedBuildingId] = useState("");
   const [selectedFloorId, setSelectedFloorId] = useState("");
   const [selectedRoomId, setSelectedRoomId] = useState("");
+  const [activePanel, setActivePanel] = useState("buildings");
 
   const [availabilityFilter, setAvailabilityFilter] = useState({
     day: "MON",
@@ -192,6 +193,7 @@ function CampusBuildingsPage() {
       setSelectedBuildingId("");
       setSelectedFloorId("");
       setSelectedRoomId("");
+      setActivePanel("buildings");
     }
   }, [buildings, selectedBuildingId]);
 
@@ -201,6 +203,7 @@ function CampusBuildingsPage() {
     if (!stillExists) {
       setSelectedFloorId("");
       setSelectedRoomId("");
+      setActivePanel("floors");
     }
   }, [floors, selectedFloorId]);
 
@@ -209,6 +212,7 @@ function CampusBuildingsPage() {
     const stillExists = rooms.some((room) => room.id === selectedRoomId);
     if (!stillExists) {
       setSelectedRoomId("");
+      setActivePanel("rooms");
     }
   }, [rooms, selectedRoomId]);
 
@@ -255,6 +259,7 @@ function CampusBuildingsPage() {
     setSelectedFloorId("");
     setSelectedRoomId("");
     setActionError("");
+    setActivePanel(buildingId ? "floors" : "buildings");
   }, []);
 
   const handleSelectBuilding = useCallback(
@@ -268,6 +273,7 @@ function CampusBuildingsPage() {
     setSelectedFloorId(floorId || "");
     setSelectedRoomId("");
     setActionError("");
+    setActivePanel(floorId ? "rooms" : "floors");
   }, []);
 
   const handleSelectFloor = useCallback(
@@ -279,6 +285,7 @@ function CampusBuildingsPage() {
 
   const handleSelectRoomId = useCallback((roomId) => {
     setSelectedRoomId(roomId || "");
+    setActivePanel(roomId ? "schedule" : "rooms");
   }, []);
 
   const handleSelectRoom = useCallback(
@@ -359,6 +366,8 @@ function CampusBuildingsPage() {
     } catch (error) {
       setAvailableRoomIds(null);
       setAvailabilityError(getErrorMessage(error, "Failed to check availability."));
+      console.log(error);
+      
     } finally {
       setAvailabilityLoading(false);
     }
@@ -703,61 +712,123 @@ function CampusBuildingsPage() {
 
       {actionError ? <Alert severity="error">{actionError}</Alert> : null}
 
-      <div className="grid gap-4 lg:grid-cols-4">
-        <BuildingsList
-          buildings={filteredBuildings}
-          loading={buildingsLoading}
-          error={buildingsError}
-          search={buildingSearch}
-          selectedId={selectedBuildingId}
-          onSearchChange={handleSearchChange}
-          onSelect={handleSelectBuilding}
-          onAdd={handleOpenBuildingModal}
-          onEdit={handleEditBuilding}
-          onDelete={handleDeleteBuildingPrompt}
-        />
+      <div className="flex flex-wrap gap-2 lg:hidden">
+        <button
+          type="button"
+          onClick={() => setActivePanel("buildings")}
+          className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition ${
+            activePanel === "buildings"
+              ? "border-slate-900 bg-slate-900 text-white"
+              : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+          }`}
+        >
+          Buildings
+        </button>
+        <button
+          type="button"
+          onClick={() => setActivePanel("floors")}
+          disabled={!selectedBuildingId}
+          className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition ${
+            activePanel === "floors"
+              ? "border-slate-900 bg-slate-900 text-white"
+              : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+          } ${!selectedBuildingId ? "cursor-not-allowed opacity-50" : ""}`}
+        >
+          Floors
+        </button>
+        <button
+          type="button"
+          onClick={() => setActivePanel("rooms")}
+          disabled={!selectedBuildingId || !selectedFloorId}
+          className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition ${
+            activePanel === "rooms"
+              ? "border-slate-900 bg-slate-900 text-white"
+              : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+          } ${
+            !selectedBuildingId || !selectedFloorId
+              ? "cursor-not-allowed opacity-50"
+              : ""
+          }`}
+        >
+          Rooms
+        </button>
+        <button
+          type="button"
+          onClick={() => setActivePanel("schedule")}
+          disabled={!selectedRoomId}
+          className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition ${
+            activePanel === "schedule"
+              ? "border-slate-900 bg-slate-900 text-white"
+              : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+          } ${!selectedRoomId ? "cursor-not-allowed opacity-50" : ""}`}
+        >
+          Schedule
+        </button>
+      </div>
 
-        <FloorsList
-          floors={floors}
-          loading={floorsLoading}
-          error={floorsError}
-          selectedBuilding={selectedBuilding}
-          selectedFloorId={selectedFloorId}
-          demoLoading={demoLoading}
-          onSelect={handleSelectFloor}
-          onAdd={handleOpenFloorModal}
-          onEdit={handleEditFloor}
-          onDelete={handleDeleteFloorPrompt}
-          onGenerateDemo={handleGenerateDemo}
-        />
+      <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
+        <div className={activePanel === "buildings" ? "block" : "hidden lg:block"}>
+          <BuildingsList
+            buildings={filteredBuildings}
+            loading={buildingsLoading}
+            error={buildingsError}
+            search={buildingSearch}
+            selectedId={selectedBuildingId}
+            onSearchChange={handleSearchChange}
+            onSelect={handleSelectBuilding}
+            onAdd={handleOpenBuildingModal}
+            onEdit={handleEditBuilding}
+            onDelete={handleDeleteBuildingPrompt}
+          />
+        </div>
 
-        <RoomsList
-          rooms={rooms}
-          loading={roomsLoading}
-          error={roomsError}
-          selectedBuilding={selectedBuilding}
-          selectedFloor={selectedFloor}
-          selectedRoomId={selectedRoomId}
-          availabilityFilter={availabilityFilter}
-          availabilityLoading={availabilityLoading}
-          availabilityError={availabilityError}
-          availableRoomIds={availableRoomIds}
-          onAvailabilityDayChange={handleAvailabilityDayChange}
-          onAvailabilityStartChange={handleAvailabilityStartChange}
-          onAvailabilityEndChange={handleAvailabilityEndChange}
-          onCheckAvailability={handleCheckAvailability}
-          onClearAvailability={handleClearAvailability}
-          onSelect={handleSelectRoom}
-          onAdd={handleOpenRoomModal}
-          onEdit={handleEditRoom}
-          onDelete={handleDeleteRoomPrompt}
-        />
+        <div className={activePanel === "floors" ? "block" : "hidden lg:block"}>
+          <FloorsList
+            floors={floors}
+            loading={floorsLoading}
+            error={floorsError}
+            selectedBuilding={selectedBuilding}
+            selectedFloorId={selectedFloorId}
+            demoLoading={demoLoading}
+            onSelect={handleSelectFloor}
+            onAdd={handleOpenFloorModal}
+            onEdit={handleEditFloor}
+            onDelete={handleDeleteFloorPrompt}
+            onGenerateDemo={handleGenerateDemo}
+          />
+        </div>
 
-        <RoomSchedulePanel
-          selectedBuilding={selectedBuilding}
-          selectedFloor={selectedFloor}
-          selectedRoom={selectedRoom}
-        />
+        <div className={activePanel === "rooms" ? "block" : "hidden lg:block"}>
+          <RoomsList
+            rooms={rooms}
+            loading={roomsLoading}
+            error={roomsError}
+            selectedBuilding={selectedBuilding}
+            selectedFloor={selectedFloor}
+            selectedRoomId={selectedRoomId}
+            availabilityFilter={availabilityFilter}
+            availabilityLoading={availabilityLoading}
+            availabilityError={availabilityError}
+            availableRoomIds={availableRoomIds}
+            onAvailabilityDayChange={handleAvailabilityDayChange}
+            onAvailabilityStartChange={handleAvailabilityStartChange}
+            onAvailabilityEndChange={handleAvailabilityEndChange}
+            onCheckAvailability={handleCheckAvailability}
+            onClearAvailability={handleClearAvailability}
+            onSelect={handleSelectRoom}
+            onAdd={handleOpenRoomModal}
+            onEdit={handleEditRoom}
+            onDelete={handleDeleteRoomPrompt}
+          />
+        </div>
+
+        <div className={activePanel === "schedule" ? "block" : "hidden lg:block"}>
+          <RoomSchedulePanel
+            selectedBuilding={selectedBuilding}
+            selectedFloor={selectedFloor}
+            selectedRoom={selectedRoom}
+          />
+        </div>
       </div>
 
       <BuildingFormModal

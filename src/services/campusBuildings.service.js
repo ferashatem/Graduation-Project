@@ -3,6 +3,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   onSnapshot,
   orderBy,
@@ -246,6 +247,46 @@ export const subscribeRooms = (buildingId, floorId, onChange, onError) => {
       if (onError) onError(error);
     }
   );
+};
+
+export const getBuildings = async () => {
+  const buildingsQuery = query(
+    campusBuildingsCollection(),
+    orderBy("createdAt", "desc")
+  );
+  const snapshot = await getDocs(buildingsQuery);
+  return snapshot.docs.map(mapSnapshot);
+};
+
+export const getBuildingById = async (buildingId) => {
+  if (!buildingId) return null;
+  const snapshot = await getDoc(campusBuildingDoc(buildingId));
+  if (!snapshot.exists()) return null;
+  return mapSnapshot(snapshot);
+};
+
+export const getFloors = async (buildingId) => {
+  if (!buildingId) return [];
+  const floorsQuery = query(
+    floorsCollection(buildingId),
+    orderBy("floorNumber", "asc")
+  );
+  const snapshot = await getDocs(floorsQuery);
+  return snapshot.docs.map(mapSnapshot);
+};
+
+export const getRooms = async (buildingId, floorId) => {
+  if (!buildingId || !floorId) return [];
+  const roomsQuery = query(
+    roomsCollection(buildingId, floorId),
+    orderBy("roomNumber", "asc")
+  );
+  const snapshot = await getDocs(roomsQuery);
+  return snapshot.docs.map(mapSnapshot);
+};
+
+export const getRoomSchedule = async (buildingId, floorId, roomId) => {
+  return listSchedules(buildingId, floorId, roomId);
 };
 
 export const createBuilding = async (payload) => {
