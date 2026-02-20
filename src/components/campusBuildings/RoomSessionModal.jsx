@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
+  Autocomplete,
   Button,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -36,6 +38,10 @@ function RoomSessionModal({
   selectedDay,
   loading,
   error,
+  colleges = [],
+  collegesLoading = false,
+  collegesError = "",
+  onRequestMaterials,
   onClose,
   onSubmit,
   disableDay = true,
@@ -44,11 +50,92 @@ function RoomSessionModal({
   const [day, setDay] = useState("Monday");
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("10:00");
-  const [reservedBy, setReservedBy] = useState("");
+  const [selectedCollege, setSelectedCollege] = useState(null);
+  const [selectedMaterial, setSelectedMaterial] = useState(null);
+  const [materials, setMaterials] = useState([]);
+  const [materialsLoading, setMaterialsLoading] = useState(false);
+  const [materialsError, setMaterialsError] = useState("");
   const [notes, setNotes] = useState("");
   const [validationError, setValidationError] = useState("");
 
   const dayOptions = useMemo(() => DAY_OPTIONS, []);
+  const collegeOptions = useMemo(() => colleges || [], [colleges]);
+  const materialOptions = useMemo(() => materials || [], [materials]);
+
+  const resolvePermissionError = useCallback((error, path) => {
+    const message = error?.message || "";
+    if (
+      error?.code === "permission-denied" ||
+      /missing or insufficient permissions/i.test(message)
+    ) {
+      console.error("[permissions] access denied", { path, error });
+      return "Missing or insufficient permissions. Please contact an administrator.";
+    }
+    return "";
+  }, []);
+
+  const getCollegeLabel = useCallback((option) => {
+    if (!option) return "";
+    if (typeof option === "string") return option;
+    return (
+      option.name ||
+      option.title ||
+      option.label ||
+      option.code ||
+      option.id ||
+      ""
+    );
+  }, []);
+
+  const getMaterialLabel = useCallback((option) => {
+    if (!option) return "";
+    if (typeof option === "string") return option;
+    return (
+      option.title ||
+      option.name ||
+      option.label ||
+      option.code ||
+      option.id ||
+      ""
+    );
+  }, []);
+
+  const loadMaterials = useCallback(
+    async (collegeId, presetMaterialId, presetMaterialTitle) => {
+      if (!collegeId || !onRequestMaterials) {
+        setMaterials([]);
+        return;
+      }
+      setMaterialsLoading(true);
+      setMaterialsError("");
+      try {
+        const data = await onRequestMaterials(collegeId);
+        const safeData = Array.isArray(data) ? data : [];
+        setMaterials(safeData);
+        if (presetMaterialId) {
+          const matched = safeData.find((item) => item.id === presetMaterialId);
+          setSelectedMaterial(
+            matched || {
+              id: presetMaterialId,
+              title: presetMaterialTitle || "",
+            }
+          );
+        }
+      } catch (err) {
+        const permissionMessage = resolvePermissionError(
+          err,
+          `colleges/${collegeId}/materials`
+        );
+        setMaterialsError(
+          permissionMessage || err?.message || "Failed to load materials."
+        );
+        setMaterials([]);
+      } finally {
+        setMaterialsLoading(false);
+      }
+    },
+    [onRequestMaterials, resolvePermissionError]
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -56,15 +143,89 @@ function RoomSessionModal({
     setDay(initialDay);
     setStartTime(initialValues?.startTime || "09:00");
     setEndTime(initialValues?.endTime || "10:00");
-    setReservedBy(initialValues?.reservedBy || "");
     setNotes(initialValues?.notes || "");
     setValidationError("");
+    setMaterialsError("");
+
+    if (!initialValues?.collegeId) {
+      setSelectedCollege(null);
+      setSelectedMaterial(null);
+      setMaterials([]);
+    }
   }, [initialValues, open, selectedDay]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (!initialValues?.collegeId) return;
+    const matchedCollege =
+      collegeOptions.find((item) => item.id === initialValues.collegeId) || {
+        id: initialValues.collegeId,
+        name: initialValues.collegeName || "",
+      };
+    setSelectedCollege(matchedCollege);
+    loadMaterials(
+      initialValues.collegeId,
+      initialValues.materialId,
+      initialValues.materialTitle
+    );
+  }, [
+    collegeOptions,
+    initialValues?.collegeId,
+    initialValues?.collegeName,
+    initialValues?.materialId,
+    initialValues?.materialTitle,
+    loadMaterials,
+    open,
+  ]);
 
   const handleClose = useCallback(() => {
     if (loading) return;
     if (onClose) onClose();
   }, [loading, onClose]);
+
+  const handleCollegeChange = useCallback(
+    (_event, newValue) => {
+      setSelectedCollege(newValue);
+      setSelectedMaterial(null);
+      setMaterials([]);
+      setMaterialsError("");
+      if (newValue?.id) {
+        loadMaterials(newValue.id);
+      }
+    },
+    [loadMaterials]
+  );
+
+  const handleMaterialChange = useCallback((_event, newValue) => {
+    setSelectedMaterial(newValue);
+  }, []);
+
+  const isSaveDisabled = useMemo(() => {
+    const startMinutes = timeToMinutes(startTime);
+    const endMinutes = timeToMinutes(endTime);
+    const timeValid =
+      Number.isFinite(startMinutes) &&
+      Number.isFinite(endMinutes) &&
+      startMinutes < endMinutes;
+    return (
+      loading ||
+      collegesLoading ||
+      materialsLoading ||
+      !day ||
+      !timeValid ||
+      !selectedCollege?.id ||
+      !selectedMaterial?.id
+    );
+  }, [
+    collegesLoading,
+    day,
+    endTime,
+    loading,
+    materialsLoading,
+    selectedCollege?.id,
+    selectedMaterial?.id,
+    startTime,
+  ]);
 
   const handleSave = useCallback(() => {
     setValidationError("");
@@ -86,23 +247,46 @@ function RoomSessionModal({
       setValidationError("Start time must be before end time.");
       return;
     }
+    if (!selectedCollege?.id) {
+      setValidationError("College is required.");
+      return;
+    }
+    if (!selectedMaterial?.id) {
+      setValidationError("Material is required.");
+      return;
+    }
 
     if (onSubmit) {
       onSubmit({
         day,
         startTime,
         endTime,
-        reservedBy: reservedBy.trim(),
+        collegeId: selectedCollege.id,
+        collegeName: getCollegeLabel(selectedCollege).trim(),
+        materialId: selectedMaterial.id,
+        materialTitle: getMaterialLabel(selectedMaterial).trim(),
         notes: notes.trim(),
       });
     }
-  }, [day, endTime, notes, onSubmit, reservedBy, startTime]);
+  }, [
+    day,
+    endTime,
+    getCollegeLabel,
+    getMaterialLabel,
+    notes,
+    onSubmit,
+    selectedCollege,
+    selectedMaterial,
+    startTime,
+  ]);
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
       <DialogTitle>{isEdit ? "Edit Session" : "Add Session"}</DialogTitle>
       <DialogContent className="space-y-4">
         {error ? <Alert severity="error">{error}</Alert> : null}
+        {collegesError ? <Alert severity="error">{collegesError}</Alert> : null}
+        {materialsError ? <Alert severity="error">{materialsError}</Alert> : null}
         {validationError ? (
           <Alert severity="error">{validationError}</Alert>
         ) : null}
@@ -145,13 +329,69 @@ function RoomSessionModal({
           />
         </div>
 
-        <TextField
-          label="Reserved by"
-          value={reservedBy}
-          onChange={(event) => setReservedBy(event.target.value)}
-          fullWidth
-          disabled={loading}
-          placeholder="Course or professor"
+        <Autocomplete
+          options={collegeOptions}
+          value={selectedCollege}
+          onChange={handleCollegeChange}
+          getOptionLabel={getCollegeLabel}
+          isOptionEqualToValue={(option, value) => option.id === value?.id}
+          loading={collegesLoading}
+          noOptionsText="No colleges found."
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              label="College"
+              fullWidth
+              disabled={loading || collegesLoading}
+              InputProps={{
+                ...params.InputProps,
+                endAdornment: (
+                  <>
+                    {collegesLoading ? (
+                      <CircularProgress color="inherit" size={18} />
+                    ) : null}
+                    {params.InputProps.endAdornment}
+                  </>
+                ),
+              }}
+            />
+          )}
+        />
+
+        <Autocomplete
+          options={materialOptions}
+          value={selectedMaterial}
+          onChange={handleMaterialChange}
+          getOptionLabel={getMaterialLabel}
+          isOptionEqualToValue={(option, value) => option.id === value?.id}
+          loading={materialsLoading}
+          noOptionsText={
+            selectedCollege
+              ? "No materials found for this college."
+              : "Select a college first."
+          }
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              label="Material"
+              fullWidth
+              disabled={loading || materialsLoading || !selectedCollege}
+              placeholder={
+                selectedCollege ? "Select material" : "Select a college first"
+              }
+              InputProps={{
+                ...params.InputProps,
+                endAdornment: (
+                  <>
+                    {materialsLoading ? (
+                      <CircularProgress color="inherit" size={18} />
+                    ) : null}
+                    {params.InputProps.endAdornment}
+                  </>
+                ),
+              }}
+            />
+          )}
         />
 
         <TextField
@@ -168,7 +408,11 @@ function RoomSessionModal({
         <Button onClick={handleClose} disabled={loading}>
           Cancel
         </Button>
-        <Button variant="contained" onClick={handleSave} disabled={loading}>
+        <Button
+          variant="contained"
+          onClick={handleSave}
+          disabled={isSaveDisabled}
+        >
           {loading ? "Saving..." : isEdit ? "Save Changes" : "Create Session"}
         </Button>
       </DialogActions>

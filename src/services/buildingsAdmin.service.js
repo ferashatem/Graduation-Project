@@ -85,6 +85,34 @@ export const getBuildings = async () => {
   return snapshot.docs.map(mapSnapshot);
 };
 
+export const fetchColleges = async () => {
+  const collegesQuery = query(collection(db, "colleges"), orderBy("name", "asc"));
+  const snapshot = await getDocs(collegesQuery);
+  return snapshot.docs.map(mapSnapshot);
+};
+
+export const fetchMaterialsByCollege = async (collegeId) => {
+  if (!collegeId) return [];
+  const subcollectionRef = collection(db, "colleges", collegeId, "materials");
+  try {
+    const subQuery = query(subcollectionRef, orderBy("title", "asc"));
+    const subSnapshot = await getDocs(subQuery);
+    const subMaterials = subSnapshot.docs.map(mapSnapshot);
+    if (subMaterials.length > 0) return subMaterials;
+  } catch (error) {
+    // fall through to top-level materials fallback
+  }
+
+  const topLevelRef = collection(db, "materials");
+  const topQuery = query(
+    topLevelRef,
+    where("collegeId", "==", collegeId),
+    orderBy("title", "asc")
+  );
+  const topSnapshot = await getDocs(topQuery);
+  return topSnapshot.docs.map(mapSnapshot);
+};
+
 export const getBuildingById = async (buildingId) => {
   if (!buildingId) return null;
   const snapshot = await getDoc(buildingDoc(buildingId));
@@ -280,7 +308,10 @@ export const addRoomSession = async (buildingId, floorId, roomId, payload) => {
     day: payload?.day || "",
     startTime: payload?.startTime || "",
     endTime: payload?.endTime || "",
-    reservedBy: payload?.reservedBy || "",
+    collegeId: payload?.collegeId || "",
+    collegeName: payload?.collegeName || "",
+    materialId: payload?.materialId || "",
+    materialTitle: payload?.materialTitle || "",
     notes: payload?.notes || "",
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),

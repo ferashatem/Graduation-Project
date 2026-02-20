@@ -94,6 +94,11 @@ service cloud.firestore {
       allow read: if signedIn();
       allow write: if roleIn(["super_admin", "admin"]);
 
+      match /materials/{materialId} {
+        allow read: if signedIn();
+        allow write: if roleIn(["super_admin", "admin"]);
+      }
+
       match /buildings/{buildingId} {
         allow read: if signedIn();
         allow write: if roleIn(["super_admin", "admin"]);
@@ -151,6 +156,11 @@ service cloud.firestore {
     }
 
     match /courses/{courseId} {
+      allow read: if signedIn();
+      allow create, update, delete: if roleIn(["super_admin", "admin"]);
+    }
+
+    match /materials/{materialId} {
       allow read: if signedIn();
       allow create, update, delete: if roleIn(["super_admin", "admin"]);
     }

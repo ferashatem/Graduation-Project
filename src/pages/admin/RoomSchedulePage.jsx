@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Button,
@@ -18,6 +18,8 @@ import RoomSessionModal from "../../components/campusBuildings/RoomSessionModal"
 import {
   addRoomSession,
   deleteRoomSession,
+  fetchColleges,
+  fetchMaterialsByCollege,
   getBuildingById,
   getFloorById,
   getRoom,
@@ -82,6 +84,11 @@ function RoomSchedulePage() {
   const [editingSession, setEditingSession] = useState(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
+
+  const [colleges, setColleges] = useState([]);
+  const [collegesLoading, setCollegesLoading] = useState(false);
+  const [collegesError, setCollegesError] = useState("");
+  const materialsCacheRef = useRef(new Map());
 
   const [confirmState, setConfirmState] = useState({
     open: false,
@@ -155,6 +162,33 @@ function RoomSchedulePage() {
   }, [buildingId, floorId, roomId, resolvePermissionError]);
 
   useEffect(() => {
+    let isActive = true;
+    setCollegesLoading(true);
+    setCollegesError("");
+    fetchColleges()
+      .then((data) => {
+        if (!isActive) return;
+        setColleges(data);
+      })
+      .catch((err) => {
+        if (!isActive) return;
+        const permissionMessage = resolvePermissionError(err, "colleges");
+        setCollegesError(
+          permissionMessage ||
+            getErrorMessage(err, "Failed to load colleges.")
+        );
+      })
+      .finally(() => {
+        if (!isActive) return;
+        setCollegesLoading(false);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [resolvePermissionError]);
+
+  useEffect(() => {
     setSelectedDay(getDefaultDay());
   }, [roomId]);
 
@@ -220,12 +254,31 @@ function RoomSchedulePage() {
     setEditingSession(null);
   }, [saving]);
 
+  const fetchMaterialsForCollege = useCallback(
+    async (collegeId) => {
+      if (!collegeId) return [];
+      if (materialsCacheRef.current.has(collegeId)) {
+        return materialsCacheRef.current.get(collegeId);
+      }
+      const data = await fetchMaterialsByCollege(collegeId);
+      materialsCacheRef.current.set(collegeId, data);
+      return data;
+    },
+    []
+  );
+
   const handleSubmitSession = useCallback(
     async (payload) => {
       if (!buildingId || !floorId || !roomId) return;
       setSaving(true);
       setFormError("");
       setActionError("");
+
+      if (!payload.collegeId || !payload.materialId) {
+        setFormError("Please select a college and material.");
+        setSaving(false);
+        return;
+      }
 
       const startMinutes = timeToMinutes(payload.startTime);
       const endMinutes = timeToMinutes(payload.endTime);
@@ -449,7 +502,11 @@ function RoomSchedulePage() {
                     {session.startTime} - {session.endTime}
                   </Typography>
                   <Typography variant="body2" className="text-slate-500">
-                    {session.reservedBy || "Reserved session"}
+                    {session.materialTitle ||
+                      session.materialName ||
+                      session.reservedBy ||
+                      "Reserved session"}
+                    {session.collegeName ? ` - ${session.collegeName}` : ""}
                   </Typography>
                   {session.notes ? (
                     <Typography variant="caption" className="text-slate-400">
@@ -481,6 +538,10 @@ function RoomSchedulePage() {
         selectedDay={selectedDay}
         loading={saving}
         error={formError}
+        colleges={colleges}
+        collegesLoading={collegesLoading}
+        collegesError={collegesError}
+        onRequestMaterials={fetchMaterialsForCollege}
         onClose={handleCloseModal}
         onSubmit={handleSubmitSession}
       />
