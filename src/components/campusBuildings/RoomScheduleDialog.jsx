@@ -261,9 +261,9 @@ function RoomScheduleDialog({
                             <p className="text-sm font-medium text-slate-700">
                               {schedule.courseName || "Reserved"}
                             </p>
-                            {schedule.courseId ? (
+                            {schedule.courseCode ? (
                               <p className="text-[11px] text-slate-400">
-                                ID: {schedule.courseId}
+                                {schedule.courseCode}
                               </p>
                             ) : null}
                           </div>

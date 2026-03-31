@@ -422,9 +422,15 @@ function AddEditScheduleModal({
   // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      maxWidth="sm"
+      fullWidth
+      sx={{ "& .MuiDialog-paper": { maxHeight: "90vh" } }}
+    >
       <DialogTitle>{isEdit ? "Edit Schedule" : "Add Time Slot"}</DialogTitle>
-      <DialogContent className="space-y-4">
+      <DialogContent dividers sx={{ overflowY: "auto" }} className="space-y-4">
         {error ? <Alert severity="error">{error}</Alert> : null}
         {validationError ? (
           <Alert severity="error">{validationError}</Alert>
