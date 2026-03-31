@@ -1,20 +1,16 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Button,
-  Card,
-  CardActionArea,
-  CardActions,
-  CardContent,
-  Divider,
+  CircularProgress,
   IconButton,
-  List,
-  ListItemButton,
-  ListItemText,
-  Skeleton,
+  Snackbar,
   Typography,
 } from "@mui/material";
-import { Add, ArrowBack, Delete, Edit } from "@mui/icons-material";
+import { Add, ArrowBack, Delete, Edit, ExpandMore } from "@mui/icons-material";
 import { useNavigate, useParams } from "react-router-dom";
 import PageHeader from "../../components/common/PageHeader";
 import Loading from "../../components/common/Loading";
@@ -23,203 +19,170 @@ import ConfirmDialog from "../../components/common/ConfirmDialog";
 import FloorFormModal from "../../components/campusBuildings/FloorFormModal";
 import RoomFormModal from "../../components/campusBuildings/RoomFormModal";
 import {
-  createFloor,
-  createRoom,
-  deleteFloor,
-  deleteRoom,
-  getBuildingById,
-  getFloors,
-  getRooms,
-  updateFloor,
-  updateRoom,
-} from "../../services/buildingsAdmin.service";
+  createCampusFloor,
+  createCampusRoom,
+  deleteCampusFloor,
+  deleteCampusRoom,
+  getCampusBuildingById,
+  getCampusFloors,
+  getCampusRooms,
+  updateCampusFloor,
+  updateCampusRoom,
+} from "../../services/campusBuildingsAdmin.service";
 import { getErrorMessage } from "../../utils/errorHelpers";
 
 function BuildingDetails() {
   const { buildingId } = useParams();
   const navigate = useNavigate();
 
+  // Building
   const [building, setBuilding] = useState(null);
   const [buildingLoading, setBuildingLoading] = useState(true);
   const [buildingError, setBuildingError] = useState("");
 
+  // Floors
   const [floors, setFloors] = useState([]);
   const [floorsLoading, setFloorsLoading] = useState(true);
   const [floorsError, setFloorsError] = useState("");
 
-  const [rooms, setRooms] = useState([]);
-  const [roomsLoading, setRoomsLoading] = useState(false);
-  const [roomsError, setRoomsError] = useState("");
+  // Accordion expand state
+  const [expandedFloorIds, setExpandedFloorIds] = useState(new Set());
 
-  const [selectedFloorId, setSelectedFloorId] = useState("");
+  // Rooms per floor (lazy loaded)
+  const [roomsByFloorId, setRoomsByFloorId] = useState({});
+  const [roomsLoadingById, setRoomsLoadingById] = useState({});
+  const [roomsErrorById, setRoomsErrorById] = useState({});
+  // Refs to avoid stale-closure races in async loads
+  const loadingRef = useRef(new Set());
+  const loadedRef = useRef(new Set());
 
-  const [floorModalOpen, setFloorModalOpen] = useState(false);
-  const [editingFloor, setEditingFloor] = useState(null);
+  // Floor modal
+  const [floorModal, setFloorModal] = useState({ open: false, editing: null });
   const [floorSaving, setFloorSaving] = useState(false);
   const [floorFormError, setFloorFormError] = useState("");
 
-  const [roomModalOpen, setRoomModalOpen] = useState(false);
-  const [editingRoom, setEditingRoom] = useState(null);
+  // Room modal
+  const [roomModal, setRoomModal] = useState({ open: false, editing: null, floorId: null });
   const [roomSaving, setRoomSaving] = useState(false);
   const [roomFormError, setRoomFormError] = useState("");
 
-  const [confirmFloor, setConfirmFloor] = useState({
-    open: false,
-    floor: null,
-  });
-  const [confirmRoom, setConfirmRoom] = useState({
-    open: false,
-    room: null,
-  });
+  // Confirm dialogs
+  const [confirmFloor, setConfirmFloor] = useState({ open: false, floor: null });
   const [deletingFloor, setDeletingFloor] = useState(false);
+  const [confirmRoom, setConfirmRoom] = useState({ open: false, room: null, floorId: null });
   const [deletingRoom, setDeletingRoom] = useState(false);
 
-  const [actionError, setActionError] = useState("");
-
-  const resolvePermissionError = useCallback((error, path) => {
-    const message = error?.message || "";
-    if (
-      error?.code === "permission-denied" ||
-      /missing or insufficient permissions/i.test(message)
-    ) {
-      console.error("[permissions] access denied", { path, error });
-      return "Missing or insufficient permissions. Please contact an administrator.";
-    }
-    return "";
+  // Toast
+  const [toast, setToast] = useState({ open: false, message: "", severity: "success" });
+  const showToast = useCallback((message, severity = "success") => {
+    setToast({ open: true, message, severity });
+  }, []);
+  const hideToast = useCallback(() => {
+    setToast((t) => ({ ...t, open: false }));
   }, []);
 
-  const selectedFloor = useMemo(
-    () => floors.find((floor) => floor.id === selectedFloorId) || null,
-    [floors, selectedFloorId]
-  );
-  const roomSkeletons = useMemo(
-    () => Array.from({ length: 6 }, (_, index) => `room-skeleton-${index}`),
-    []
-  );
-
+  // ── Load building ────────────────────────────────────────────────────────────
   const loadBuilding = useCallback(async () => {
     if (!buildingId) return;
     setBuildingLoading(true);
     setBuildingError("");
     try {
-      const data = await getBuildingById(buildingId);
-      if (!data) {
-        setBuildingError("Building not found.");
-        setBuilding(null);
-      } else {
-        setBuilding(data);
-      }
+      const data = await getCampusBuildingById(buildingId);
+      if (!data) setBuildingError("Building not found.");
+      else setBuilding(data);
     } catch (err) {
-      const permissionMessage = resolvePermissionError(
-        err,
-        `buildings/${buildingId}`
-      );
-      setBuildingError(
-        permissionMessage || getErrorMessage(err, "Failed to load building.")
-      );
+      setBuildingError(getErrorMessage(err, "Failed to load building."));
     } finally {
       setBuildingLoading(false);
     }
-  }, [buildingId, resolvePermissionError]);
+  }, [buildingId]);
 
+  // ── Load floors ──────────────────────────────────────────────────────────────
   const loadFloors = useCallback(async () => {
     if (!buildingId) return;
     setFloorsLoading(true);
     setFloorsError("");
     try {
-      const data = await getFloors(buildingId);
+      const data = await getCampusFloors(buildingId);
       setFloors(data);
     } catch (err) {
-      const permissionMessage = resolvePermissionError(
-        err,
-        `buildings/${buildingId}/floors`
-      );
-      setFloorsError(
-        permissionMessage || getErrorMessage(err, "Failed to load floors.")
-      );
+      setFloorsError(getErrorMessage(err, "Failed to load floors."));
     } finally {
       setFloorsLoading(false);
     }
-  }, [buildingId, resolvePermissionError]);
-
-  const loadRooms = useCallback(async () => {
-    if (!buildingId || !selectedFloorId) {
-      setRooms([]);
-      setRoomsLoading(false);
-      return;
-    }
-    setRoomsLoading(true);
-    setRoomsError("");
-    try {
-      const data = await getRooms(buildingId, selectedFloorId);
-      setRooms(data);
-    } catch (err) {
-      const permissionMessage = resolvePermissionError(
-        err,
-        `buildings/${buildingId}/floors/${selectedFloorId}/rooms`
-      );
-      setRoomsError(
-        permissionMessage || getErrorMessage(err, "Failed to load rooms.")
-      );
-    } finally {
-      setRoomsLoading(false);
-    }
-  }, [buildingId, resolvePermissionError, selectedFloorId]);
+  }, [buildingId]);
 
   useEffect(() => {
     loadBuilding();
     loadFloors();
   }, [loadBuilding, loadFloors]);
 
-  useEffect(() => {
-    if (!selectedFloorId && floors.length > 0) {
-      setSelectedFloorId(floors[0].id);
-    }
-  }, [floors, selectedFloorId]);
+  // ── Load rooms for one floor (lazy, deduplicated) ────────────────────────────
+  const loadRoomsForFloor = useCallback(
+    async (floorId) => {
+      if (!buildingId || !floorId) return;
+      if (loadedRef.current.has(floorId) || loadingRef.current.has(floorId)) return;
 
-  useEffect(() => {
-    if (!selectedFloorId) return;
-    const exists = floors.some((floor) => floor.id === selectedFloorId);
-    if (!exists) {
-      setSelectedFloorId(floors[0]?.id || "");
-    }
-  }, [floors, selectedFloorId]);
-
-  useEffect(() => {
-    loadRooms();
-  }, [loadRooms]);
-
-  const handleSelectFloor = useCallback((floor) => {
-    setSelectedFloorId(floor?.id || "");
-  }, []);
-
-  const handleOpenRoomSchedule = useCallback(
-    (roomId) => {
-      if (!buildingId || !selectedFloorId || !roomId) return;
-      navigate(
-        `/admin/campus-buildings/${buildingId}/floors/${selectedFloorId}/rooms/${roomId}`
-      );
+      loadingRef.current.add(floorId);
+      setRoomsLoadingById((prev) => ({ ...prev, [floorId]: true }));
+      setRoomsErrorById((prev) => ({ ...prev, [floorId]: "" }));
+      try {
+        const rooms = await getCampusRooms(buildingId, floorId);
+        loadedRef.current.add(floorId);
+        setRoomsByFloorId((prev) => ({ ...prev, [floorId]: rooms }));
+      } catch (err) {
+        setRoomsErrorById((prev) => ({
+          ...prev,
+          [floorId]: getErrorMessage(err, "Failed to load rooms."),
+        }));
+      } finally {
+        loadingRef.current.delete(floorId);
+        setRoomsLoadingById((prev) => ({ ...prev, [floorId]: false }));
+      }
     },
-    [buildingId, navigate, selectedFloorId]
+    [buildingId]
   );
 
-  const handleOpenFloorModal = useCallback(() => {
-    setEditingFloor(null);
+  // Force-refresh rooms for a floor after a mutation
+  const refreshRoomsForFloor = useCallback(
+    async (floorId) => {
+      loadedRef.current.delete(floorId);
+      loadingRef.current.delete(floorId);
+      await loadRoomsForFloor(floorId);
+    },
+    [loadRoomsForFloor]
+  );
+
+  // ── Accordion toggle ─────────────────────────────────────────────────────────
+  const handleToggleFloor = useCallback(
+    (floorId) => {
+      const expanding = !expandedFloorIds.has(floorId);
+      setExpandedFloorIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(floorId)) next.delete(floorId);
+        else next.add(floorId);
+        return next;
+      });
+      if (expanding) loadRoomsForFloor(floorId);
+    },
+    [expandedFloorIds, loadRoomsForFloor]
+  );
+
+  // ── Floor CRUD ───────────────────────────────────────────────────────────────
+  const handleOpenAddFloor = useCallback(() => {
     setFloorFormError("");
-    setFloorModalOpen(true);
+    setFloorModal({ open: true, editing: null });
   }, []);
 
-  const handleEditFloor = useCallback((event, floor) => {
-    event.stopPropagation();
-    setEditingFloor(floor);
+  const handleOpenEditFloor = useCallback((floor, e) => {
+    e.stopPropagation();
     setFloorFormError("");
-    setFloorModalOpen(true);
+    setFloorModal({ open: true, editing: floor });
   }, []);
 
   const handleCloseFloorModal = useCallback(() => {
     if (floorSaving) return;
-    setFloorModalOpen(false);
-    setEditingFloor(null);
+    setFloorModal({ open: false, editing: null });
   }, [floorSaving]);
 
   const handleSubmitFloor = useCallback(
@@ -227,225 +190,112 @@ function BuildingDetails() {
       if (!buildingId) return;
       setFloorSaving(true);
       setFloorFormError("");
-      setActionError("");
       try {
-        const payload = { ...values, buildingId };
-        if (editingFloor?.id) {
-          await updateFloor(buildingId, editingFloor.id, payload);
+        if (floorModal.editing?.id) {
+          await updateCampusFloor(buildingId, floorModal.editing.id, values);
+          showToast("Floor updated.");
         } else {
-          await createFloor(buildingId, payload);
+          await createCampusFloor(buildingId, values);
+          showToast("Floor added.");
         }
         await loadFloors();
-        setFloorModalOpen(false);
-        setEditingFloor(null);
+        setFloorModal({ open: false, editing: null });
       } catch (err) {
-        const permissionMessage = resolvePermissionError(
-          err,
-          `buildings/${buildingId}/floors`
-        );
-        setFloorFormError(
-          permissionMessage || getErrorMessage(err, "Failed to save floor.")
-        );
+        setFloorFormError(getErrorMessage(err, "Failed to save floor."));
       } finally {
         setFloorSaving(false);
       }
     },
-    [buildingId, editingFloor, loadFloors, resolvePermissionError]
+    [buildingId, floorModal.editing, loadFloors, showToast]
   );
 
-  const handleOpenRoomModal = useCallback(() => {
-    if (!selectedFloorId) return;
-    setEditingRoom(null);
-    setRoomFormError("");
-    setRoomModalOpen(true);
-  }, [selectedFloorId]);
+  const handleDeleteFloorPrompt = useCallback((floor, e) => {
+    e.stopPropagation();
+    setConfirmFloor({ open: true, floor });
+  }, []);
 
-  const handleEditRoom = useCallback((room) => {
-    setEditingRoom(room);
+  const handleConfirmDeleteFloor = useCallback(async () => {
+    const floorId = confirmFloor.floor?.id;
+    if (!floorId) return;
+    setDeletingFloor(true);
+    try {
+      await deleteCampusFloor(buildingId, floorId);
+      showToast("Floor deleted.");
+      // Clean up room state for deleted floor
+      loadedRef.current.delete(floorId);
+      setRoomsByFloorId((prev) => { const n = { ...prev }; delete n[floorId]; return n; });
+      setExpandedFloorIds((prev) => { const n = new Set(prev); n.delete(floorId); return n; });
+      await loadFloors();
+      setConfirmFloor({ open: false, floor: null });
+    } catch (err) {
+      showToast(getErrorMessage(err, "Failed to delete floor."), "error");
+    } finally {
+      setDeletingFloor(false);
+    }
+  }, [buildingId, confirmFloor.floor, loadFloors, showToast]);
+
+  // ── Room CRUD ────────────────────────────────────────────────────────────────
+  const handleOpenAddRoom = useCallback((floorId) => {
     setRoomFormError("");
-    setRoomModalOpen(true);
+    setRoomModal({ open: true, editing: null, floorId });
+  }, []);
+
+  const handleOpenEditRoom = useCallback((room, floorId) => {
+    setRoomFormError("");
+    setRoomModal({ open: true, editing: room, floorId });
   }, []);
 
   const handleCloseRoomModal = useCallback(() => {
     if (roomSaving) return;
-    setRoomModalOpen(false);
-    setEditingRoom(null);
+    setRoomModal({ open: false, editing: null, floorId: null });
   }, [roomSaving]);
 
   const handleSubmitRoom = useCallback(
     async (values) => {
-      if (!buildingId || !selectedFloorId) {
-        setRoomFormError("Select a floor first.");
-        return;
-      }
+      const { floorId, editing } = roomModal;
+      if (!buildingId || !floorId) return;
       setRoomSaving(true);
       setRoomFormError("");
-      setActionError("");
       try {
-        const payload = {
-          ...values,
-          buildingId,
-          floorId: selectedFloorId,
-        };
-        if (editingRoom?.id) {
-          await updateRoom(buildingId, selectedFloorId, editingRoom.id, payload);
+        const floorNumber =
+          floors.find((f) => f.id === floorId)?.floorNumber || 0;
+        if (editing?.id) {
+          await updateCampusRoom(buildingId, floorId, editing.id, values);
+          showToast("Room updated.");
         } else {
-          await createRoom(buildingId, selectedFloorId, payload);
+          await createCampusRoom(buildingId, floorId, { ...values, floorNumber });
+          showToast("Room added.");
         }
-        await loadRooms();
-        setRoomModalOpen(false);
-        setEditingRoom(null);
+        await refreshRoomsForFloor(floorId);
+        setRoomModal({ open: false, editing: null, floorId: null });
       } catch (err) {
-        const permissionMessage = resolvePermissionError(
-          err,
-          `buildings/${buildingId}/floors/${selectedFloorId}/rooms`
-        );
-        setRoomFormError(
-          permissionMessage || getErrorMessage(err, "Failed to save room.")
-        );
+        setRoomFormError(getErrorMessage(err, "Failed to save room."));
       } finally {
         setRoomSaving(false);
       }
     },
-    [
-      buildingId,
-      editingRoom,
-      loadRooms,
-      selectedFloorId,
-      resolvePermissionError,
-    ]
+    [buildingId, roomModal, floors, refreshRoomsForFloor, showToast]
   );
 
-  const handleDeleteFloorPrompt = useCallback((event, floor) => {
-    event.stopPropagation();
-    setConfirmFloor({ open: true, floor });
-  }, []);
-
-  const handleCloseConfirmFloor = useCallback(() => {
-    setConfirmFloor({ open: false, floor: null });
-  }, []);
-
-  const handleConfirmDeleteFloor = useCallback(async () => {
-    if (!confirmFloor.floor?.id || !buildingId) return;
-    setDeletingFloor(true);
-    setActionError("");
-    try {
-      await deleteFloor(buildingId, confirmFloor.floor.id);
-      await loadFloors();
-      handleCloseConfirmFloor();
-    } catch (err) {
-      const permissionMessage = resolvePermissionError(
-        err,
-        `buildings/${buildingId}/floors/${confirmFloor.floor?.id || ""}`
-      );
-      setActionError(
-        permissionMessage || getErrorMessage(err, "Failed to delete floor.")
-      );
-    } finally {
-      setDeletingFloor(false);
-    }
-  }, [
-    buildingId,
-    confirmFloor.floor,
-    handleCloseConfirmFloor,
-    loadFloors,
-    resolvePermissionError,
-  ]);
-
-  const handleDeleteRoomPrompt = useCallback((room) => {
-    setConfirmRoom({ open: true, room });
-  }, []);
-
-  const handleCloseConfirmRoom = useCallback(() => {
-    setConfirmRoom({ open: false, room: null });
+  const handleDeleteRoomPrompt = useCallback((room, floorId) => {
+    setConfirmRoom({ open: true, room, floorId });
   }, []);
 
   const handleConfirmDeleteRoom = useCallback(async () => {
-    if (!confirmRoom.room?.id || !buildingId || !selectedFloorId) return;
+    const { room, floorId } = confirmRoom;
+    if (!room?.id || !floorId) return;
     setDeletingRoom(true);
-    setActionError("");
     try {
-      await deleteRoom(buildingId, selectedFloorId, confirmRoom.room.id);
-      await loadRooms();
-      handleCloseConfirmRoom();
+      await deleteCampusRoom(buildingId, floorId, room.id);
+      showToast("Room deleted.");
+      await refreshRoomsForFloor(floorId);
+      setConfirmRoom({ open: false, room: null, floorId: null });
     } catch (err) {
-      const permissionMessage = resolvePermissionError(
-        err,
-        `buildings/${buildingId}/floors/${selectedFloorId}/rooms/${confirmRoom.room?.id || ""}`
-      );
-      setActionError(
-        permissionMessage || getErrorMessage(err, "Failed to delete room.")
-      );
+      showToast(getErrorMessage(err, "Failed to delete room."), "error");
     } finally {
       setDeletingRoom(false);
     }
-  }, [
-    buildingId,
-    confirmRoom.room,
-    handleCloseConfirmRoom,
-    loadRooms,
-    selectedFloorId,
-    resolvePermissionError,
-  ]);
-
-  const roomCards = useMemo(
-    () =>
-      rooms.map((room) => (
-        <Card
-          key={room.id}
-          className="min-h-[140px] rounded-xl shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-md"
-        >
-          <CardActionArea
-            onClick={() => handleOpenRoomSchedule(room.id)}
-            className="h-full"
-          >
-            <CardContent>
-              <Typography
-                variant="subtitle1"
-                className="font-semibold text-slate-800"
-              >
-                {room.roomNumber || "Room"}
-              </Typography>
-              <Typography variant="body2" className="text-slate-500">
-                {room.name || "Unnamed room"}
-              </Typography>
-              <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
-                <span className="rounded-full bg-slate-100 px-3 py-1">
-                  Capacity: {room.capacity || "-"}
-                </span>
-                {room.type ? (
-                  <span className="rounded-full bg-slate-100 px-3 py-1">
-                    {room.type}
-                  </span>
-                ) : null}
-              </div>
-            </CardContent>
-          </CardActionArea>
-          <CardActions className="justify-end pt-0">
-            <IconButton
-              size="small"
-              onClick={(event) => {
-                event.stopPropagation();
-                handleEditRoom(room);
-              }}
-            >
-              <Edit fontSize="small" />
-            </IconButton>
-            <IconButton
-              size="small"
-              color="error"
-              onClick={(event) => {
-                event.stopPropagation();
-                handleDeleteRoomPrompt(room);
-              }}
-            >
-              <Delete fontSize="small" />
-            </IconButton>
-          </CardActions>
-        </Card>
-      )),
-    [handleDeleteRoomPrompt, handleEditRoom, handleOpenRoomSchedule, rooms]
-  );
+  }, [buildingId, confirmRoom, refreshRoomsForFloor, showToast]);
 
   const breadcrumbs = useMemo(
     () => [
@@ -456,16 +306,18 @@ function BuildingDetails() {
     [building?.name]
   );
 
-  if (buildingLoading) {
-    return <Loading label="Loading building..." />;
-  }
+  if (buildingLoading) return <Loading label="Loading building..." />;
 
   if (buildingError) {
     return (
       <div className="space-y-4">
         <PageHeader title="Campus Buildings" />
         <ErrorState message={buildingError} />
-        <Button variant="outlined" startIcon={<ArrowBack />} onClick={() => navigate("/admin/campus-buildings")}>
+        <Button
+          variant="outlined"
+          startIcon={<ArrowBack />}
+          onClick={() => navigate("/admin/campus-buildings")}
+        >
           Back to Buildings
         </Button>
       </div>
@@ -478,149 +330,164 @@ function BuildingDetails() {
         title={building?.name || "Building"}
         breadcrumbs={breadcrumbs}
         action={
-          <Button
-            variant="outlined"
-            startIcon={<ArrowBack />}
-            onClick={() => navigate("/admin/campus-buildings")}
-          >
-            Back
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outlined"
+              startIcon={<ArrowBack />}
+              onClick={() => navigate("/admin/campus-buildings")}
+            >
+              Back
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<Add />}
+              onClick={handleOpenAddFloor}
+            >
+              Add Floor
+            </Button>
+          </div>
         }
       />
 
-      {actionError ? <Alert severity="error">{actionError}</Alert> : null}
-
-      <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
-        <div className="flex h-full min-h-[520px] flex-col rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <Typography variant="h6" className="text-slate-800">
-                Floors
-              </Typography>
-              <Typography variant="body2" className="text-slate-500">
-                Select a floor to manage rooms.
-              </Typography>
-            </div>
-            <Button
-              variant="contained"
-              size="small"
-              startIcon={<Add />}
-              onClick={handleOpenFloorModal}
-              disabled={!buildingId}
-            >
-              Add
-            </Button>
-          </div>
-
-          <Divider className="my-4" />
-
-          <div className="flex-1 overflow-hidden">
-            {floorsLoading ? (
-              <Loading label="Loading floors..." />
-            ) : floorsError ? (
-              <ErrorState message={floorsError} />
-            ) : floors.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">
-                No floors yet for this building.
-              </div>
-            ) : (
-              <List dense className="max-h-[420px] overflow-y-auto pr-1">
-                {floors.map((floor) => (
-                  <ListItemButton
-                    key={floor.id}
-                    selected={floor.id === selectedFloorId}
-                    onClick={() => handleSelectFloor(floor)}
-                    className="rounded-xl"
-                  >
-                    <ListItemText
-                      primary={`Floor ${floor.floorNumber}`}
-                      secondary={floor.label || "No label"}
-                    />
-                    <IconButton
-                      edge="end"
-                      size="small"
-                      onClick={(event) => handleEditFloor(event, floor)}
-                    >
-                      <Edit fontSize="small" />
-                    </IconButton>
-                    <IconButton
-                      edge="end"
-                      size="small"
-                      color="error"
-                      onClick={(event) => handleDeleteFloorPrompt(event, floor)}
-                    >
-                      <Delete fontSize="small" />
-                    </IconButton>
-                  </ListItemButton>
-                ))}
-              </List>
-            )}
-          </div>
+      {building?.code && (
+        <div className="rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-slate-200">
+          <Typography variant="body2" className="text-slate-500">
+            Code: <span className="font-medium text-slate-700">{building.code}</span>
+          </Typography>
         </div>
+      )}
 
-        <div className="flex h-full min-h-[520px] flex-col rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <Typography variant="h6" className="text-slate-800">
-                Rooms
-              </Typography>
-              <Typography variant="body2" className="text-slate-500">
-                {selectedFloor
-                  ? `Rooms inside Floor ${selectedFloor.floorNumber}.`
-                  : "Select a floor to view rooms."}
-              </Typography>
-            </div>
-            <Button
-              variant="contained"
-              size="small"
-              startIcon={<Add />}
-              onClick={handleOpenRoomModal}
-              disabled={!selectedFloorId}
-            >
-              Add
-            </Button>
-          </div>
+      {floorsLoading ? (
+        <Loading label="Loading floors..." />
+      ) : floorsError ? (
+        <ErrorState message={floorsError} onRetry={loadFloors} />
+      ) : floors.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
+          No floors yet. Click "Add Floor" to get started.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {floors.map((floor) => {
+            const isExpanded = expandedFloorIds.has(floor.id);
+            const rooms = roomsByFloorId[floor.id] || [];
+            const roomsLoading = roomsLoadingById[floor.id] || false;
+            const roomsError = roomsErrorById[floor.id] || "";
 
-          <Divider className="my-4" />
-
-          {!selectedFloorId ? (
-            <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">
-              Choose a floor to see its rooms.
-            </div>
-          ) : roomsError ? (
-            <ErrorState message={roomsError} />
-          ) : roomsLoading ? (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {roomSkeletons.map((key) => (
-                <div
-                  key={key}
-                  className="min-h-[140px] rounded-xl border border-slate-100 bg-white p-4"
+            return (
+              <div
+                key={floor.id}
+                className="overflow-hidden rounded-2xl shadow-sm ring-1 ring-slate-200"
+              >
+                <Accordion
+                  expanded={isExpanded}
+                  onChange={() => handleToggleFloor(floor.id)}
+                  elevation={0}
+                  disableGutters
+                  sx={{ "&:before": { display: "none" } }}
                 >
-                  <Skeleton variant="text" width="60%" />
-                  <Skeleton variant="text" width="40%" />
-                  <Skeleton
-                    variant="rectangular"
-                    height={20}
-                    className="mt-3 rounded-md"
-                  />
-                </div>
-              ))}
-            </div>
-          ) : rooms.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">
-              No rooms yet for this floor.
-            </div>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {roomCards}
-            </div>
-          )}
-        </div>
-      </div>
+                  <AccordionSummary
+                    expandIcon={<ExpandMore />}
+                    sx={{ px: 2, minHeight: 56 }}
+                  >
+                    <div className="flex flex-1 items-center justify-between gap-3 pr-2">
+                      <div>
+                        <Typography
+                          variant="subtitle1"
+                          className="font-semibold text-slate-800"
+                        >
+                          Floor {floor.floorNumber}
+                        </Typography>
+                        {floor.label ? (
+                          <Typography variant="body2" className="text-slate-500">
+                            {floor.label}
+                          </Typography>
+                        ) : null}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <IconButton
+                          size="small"
+                          onClick={(e) => handleOpenEditFloor(floor, e)}
+                          title="Edit floor"
+                        >
+                          <Edit fontSize="small" />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={(e) => handleDeleteFloorPrompt(floor, e)}
+                          title="Delete floor"
+                        >
+                          <Delete fontSize="small" />
+                        </IconButton>
+                      </div>
+                    </div>
+                  </AccordionSummary>
 
+                  <AccordionDetails
+                    sx={{ borderTop: "1px solid #f1f5f9", bgcolor: "#f8fafc", p: 2 }}
+                  >
+                    {roomsLoading ? (
+                      <div className="flex items-center gap-2 text-sm text-slate-500">
+                        <CircularProgress size={16} />
+                        <span>Loading rooms...</span>
+                      </div>
+                    ) : roomsError ? (
+                      <Alert severity="error" className="mb-3">
+                        {roomsError}
+                      </Alert>
+                    ) : rooms.length === 0 ? (
+                      <p className="mb-3 text-sm text-slate-500">
+                        No rooms yet for this floor.
+                      </p>
+                    ) : (
+                      <div className="mb-3 flex flex-wrap gap-2">
+                        {rooms.map((room) => (
+                          <div
+                            key={room.id}
+                            className="flex items-center gap-1 rounded-xl bg-white px-3 py-2 shadow-sm ring-1 ring-slate-200"
+                          >
+                            <span className="text-sm font-medium text-slate-700">
+                              Room {room.roomNumber}
+                            </span>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleOpenEditRoom(room, floor.id)}
+                              title="Edit room"
+                            >
+                              <Edit sx={{ fontSize: 14 }} />
+                            </IconButton>
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={() => handleDeleteRoomPrompt(room, floor.id)}
+                              title="Delete room"
+                            >
+                              <Delete sx={{ fontSize: 14 }} />
+                            </IconButton>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={<Add />}
+                      onClick={() => handleOpenAddRoom(floor.id)}
+                    >
+                      Add Room
+                    </Button>
+                  </AccordionDetails>
+                </Accordion>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Floor modal */}
       <FloorFormModal
-        open={floorModalOpen}
-        initialValues={editingFloor}
+        open={floorModal.open}
+        initialValues={floorModal.editing}
         existingFloors={floors}
         loading={floorSaving}
         error={floorFormError}
@@ -628,34 +495,43 @@ function BuildingDetails() {
         onSubmit={handleSubmitFloor}
       />
 
+      {/* Room modal */}
       <RoomFormModal
-        open={roomModalOpen}
-        initialValues={editingRoom}
+        open={roomModal.open}
+        initialValues={roomModal.editing}
         loading={roomSaving}
         error={roomFormError}
         onClose={handleCloseRoomModal}
         onSubmit={handleSubmitRoom}
       />
 
+      {/* Confirm delete floor */}
       <ConfirmDialog
         open={confirmFloor.open}
         title="Delete floor?"
-        message="This will remove the floor and all rooms inside it."
+        message={`This will permanently delete Floor ${confirmFloor.floor?.floorNumber} and all its rooms.`}
         confirmLabel="Delete"
         loading={deletingFloor}
-        onClose={handleCloseConfirmFloor}
+        onClose={() => setConfirmFloor({ open: false, floor: null })}
         onConfirm={handleConfirmDeleteFloor}
       />
 
+      {/* Confirm delete room */}
       <ConfirmDialog
         open={confirmRoom.open}
         title="Delete room?"
-        message="This will remove the selected room."
+        message={`This will permanently delete Room ${confirmRoom.room?.roomNumber}.`}
         confirmLabel="Delete"
         loading={deletingRoom}
-        onClose={handleCloseConfirmRoom}
+        onClose={() => setConfirmRoom({ open: false, room: null, floorId: null })}
         onConfirm={handleConfirmDeleteRoom}
       />
+
+      <Snackbar open={toast.open} autoHideDuration={3000} onClose={hideToast}>
+        <Alert onClose={hideToast} severity={toast.severity} variant="filled">
+          {toast.message}
+        </Alert>
+      </Snackbar>
     </div>
   );
 }

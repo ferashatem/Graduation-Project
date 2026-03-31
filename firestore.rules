@@ -340,6 +340,25 @@ service cloud.firestore {
     }
 
     /* -------------------------
+       Campus Buildings
+       /campusBuildings/{buildingId}/floors/{floorId}/rooms/{roomId}
+    --------------------------*/
+    match /campusBuildings/{buildingId} {
+      allow read: if signedIn();
+      allow write: if roleIn(["super_admin", "admin"]);
+
+      match /floors/{floorId} {
+        allow read: if signedIn();
+        allow write: if roleIn(["super_admin", "admin"]);
+
+        match /rooms/{roomId} {
+          allow read: if signedIn();
+          allow write: if roleIn(["super_admin", "admin"]);
+        }
+      }
+    }
+
+    /* -------------------------
        Default DENY (important)
     --------------------------*/
     match /{document=**} {

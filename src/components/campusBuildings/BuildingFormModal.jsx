@@ -28,14 +28,15 @@ function BuildingFormModal({
     setName(initialValues?.name || "");
     setCode(initialValues?.code || "");
     setValidationError("");
-  }, [initialValues, open]);
+  }, [open, initialValues]);
 
-  const normalizedExistingCodes = useMemo(() => {
-    return existingBuildings
-      .filter((building) => building?.id !== initialValues?.id)
-      .map((building) => String(building?.code || "").trim().toLowerCase())
-      .filter(Boolean);
-  }, [existingBuildings, initialValues?.id]);
+  const existingCodes = useMemo(
+    () =>
+      existingBuildings
+        .filter((b) => b.id !== initialValues?.id)
+        .map((b) => String(b.code || "").trim().toLowerCase()),
+    [existingBuildings, initialValues?.id]
+  );
 
   const handleClose = useCallback(() => {
     if (loading) return;
@@ -44,65 +45,54 @@ function BuildingFormModal({
 
   const handleSave = useCallback(() => {
     setValidationError("");
-
-    const trimmedName = name.trim();
-    const trimmedCode = code.trim();
-
-    if (!trimmedName) {
+    const trimName = name.trim();
+    const trimCode = code.trim();
+    if (!trimName) {
       setValidationError("Building name is required.");
       return;
     }
-    if (!trimmedCode) {
+    if (!trimCode) {
       setValidationError("Building code is required.");
       return;
     }
-
-    const normalizedCode = trimmedCode.toLowerCase();
-    if (normalizedExistingCodes.includes(normalizedCode)) {
+    if (existingCodes.includes(trimCode.toLowerCase())) {
       setValidationError("Building code must be unique.");
       return;
     }
-
-    if (onSubmit) {
-      onSubmit({
-        name: trimmedName,
-        code: trimmedCode,
-      });
-    }
-  }, [code, name, normalizedExistingCodes, onSubmit]);
+    if (onSubmit) onSubmit({ name: trimName, code: trimCode });
+  }, [name, code, existingCodes, onSubmit]);
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
       <DialogTitle>{isEdit ? "Edit Building" : "Add Building"}</DialogTitle>
-      <DialogContent className="space-y-4">
+      <DialogContent className="space-y-4 pt-2">
         {error ? <Alert severity="error">{error}</Alert> : null}
         {validationError ? <Alert severity="error">{validationError}</Alert> : null}
 
         <TextField
           label="Building name"
           value={name}
-          onChange={(event) => setName(event.target.value)}
+          onChange={(e) => setName(e.target.value)}
           fullWidth
           required
           disabled={loading}
+          autoFocus
         />
-
         <TextField
           label="Building code"
           value={code}
-          onChange={(event) => setCode(event.target.value)}
+          onChange={(e) => setCode(e.target.value)}
           fullWidth
           required
           disabled={loading}
         />
-
       </DialogContent>
       <DialogActions>
         <Button onClick={handleClose} disabled={loading}>
           Cancel
         </Button>
         <Button variant="contained" onClick={handleSave} disabled={loading}>
-          {loading ? "Saving..." : isEdit ? "Save Changes" : "Create Building"}
+          {loading ? "Saving..." : isEdit ? "Save Changes" : "Add Building"}
         </Button>
       </DialogActions>
     </Dialog>

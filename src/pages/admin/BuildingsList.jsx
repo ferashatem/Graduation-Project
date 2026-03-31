@@ -8,6 +8,7 @@ import {
   CardActions,
   IconButton,
   InputAdornment,
+  Snackbar,
   TextField,
   Typography,
 } from "@mui/material";
@@ -19,11 +20,11 @@ import ErrorState from "../../components/common/ErrorState";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import BuildingFormModal from "../../components/campusBuildings/BuildingFormModal";
 import {
-  createBuilding,
-  deleteBuilding,
-  getBuildings,
-  updateBuilding,
-} from "../../services/buildingsAdmin.service";
+  createCampusBuilding,
+  deleteCampusBuilding,
+  getCampusBuildings,
+  updateCampusBuilding,
+} from "../../services/campusBuildingsAdmin.service";
 import { getErrorMessage } from "../../utils/errorHelpers";
 
 function BuildingsList() {
@@ -38,71 +39,54 @@ function BuildingsList() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
 
-  const [confirmState, setConfirmState] = useState({
-    open: false,
-    building: null,
-  });
+  const [confirmState, setConfirmState] = useState({ open: false, building: null });
   const [deleting, setDeleting] = useState(false);
 
-  const [actionError, setActionError] = useState("");
+  const [toast, setToast] = useState({ open: false, message: "", severity: "success" });
 
-  const resolvePermissionError = useCallback((error, path) => {
-    const message = error?.message || "";
-    if (
-      error?.code === "permission-denied" ||
-      /missing or insufficient permissions/i.test(message)
-    ) {
-      console.error("[permissions] access denied", { path, error });
-      return "Missing or insufficient permissions. Please contact an administrator.";
-    }
-    return "";
+  const showToast = useCallback((message, severity = "success") => {
+    setToast({ open: true, message, severity });
+  }, []);
+
+  const hideToast = useCallback(() => {
+    setToast((t) => ({ ...t, open: false }));
   }, []);
 
   const loadBuildings = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const data = await getBuildings();
+      const data = await getCampusBuildings();
       setBuildings(data);
     } catch (err) {
-      const permissionMessage = resolvePermissionError(err, "buildings");
-      setError(
-        permissionMessage || getErrorMessage(err, "Failed to load buildings.")
-      );
+      setError(getErrorMessage(err, "Failed to load buildings."));
     } finally {
       setLoading(false);
     }
-  }, [resolvePermissionError]);
+  }, []);
 
   useEffect(() => {
     loadBuildings();
   }, [loadBuildings]);
 
-  const normalizedSearch = useMemo(
-    () => search.trim().toLowerCase(),
-    [search]
-  );
+  const normalizedSearch = useMemo(() => search.trim().toLowerCase(), [search]);
 
   const filteredBuildings = useMemo(() => {
     if (!normalizedSearch) return buildings;
-    return buildings.filter((building) => {
-      const name = String(building?.name || "").toLowerCase();
-      const code = String(building?.code || "").toLowerCase();
+    return buildings.filter((b) => {
+      const name = String(b?.name || "").toLowerCase();
+      const code = String(b?.code || "").toLowerCase();
       return name.includes(normalizedSearch) || code.includes(normalizedSearch);
     });
   }, [buildings, normalizedSearch]);
 
-  const handleSearchChange = useCallback((event) => {
-    setSearch(event.target.value);
-  }, []);
-
-  const handleOpenModal = useCallback(() => {
+  const handleOpenAddModal = useCallback(() => {
     setEditingBuilding(null);
     setFormError("");
     setModalOpen(true);
   }, []);
 
-  const handleEditBuilding = useCallback((building) => {
+  const handleOpenEditModal = useCallback((building) => {
     setEditingBuilding(building);
     setFormError("");
     setModalOpen(true);
@@ -118,29 +102,24 @@ function BuildingsList() {
     async (values) => {
       setSaving(true);
       setFormError("");
-      setActionError("");
       try {
         if (editingBuilding?.id) {
-          await updateBuilding(editingBuilding.id, values);
+          await updateCampusBuilding(editingBuilding.id, values);
+          showToast("Building updated successfully.");
         } else {
-          await createBuilding(values);
+          await createCampusBuilding(values);
+          showToast("Building added successfully.");
         }
         await loadBuildings();
         setModalOpen(false);
         setEditingBuilding(null);
       } catch (err) {
-        const permissionMessage = resolvePermissionError(
-          err,
-          `buildings/${editingBuilding?.id || ""}`
-        );
-        setFormError(
-          permissionMessage || getErrorMessage(err, "Failed to save building.")
-        );
+        setFormError(getErrorMessage(err, "Failed to save building."));
       } finally {
         setSaving(false);
       }
     },
-    [editingBuilding, loadBuildings, resolvePermissionError]
+    [editingBuilding, loadBuildings, showToast]
   );
 
   const handleDeletePrompt = useCallback((building) => {
@@ -154,35 +133,25 @@ function BuildingsList() {
   const handleConfirmDelete = useCallback(async () => {
     if (!confirmState.building?.id) return;
     setDeleting(true);
-    setActionError("");
     try {
-      await deleteBuilding(confirmState.building.id);
+      await deleteCampusBuilding(confirmState.building.id);
+      showToast("Building deleted successfully.");
       await loadBuildings();
       handleCloseConfirm();
     } catch (err) {
-      const permissionMessage = resolvePermissionError(
-        err,
-        `buildings/${confirmState.building?.id || ""}`
-      );
-      setActionError(
-        permissionMessage || getErrorMessage(err, "Failed to delete building.")
-      );
+      showToast(getErrorMessage(err, "Failed to delete building."), "error");
     } finally {
       setDeleting(false);
     }
-  }, [confirmState.building, handleCloseConfirm, loadBuildings, resolvePermissionError]);
+  }, [confirmState.building, handleCloseConfirm, loadBuildings, showToast]);
 
-  const handleOpenBuilding = useCallback(
+  const handleOpenDetails = useCallback(
     (buildingId) => {
       if (!buildingId) return;
       navigate(`/admin/campus-buildings/${buildingId}`);
     },
     [navigate]
   );
-
-  const handleRetry = useCallback(() => {
-    loadBuildings();
-  }, [loadBuildings]);
 
   return (
     <div className="space-y-4">
@@ -193,20 +162,18 @@ function BuildingsList() {
           { label: "Campus Buildings" },
         ]}
         action={
-          <Button variant="contained" startIcon={<Add />} onClick={handleOpenModal}>
+          <Button variant="contained" startIcon={<Add />} onClick={handleOpenAddModal}>
             Add Building
           </Button>
         }
       />
-
-      {actionError ? <Alert severity="error">{actionError}</Alert> : null}
 
       <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
         <TextField
           size="small"
           fullWidth
           value={search}
-          onChange={handleSearchChange}
+          onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by name or code"
           InputProps={{
             startAdornment: (
@@ -221,7 +188,7 @@ function BuildingsList() {
       {loading ? (
         <Loading label="Loading buildings..." />
       ) : error ? (
-        <ErrorState message={error} onRetry={handleRetry} />
+        <ErrorState message={error} onRetry={loadBuildings} />
       ) : filteredBuildings.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
           No buildings found.
@@ -233,39 +200,35 @@ function BuildingsList() {
               key={building.id}
               className="rounded-2xl shadow-sm ring-1 ring-slate-200"
             >
-              <CardActionArea onClick={() => handleOpenBuilding(building.id)}>
+              <CardActionArea onClick={() => handleOpenDetails(building.id)}>
                 <CardContent>
                   <Typography variant="h6" className="text-slate-800">
-                    {building.name || "Untitled building"}
+                    {building.name || "Untitled Building"}
                   </Typography>
                   <Typography variant="body2" className="text-slate-500">
                     {building.code ? `Code: ${building.code}` : "No code set"}
                   </Typography>
-                  <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
-                    <span className="rounded-full bg-slate-100 px-3 py-1">
-                      Floors: {building.floorsCount || "-"}
-                    </span>
-                    <span className="rounded-full bg-slate-100 px-3 py-1">
-                      Rooms/Floor: {building.roomsPerFloor || "-"}
-                    </span>
-                  </div>
                 </CardContent>
               </CardActionArea>
               <CardActions className="justify-end">
                 <IconButton
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    handleEditBuilding(building);
+                  size="small"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenEditModal(building);
                   }}
+                  title="Edit building"
                 >
                   <Edit fontSize="small" />
                 </IconButton>
                 <IconButton
+                  size="small"
                   color="error"
-                  onClick={(event) => {
-                    event.stopPropagation();
+                  onClick={(e) => {
+                    e.stopPropagation();
                     handleDeletePrompt(building);
                   }}
+                  title="Delete building"
                 >
                   <Delete fontSize="small" />
                 </IconButton>
@@ -288,12 +251,18 @@ function BuildingsList() {
       <ConfirmDialog
         open={confirmState.open}
         title="Delete building?"
-        message="This will remove the building, its floors, and all rooms."
+        message={`This will permanently delete "${confirmState.building?.name}" along with all its floors and rooms.`}
         confirmLabel="Delete"
         loading={deleting}
         onClose={handleCloseConfirm}
         onConfirm={handleConfirmDelete}
       />
+
+      <Snackbar open={toast.open} autoHideDuration={3000} onClose={hideToast}>
+        <Alert onClose={hideToast} severity={toast.severity} variant="filled">
+          {toast.message}
+        </Alert>
+      </Snackbar>
     </div>
   );
 }
