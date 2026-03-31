@@ -354,6 +354,11 @@ service cloud.firestore {
         match /rooms/{roomId} {
           allow read: if signedIn();
           allow write: if roleIn(["super_admin", "admin"]);
+
+          match /schedules/{scheduleId} {
+            allow read: if signedIn();
+            allow write: if roleIn(["super_admin", "admin"]);
+          }
         }
       }
     }

@@ -7,10 +7,12 @@ import {
   Button,
   CircularProgress,
   IconButton,
+  MenuItem,
   Snackbar,
+  TextField,
   Typography,
 } from "@mui/material";
-import { Add, ArrowBack, Delete, Edit, ExpandMore } from "@mui/icons-material";
+import { Add, ArrowBack, Delete, Edit, ExpandMore, FilterAlt } from "@mui/icons-material";
 import { useNavigate, useParams } from "react-router-dom";
 import PageHeader from "../../components/common/PageHeader";
 import Loading from "../../components/common/Loading";
@@ -18,6 +20,8 @@ import ErrorState from "../../components/common/ErrorState";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import FloorFormModal from "../../components/campusBuildings/FloorFormModal";
 import RoomFormModal from "../../components/campusBuildings/RoomFormModal";
+import FloorRoomGrid from "../../components/campusBuildings/FloorRoomGrid";
+import RoomScheduleDialog from "../../components/campusBuildings/RoomScheduleDialog";
 import {
   createCampusFloor,
   createCampusRoom,
@@ -26,10 +30,26 @@ import {
   getCampusBuildingById,
   getCampusFloors,
   getCampusRooms,
+  getFloorSchedulesByDay,
   updateCampusFloor,
   updateCampusRoom,
 } from "../../services/campusBuildingsAdmin.service";
 import { getErrorMessage } from "../../utils/errorHelpers";
+
+const DAY_OPTIONS = [
+  { value: "MON", label: "Monday" },
+  { value: "TUE", label: "Tuesday" },
+  { value: "WED", label: "Wednesday" },
+  { value: "THU", label: "Thursday" },
+  { value: "FRI", label: "Friday" },
+  { value: "SAT", label: "Saturday" },
+  { value: "SUN", label: "Sunday" },
+];
+
+const getDefaultDay = () => {
+  const map = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+  return map[new Date().getDay()] || "MON";
+};
 
 function BuildingDetails() {
   const { buildingId } = useParams();
@@ -52,9 +72,18 @@ function BuildingDetails() {
   const [roomsByFloorId, setRoomsByFloorId] = useState({});
   const [roomsLoadingById, setRoomsLoadingById] = useState({});
   const [roomsErrorById, setRoomsErrorById] = useState({});
-  // Refs to avoid stale-closure races in async loads
   const loadingRef = useRef(new Set());
   const loadedRef = useRef(new Set());
+
+  // Day filter for availability
+  const [selectedDay, setSelectedDay] = useState(getDefaultDay);
+
+  // Schedules per floor → per room
+  const [schedulesByFloor, setSchedulesByFloor] = useState({});
+  const [schedulesLoadingByFloor, setSchedulesLoadingByFloor] = useState({});
+
+  // Room schedule dialog
+  const [scheduleDialog, setScheduleDialog] = useState({ open: false, room: null, floorId: null });
 
   // Floor modal
   const [floorModal, setFloorModal] = useState({ open: false, editing: null });
@@ -143,7 +172,6 @@ function BuildingDetails() {
     [buildingId]
   );
 
-  // Force-refresh rooms for a floor after a mutation
   const refreshRoomsForFloor = useCallback(
     async (floorId) => {
       loadedRef.current.delete(floorId);
@@ -151,6 +179,92 @@ function BuildingDetails() {
       await loadRoomsForFloor(floorId);
     },
     [loadRoomsForFloor]
+  );
+
+  // ── Load schedules for a floor's rooms (by selected day) ─────────────────────
+  const loadSchedulesForFloor = useCallback(
+    async (floorId) => {
+      if (!buildingId || !floorId || !selectedDay) return;
+      const rooms = roomsByFloorId[floorId];
+      if (!rooms || rooms.length === 0) return;
+
+      setSchedulesLoadingByFloor((prev) => ({ ...prev, [floorId]: true }));
+      try {
+        const roomIds = rooms.map((r) => r.id);
+        const schedMap = await getFloorSchedulesByDay(buildingId, floorId, roomIds, selectedDay);
+        setSchedulesByFloor((prev) => ({ ...prev, [floorId]: schedMap }));
+      } catch {
+        // silently handle - availability just won't show
+      } finally {
+        setSchedulesLoadingByFloor((prev) => ({ ...prev, [floorId]: false }));
+      }
+    },
+    [buildingId, roomsByFloorId, selectedDay]
+  );
+
+  // When rooms load for a floor, also load schedules
+  useEffect(() => {
+    expandedFloorIds.forEach((floorId) => {
+      const rooms = roomsByFloorId[floorId];
+      if (rooms && rooms.length > 0) {
+        loadSchedulesForFloor(floorId);
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDay]);
+
+  // After rooms are loaded, fetch schedules
+  const onRoomsLoaded = useCallback(
+    (floorId) => {
+      if (expandedFloorIds.has(floorId)) {
+        loadSchedulesForFloor(floorId);
+      }
+    },
+    [expandedFloorIds, loadSchedulesForFloor]
+  );
+
+  // Patch loadRoomsForFloor to trigger schedule load after rooms arrive
+  const loadRoomsAndSchedules = useCallback(
+    async (floorId) => {
+      if (!buildingId || !floorId) return;
+      if (loadedRef.current.has(floorId) || loadingRef.current.has(floorId)) {
+        // Rooms already loaded, just load schedules
+        onRoomsLoaded(floorId);
+        return;
+      }
+
+      loadingRef.current.add(floorId);
+      setRoomsLoadingById((prev) => ({ ...prev, [floorId]: true }));
+      setRoomsErrorById((prev) => ({ ...prev, [floorId]: "" }));
+      try {
+        const rooms = await getCampusRooms(buildingId, floorId);
+        loadedRef.current.add(floorId);
+        setRoomsByFloorId((prev) => ({ ...prev, [floorId]: rooms }));
+
+        // Load schedules immediately
+        if (rooms.length > 0) {
+          setSchedulesLoadingByFloor((prev) => ({ ...prev, [floorId]: true }));
+          try {
+            const roomIds = rooms.map((r) => r.id);
+            const schedMap = await getFloorSchedulesByDay(buildingId, floorId, roomIds, selectedDay);
+            setSchedulesByFloor((prev) => ({ ...prev, [floorId]: schedMap }));
+          } catch {
+            // silent
+          } finally {
+            setSchedulesLoadingByFloor((prev) => ({ ...prev, [floorId]: false }));
+          }
+        }
+      } catch (err) {
+        setRoomsErrorById((prev) => ({
+          ...prev,
+          [floorId]: getErrorMessage(err, "Failed to load rooms."),
+        }));
+      } finally {
+        loadingRef.current.delete(floorId);
+        setRoomsLoadingById((prev) => ({ ...prev, [floorId]: false }));
+      }
+    },
+    [buildingId, onRoomsLoaded, selectedDay]
   );
 
   // ── Accordion toggle ─────────────────────────────────────────────────────────
@@ -163,10 +277,15 @@ function BuildingDetails() {
         else next.add(floorId);
         return next;
       });
-      if (expanding) loadRoomsForFloor(floorId);
+      if (expanding) loadRoomsAndSchedules(floorId);
     },
-    [expandedFloorIds, loadRoomsForFloor]
+    [expandedFloorIds, loadRoomsAndSchedules]
   );
+
+  // ── Day filter change ────────────────────────────────────────────────────────
+  const handleDayChange = useCallback((event) => {
+    setSelectedDay(event.target.value);
+  }, []);
 
   // ── Floor CRUD ───────────────────────────────────────────────────────────────
   const handleOpenAddFloor = useCallback(() => {
@@ -221,9 +340,9 @@ function BuildingDetails() {
     try {
       await deleteCampusFloor(buildingId, floorId);
       showToast("Floor deleted.");
-      // Clean up room state for deleted floor
       loadedRef.current.delete(floorId);
       setRoomsByFloorId((prev) => { const n = { ...prev }; delete n[floorId]; return n; });
+      setSchedulesByFloor((prev) => { const n = { ...prev }; delete n[floorId]; return n; });
       setExpandedFloorIds((prev) => { const n = new Set(prev); n.delete(floorId); return n; });
       await loadFloors();
       setConfirmFloor({ open: false, floor: null });
@@ -267,6 +386,8 @@ function BuildingDetails() {
           showToast("Room added.");
         }
         await refreshRoomsForFloor(floorId);
+        // Reload schedules after room changes
+        loadSchedulesForFloor(floorId);
         setRoomModal({ open: false, editing: null, floorId: null });
       } catch (err) {
         setRoomFormError(getErrorMessage(err, "Failed to save room."));
@@ -274,7 +395,7 @@ function BuildingDetails() {
         setRoomSaving(false);
       }
     },
-    [buildingId, roomModal, floors, refreshRoomsForFloor, showToast]
+    [buildingId, roomModal, floors, refreshRoomsForFloor, loadSchedulesForFloor, showToast]
   );
 
   const handleDeleteRoomPrompt = useCallback((room, floorId) => {
@@ -289,13 +410,30 @@ function BuildingDetails() {
       await deleteCampusRoom(buildingId, floorId, room.id);
       showToast("Room deleted.");
       await refreshRoomsForFloor(floorId);
+      loadSchedulesForFloor(floorId);
       setConfirmRoom({ open: false, room: null, floorId: null });
     } catch (err) {
       showToast(getErrorMessage(err, "Failed to delete room."), "error");
     } finally {
       setDeletingRoom(false);
     }
-  }, [buildingId, confirmRoom, refreshRoomsForFloor, showToast]);
+  }, [buildingId, confirmRoom, refreshRoomsForFloor, loadSchedulesForFloor, showToast]);
+
+  // ── Room schedule dialog ─────────────────────────────────────────────────────
+  const handleOpenScheduleDialog = useCallback((room, floorId) => {
+    setScheduleDialog({ open: true, room, floorId });
+  }, []);
+
+  const handleCloseScheduleDialog = useCallback(() => {
+    setScheduleDialog({ open: false, room: null, floorId: null });
+  }, []);
+
+  const handleScheduleChange = useCallback(() => {
+    // Reload schedules for the floor when schedule is modified
+    if (scheduleDialog.floorId) {
+      loadSchedulesForFloor(scheduleDialog.floorId);
+    }
+  }, [loadSchedulesForFloor, scheduleDialog.floorId]);
 
   const breadcrumbs = useMemo(
     () => [
@@ -349,13 +487,36 @@ function BuildingDetails() {
         }
       />
 
-      {building?.code && (
-        <div className="rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-slate-200">
-          <Typography variant="body2" className="text-slate-500">
-            Code: <span className="font-medium text-slate-700">{building.code}</span>
+      {/* Building info + Day filter */}
+      <div className="flex flex-col gap-3 rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-slate-200 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          {building?.code ? (
+            <Typography variant="body2" className="text-slate-500">
+              Code: <span className="font-medium text-slate-700">{building.code}</span>
+            </Typography>
+          ) : null}
+          <Typography variant="body2" className="text-slate-400">
+            {floors.length} floor{floors.length !== 1 ? "s" : ""}
           </Typography>
         </div>
-      )}
+        <div className="flex items-center gap-2">
+          <FilterAlt sx={{ fontSize: 18 }} className="text-slate-400" />
+          <TextField
+            select
+            size="small"
+            label="Availability day"
+            value={selectedDay}
+            onChange={handleDayChange}
+            sx={{ minWidth: 160 }}
+          >
+            {DAY_OPTIONS.map((d) => (
+              <MenuItem key={d.value} value={d.value}>
+                {d.label}
+              </MenuItem>
+            ))}
+          </TextField>
+        </div>
+      </div>
 
       {floorsLoading ? (
         <Loading label="Loading floors..." />
@@ -372,6 +533,8 @@ function BuildingDetails() {
             const rooms = roomsByFloorId[floor.id] || [];
             const roomsLoading = roomsLoadingById[floor.id] || false;
             const roomsError = roomsErrorById[floor.id] || "";
+            const floorSchedules = schedulesByFloor[floor.id] || {};
+            const schedulesLoading = schedulesLoadingByFloor[floor.id] || false;
 
             return (
               <div
@@ -390,17 +553,24 @@ function BuildingDetails() {
                     sx={{ px: 2, minHeight: 56 }}
                   >
                     <div className="flex flex-1 items-center justify-between gap-3 pr-2">
-                      <div>
-                        <Typography
-                          variant="subtitle1"
-                          className="font-semibold text-slate-800"
-                        >
-                          Floor {floor.floorNumber}
-                        </Typography>
-                        {floor.label ? (
-                          <Typography variant="body2" className="text-slate-500">
-                            {floor.label}
+                      <div className="flex items-center gap-3">
+                        <div>
+                          <Typography
+                            variant="subtitle1"
+                            className="font-semibold text-slate-800"
+                          >
+                            Floor {floor.floorNumber}
                           </Typography>
+                          {floor.label ? (
+                            <Typography variant="body2" className="text-slate-500">
+                              {floor.label}
+                            </Typography>
+                          ) : null}
+                        </div>
+                        {isExpanded && rooms.length > 0 ? (
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
+                            {rooms.length} room{rooms.length !== 1 ? "s" : ""}
+                          </span>
                         ) : null}
                       </div>
                       <div className="flex items-center gap-1">
@@ -435,47 +605,18 @@ function BuildingDetails() {
                       <Alert severity="error" className="mb-3">
                         {roomsError}
                       </Alert>
-                    ) : rooms.length === 0 ? (
-                      <p className="mb-3 text-sm text-slate-500">
-                        No rooms yet for this floor.
-                      </p>
                     ) : (
-                      <div className="mb-3 flex flex-wrap gap-2">
-                        {rooms.map((room) => (
-                          <div
-                            key={room.id}
-                            className="flex items-center gap-1 rounded-xl bg-white px-3 py-2 shadow-sm ring-1 ring-slate-200"
-                          >
-                            <span className="text-sm font-medium text-slate-700">
-                              Room {room.roomNumber}
-                            </span>
-                            <IconButton
-                              size="small"
-                              onClick={() => handleOpenEditRoom(room, floor.id)}
-                              title="Edit room"
-                            >
-                              <Edit sx={{ fontSize: 14 }} />
-                            </IconButton>
-                            <IconButton
-                              size="small"
-                              color="error"
-                              onClick={() => handleDeleteRoomPrompt(room, floor.id)}
-                              title="Delete room"
-                            >
-                              <Delete sx={{ fontSize: 14 }} />
-                            </IconButton>
-                          </div>
-                        ))}
-                      </div>
+                      <FloorRoomGrid
+                        rooms={rooms}
+                        schedulesByRoomId={floorSchedules}
+                        schedulesLoading={schedulesLoading}
+                        selectedDay={selectedDay}
+                        onViewSchedule={(room) => handleOpenScheduleDialog(room, floor.id)}
+                        onAddRoom={() => handleOpenAddRoom(floor.id)}
+                        onEditRoom={(room) => handleOpenEditRoom(room, floor.id)}
+                        onDeleteRoom={(room) => handleDeleteRoomPrompt(room, floor.id)}
+                      />
                     )}
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      startIcon={<Add />}
-                      onClick={() => handleOpenAddRoom(floor.id)}
-                    >
-                      Add Room
-                    </Button>
                   </AccordionDetails>
                 </Accordion>
               </div>
@@ -503,6 +644,17 @@ function BuildingDetails() {
         error={roomFormError}
         onClose={handleCloseRoomModal}
         onSubmit={handleSubmitRoom}
+      />
+
+      {/* Room schedule dialog */}
+      <RoomScheduleDialog
+        open={scheduleDialog.open}
+        room={scheduleDialog.room}
+        buildingId={buildingId}
+        floorId={scheduleDialog.floorId}
+        initialDay={selectedDay}
+        onClose={handleCloseScheduleDialog}
+        onScheduleChange={handleScheduleChange}
       />
 
       {/* Confirm delete floor */}
