@@ -370,7 +370,7 @@ service cloud.firestore {
     }
 
     /* -------------------------
-       Default DENY (important)
+      Default DENY (important)
     --------------------------*/
     match /{document=**} {
       allow read, write: if false;
