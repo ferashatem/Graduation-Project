@@ -46,9 +46,11 @@ export const createUserProfile = async ({
   const roleCollection = getRoleCollection(normalizedRole);
   if (!roleCollection) throw new Error("Role is not supported.");
 
+  const trimmedName = normalizeValue(name);
   const profile = {
     uid: trimmedUid,
-    name: normalizeValue(name),
+    name: trimmedName,
+    fullName: trimmedName,
     email: normalizeValue(email),
     role: normalizedRole,
     createdAt: serverTimestamp(),
@@ -57,6 +59,7 @@ export const createUserProfile = async ({
   const trimmedPhone = normalizeValue(phoneNumber);
   if (trimmedPhone) {
     profile.phoneNumber = trimmedPhone;
+    profile.phone = trimmedPhone;
   }
 
   const shouldIncludeCollege = ROLE_REQUIRES_COLLEGE.includes(normalizedRole);
@@ -68,12 +71,20 @@ export const createUserProfile = async ({
     profile.collegeId = trimmedCollegeId;
   }
 
+  // Primary profile document — readable by admin via /users/{uid} rules.
   await setDoc(doc(db, "users", trimmedUid), profile, { merge: true });
+
+  // Role-indexed copy under /users/roles/{collection}/{uid}.
+  // This path is NOT covered by the security rules "match /users/{uid}",
+  // so we keep writing it but also write to the top-level role collection
+  // (e.g. /profs/{uid}) which has explicit admin-read rules.
   await setDoc(
     doc(db, "users", "roles", roleCollection, trimmedUid),
     profile,
     { merge: true }
   );
+  // Top-level role collection (e.g. "profs", "assistants") — covered by rules.
+  await setDoc(doc(db, roleCollection, trimmedUid), profile, { merge: true });
 
   return { uid: trimmedUid, ...profile };
 };
@@ -87,14 +98,39 @@ export const getProfsByCollegeId = async (collegeId, dbRef = appDb) => {
   const trimmedCollegeId = normalizeValue(collegeId);
   if (!trimmedCollegeId) return [];
 
-  const snapshot = await getDocs(
-    query(
-      collection(dbRef, "users", "roles", "profs"),
-      where("collegeId", "==", trimmedCollegeId)
-    )
-  );
+  // Query the top-level "profs" collection which has explicit admin-read rules
+  // and receives a copy on every createUserProfile call.
+  // Fall back to the "users" collection (also admin-readable) if needed.
+  const [profsSnap, usersSnap] = await Promise.all([
+    getDocs(
+      query(
+        collection(dbRef, "profs"),
+        where("collegeId", "==", trimmedCollegeId)
+      )
+    ),
+    getDocs(
+      query(
+        collection(dbRef, "users"),
+        where("role", "==", "professor"),
+        where("collegeId", "==", trimmedCollegeId)
+      )
+    ),
+  ]);
 
-  return snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+  // Merge both result sets, deduplicated by uid/id.
+  const seen = new Set();
+  const results = [];
+  for (const snap of [profsSnap, usersSnap]) {
+    for (const docSnap of snap.docs) {
+      const data = { id: docSnap.id, ...docSnap.data() };
+      const key = data.uid || data.id;
+      if (key && !seen.has(key)) {
+        seen.add(key);
+        results.push(data);
+      }
+    }
+  }
+  return results;
 };
 
 export const getAssistantsByCollegeId = async (collegeId, dbRef = appDb) => {
@@ -102,14 +138,35 @@ export const getAssistantsByCollegeId = async (collegeId, dbRef = appDb) => {
   const trimmedCollegeId = normalizeValue(collegeId);
   if (!trimmedCollegeId) return [];
 
-  const snapshot = await getDocs(
-    query(
-      collection(dbRef, "users", "roles", "assistants"),
-      where("collegeId", "==", trimmedCollegeId)
-    )
-  );
+  const [assistantsSnap, usersSnap] = await Promise.all([
+    getDocs(
+      query(
+        collection(dbRef, "assistants"),
+        where("collegeId", "==", trimmedCollegeId)
+      )
+    ),
+    getDocs(
+      query(
+        collection(dbRef, "users"),
+        where("role", "==", "assistant"),
+        where("collegeId", "==", trimmedCollegeId)
+      )
+    ),
+  ]);
 
-  return snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+  const seen = new Set();
+  const results = [];
+  for (const snap of [assistantsSnap, usersSnap]) {
+    for (const docSnap of snap.docs) {
+      const data = { id: docSnap.id, ...docSnap.data() };
+      const key = data.uid || data.id;
+      if (key && !seen.has(key)) {
+        seen.add(key);
+        results.push(data);
+      }
+    }
+  }
+  return results;
 };
 
 export const getProfessorById = async ({ db, professorId } = {}) => {
@@ -122,9 +179,12 @@ export const getProfessorById = async ({ db, professorId } = {}) => {
     return professorCache.get(trimmedProfessorId);
   }
 
-  const snapshot = await getDoc(
-    doc(dbRef, "users", "roles", "profs", trimmedProfessorId)
-  );
+  // Try top-level "profs" collection first (has explicit security rules),
+  // then fall back to "users" document.
+  let snapshot = await getDoc(doc(dbRef, "profs", trimmedProfessorId));
+  if (!snapshot.exists()) {
+    snapshot = await getDoc(doc(dbRef, "users", trimmedProfessorId));
+  }
   const data = snapshot.exists()
     ? { id: snapshot.id, ...snapshot.data() }
     : null;

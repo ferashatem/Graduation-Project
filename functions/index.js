@@ -1953,3 +1953,33 @@ exports.courseAiAssistant = onCall(
     }
   }
 );
+
+/* ----------------------------------------------------------------
+   Firestore trigger (Gen2): sync custom claim `role` whenever a
+   users/{uid} document is created or updated.
+   This replaces the v1 auth onCreate trigger, which requires Gen1
+   and is incompatible with Node.js 24.
+----------------------------------------------------------------- */
+exports.syncRoleClaimOnUserWrite = onDocumentWritten(
+  "users/{uid}",
+  async (event) => {
+    const uid = event.params.uid;
+    const afterData = event.data?.after?.data();
+
+    if (!afterData) {
+      // Document deleted — nothing to do.
+      return;
+    }
+
+    const role = afterData.role
+      ? String(afterData.role).trim().toLowerCase()
+      : "student";
+
+    try {
+      await admin.auth().setCustomUserClaims(uid, { role });
+      logger.info(`syncRoleClaimOnUserWrite: uid=${uid} role=${role}`);
+    } catch (err) {
+      logger.error(`syncRoleClaimOnUserWrite: failed for uid=${uid}`, err);
+    }
+  }
+);

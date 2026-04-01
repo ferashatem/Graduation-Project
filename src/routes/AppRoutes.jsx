@@ -33,6 +33,7 @@ import LegacyRoomSchedulePage from "../pages/Buildings/RoomSchedulePage";
 import ProfessorHome from "../pages/professor/ProfessorHome";
 import ProfessorCoursesPage from "../pages/professor/ProfessorCoursesPage";
 import ProfessorCourseDetailsPage from "../pages/professor/ProfessorCourseDetailsPage";
+import ProfessorDashboard from "../pages/professor/ProfessorDashboard";
 import OfferingsListPage from "../pages/offerings/OfferingsListPage";
 import OfferingDashboardPage from "../pages/offerings/OfferingDashboardPage";
 import CreateSessionPage from "../pages/offerings/CreateSessionPage";
@@ -175,6 +176,7 @@ function AppRoutes() {
           }
         >
           <Route index element={<ProfessorHome />} />
+          <Route path="dashboard" element={<ProfessorDashboard />} />
           <Route path="courses" element={<ProfessorCoursesPage />} />
           <Route
             path="courses/:courseDocId"
@@ -195,6 +197,7 @@ function AppRoutes() {
           }
         >
           <Route path="home" element={<Home />} />
+          <Route path="dashboard" element={<ProfessorDashboard />} />
           <Route path="courses" element={<ProfessorCoursesPage />} />
           <Route
             path="courses/:courseDocId"

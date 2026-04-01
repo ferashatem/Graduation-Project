@@ -19,6 +19,7 @@ import {
 } from "../../../services/users.service";
 import { assignCourseStaff } from "../../../services/courses.service";
 import { upsertAssignment } from "../api/courseAssignmentsApi";
+import { updateAssignment } from "../../../firebase/courseAssignmentsApi";
 import { buildTermOptions } from "../utils/courseOfferingsUtils";
 import {
   buildOfferingId,
@@ -372,6 +373,24 @@ function AssignStaffDialog({ open, course, onClose }) {
       });
       const data = await upsertAssignment(payload);
       const assignment = data?.assignment || optimisticAssignment;
+
+      // Extend the courseAssignments doc with display fields so professors
+      // can query by professorId (singular) and see course/schedule details.
+      if (offeringId) {
+        await updateAssignment(offeringId, {
+          courseName: course?.name || "",
+          courseCode: course?.code || "",
+          professorId,
+          professorName:
+            selectedProfessor?.name ||
+            selectedProfessor?.displayName ||
+            selectedProfessor?.fullName ||
+            "",
+          roomId: null,
+          buildingId: null,
+          schedule: null,
+        });
+      }
       setSavedAssignment(assignment);
       if (assignment?.professor) {
         setSelectedProfessor(assignment.professor);
@@ -404,6 +423,7 @@ function AssignStaffDialog({ open, course, onClose }) {
     deptId,
     normalizedSection,
     normalizedTermId,
+    offeringId,
     professorId,
     savedAssignment,
     selectedAssistants,

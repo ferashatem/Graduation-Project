@@ -238,6 +238,12 @@ service cloud.firestore {
 
       allow read, create, update, delete: if roleIn(["super_admin", "admin"]);
 
+      // Professor can read their own assignment (singular professorId field)
+      allow read: if signedIn()
+        && roleIn(["prof", "professor"])
+        && resource.data.professorId == request.auth.uid;
+
+      // Legacy array-based access (kept for backwards compatibility)
       allow read: if signedIn()
         && (
           (roleIs("prof") && (request.auth.uid in resource.data.professorIds)) ||
