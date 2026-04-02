@@ -37,6 +37,9 @@ import ProfessorDashboard from "../pages/professor/ProfessorDashboard";
 import AssistantLayout from "../layouts/AssistantLayout";
 import AssistantHome from "../pages/assistant/AssistantHome";
 import AssistantCoursesPage from "../pages/assistant/AssistantCoursesPage";
+import StudentLayout from "../layouts/StudentLayout";
+import StudentHome from "../pages/student/StudentHome";
+import StudentCoursesPage from "../pages/student/StudentCoursesPage";
 
 function AppRoutes() {
   return (
@@ -190,6 +193,19 @@ function AppRoutes() {
         >
           <Route index element={<AssistantHome />} />
           <Route path="courses" element={<AssistantCoursesPage />} />
+        </Route>
+
+        {/* Student Routes */}
+        <Route
+          path="/student"
+          element={
+            <ProtectedRoute requiredRole="student" redirectTo="/signin">
+              <StudentLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<StudentHome />} />
+          <Route path="courses" element={<StudentCoursesPage />} />
         </Route>
 
         {/* <Route path="/not-allowed" element={<Unauthorized />} /> */}

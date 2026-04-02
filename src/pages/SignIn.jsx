@@ -127,7 +127,8 @@ function SignIn() {
           navigate("/prof", { replace: true });
         else if (role === "assistant")
           navigate("/asst", { replace: true });
-        else navigate("/student/home", { replace: true });
+        else if (role === "student") navigate("/student", { replace: true });
+        else navigate("/student", { replace: true });
       } catch (err) {
         console.error("Firebase SignIn Error:", err.code, err.message);
         alert("Login failed: " + err.message);

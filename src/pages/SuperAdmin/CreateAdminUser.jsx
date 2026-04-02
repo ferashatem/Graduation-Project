@@ -9,7 +9,7 @@ import {
   updateProfile,
 } from "firebase/auth";
 import { httpsCallable } from "firebase/functions";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, doc, getDocs, updateDoc } from "firebase/firestore";
 import app, { db, functions } from "../../firebase/firebaseConfig";
 import { useAuthUser } from "../../auth/useAuthUser";
 import BigLogo from "../../assets/university-logo.png";
@@ -108,6 +108,17 @@ function CreateAdminUser() {
   const [editLoading, setEditLoading] = useState(false);
   const [editFormError, setEditFormError] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+
+  // Student-specific fields
+  const [year, setYear] = useState("");
+  const [studentDeptId, setStudentDeptId] = useState("");
+  const [collegeYears, setCollegeYears] = useState([]);
+  const [collegeYearsLoading, setCollegeYearsLoading] = useState(false);
+  const [selectedYearDocId, setSelectedYearDocId] = useState("");
+  const [depts, setDepts] = useState([]);
+  const [deptsLoading, setDeptsLoading] = useState(false);
+  const [editYear, setEditYear] = useState("");
+  const [editStudentDeptId, setEditStudentDeptId] = useState("");
 
   const deleteUserAccount = useMemo(
     () => httpsCallable(functions, "deleteUserAccount"),
@@ -281,6 +292,8 @@ function CreateAdminUser() {
           phoneNumber: trimmedPhoneNumber,
           role: normalizedRole,
           collegeId: needsCollege ? collegeId : "",
+          departmentId: normalizedRole === "student" ? studentDeptId : "",
+          year: normalizedRole === "student" ? Number(year) : undefined,
         });
 
         setSuccessMessage("Account created successfully.");
@@ -291,6 +304,9 @@ function CreateAdminUser() {
         setPassword("");
         setRole("student");
         setCollegeId("");
+        setYear("");
+        setStudentDeptId("");
+        setSelectedYearDocId("");
       } catch (error) {
         console.error("Create account error:", error);
         setFormError(error?.message || "Account creation failed.");
@@ -379,6 +395,8 @@ function CreateAdminUser() {
     setEditPhoneNumber(currentUser?.phoneNumber ?? currentUser?.Phone_Number ?? "");
     setEditRole(getUserRoleKey(currentUser) || "student");
     setEditPassword("");
+    setEditYear(currentUser?.year != null ? String(currentUser.year) : "");
+    setEditStudentDeptId(currentUser?.departmentId || "");
     setEditFormError("");
     setActionError("");
     setActionSuccess("");
@@ -393,6 +411,8 @@ function CreateAdminUser() {
     setEditPhoneNumber("");
     setEditRole("student");
     setEditPassword("");
+    setEditYear("");
+    setEditStudentDeptId("");
     setEditFormError("");
     setEditLoading(false);
   }, []);
@@ -446,6 +466,17 @@ function CreateAdminUser() {
         }
 
         await editUserAccount(payload);
+
+        // Persist student-specific fields directly to Firestore
+        if (editRole === "student") {
+          const studentUpdate = {};
+          const parsedYear = Number(editYear);
+          if (Number.isFinite(parsedYear) && parsedYear > 0) studentUpdate.year = parsedYear;
+          if (editStudentDeptId.trim()) studentUpdate.departmentId = editStudentDeptId.trim();
+          if (Object.keys(studentUpdate).length > 0) {
+            await updateDoc(doc(db, "users", uid), studentUpdate);
+          }
+        }
 
         setActionSuccess("User updated successfully.");
         closeEditModal();
@@ -503,6 +534,51 @@ function CreateAdminUser() {
       setCollegeId(collegeOptions[0].value);
     }
   }, [roleNeedsCollege, collegeId, collegeOptions]);
+
+  // Load years for student department cascade
+  useEffect(() => {
+    if (role !== "student" || !collegeId) {
+      setCollegeYears([]);
+      setSelectedYearDocId("");
+      setDepts([]);
+      setStudentDeptId("");
+      return;
+    }
+    let isActive = true;
+    setCollegeYearsLoading(true);
+    getDocs(collection(db, "colleges", collegeId, "years"))
+      .then((snap) => {
+        if (!isActive) return;
+        const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        items.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        setCollegeYears(items);
+        setSelectedYearDocId("");
+        setDepts([]);
+        setStudentDeptId("");
+      })
+      .catch(() => { if (isActive) setCollegeYears([]); })
+      .finally(() => { if (isActive) setCollegeYearsLoading(false); });
+    return () => { isActive = false; };
+  }, [role, collegeId]);
+
+  useEffect(() => {
+    if (role !== "student" || !collegeId || !selectedYearDocId) {
+      setDepts([]);
+      setStudentDeptId("");
+      return;
+    }
+    let isActive = true;
+    setDeptsLoading(true);
+    getDocs(collection(db, "colleges", collegeId, "years", selectedYearDocId, "departments"))
+      .then((snap) => {
+        if (!isActive) return;
+        setDepts(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        setStudentDeptId("");
+      })
+      .catch(() => { if (isActive) setDepts([]); })
+      .finally(() => { if (isActive) setDeptsLoading(false); });
+    return () => { isActive = false; };
+  }, [role, collegeId, selectedYearDocId]);
 
   const filteredUsers = useMemo(() => {
     const roleFiltered =
@@ -911,6 +987,52 @@ function CreateAdminUser() {
                     {isCollegeMissing ? <p className="mt-1.5 text-xs text-amber-600">No colleges found. Create a college first.</p> : null}
                   </div>
                 ) : null}
+
+                {role === "student" ? (
+                  <>
+                    <div className="col-span-2 sm:col-span-1">
+                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">Year Level</label>
+                      <input
+                        type="number"
+                        min="1"
+                        placeholder="e.g. 2"
+                        value={year}
+                        onChange={(e) => setYear(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 outline-none transition focus:border-[#0b2c4a]/40 focus:bg-white focus:ring-2 focus:ring-[#0b2c4a]/10"
+                      />
+                    </div>
+
+                    <div className="col-span-2 sm:col-span-1">
+                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">Year (for dept)</label>
+                      <select
+                        value={selectedYearDocId}
+                        onChange={(e) => setSelectedYearDocId(e.target.value)}
+                        disabled={collegeYearsLoading || collegeYears.length === 0}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 outline-none transition focus:border-[#0b2c4a]/40 focus:bg-white focus:ring-2 focus:ring-[#0b2c4a]/10 disabled:opacity-60"
+                      >
+                        <option value="">{collegeYearsLoading ? "Loading..." : "Select year"}</option>
+                        {collegeYears.map((y) => (
+                          <option key={y.id} value={y.id}>{y.name || y.id}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="col-span-2">
+                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">Department</label>
+                      <select
+                        value={studentDeptId}
+                        onChange={(e) => setStudentDeptId(e.target.value)}
+                        disabled={deptsLoading || depts.length === 0}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 outline-none transition focus:border-[#0b2c4a]/40 focus:bg-white focus:ring-2 focus:ring-[#0b2c4a]/10 disabled:opacity-60"
+                      >
+                        <option value="">{deptsLoading ? "Loading..." : "Select department (optional)"}</option>
+                        {depts.map((d) => (
+                          <option key={d.id} value={d.id}>{d.name || d.id}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
+                ) : null}
               </div>
 
               {formError ? (
@@ -1031,6 +1153,32 @@ function CreateAdminUser() {
                     ))}
                   </div>
                 </div>
+
+                {editRole === "student" ? (
+                  <>
+                    <div className="col-span-2 sm:col-span-1">
+                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">Year Level</label>
+                      <input
+                        type="number"
+                        min="1"
+                        placeholder="e.g. 2"
+                        value={editYear}
+                        onChange={(e) => setEditYear(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 outline-none transition focus:border-[#0b2c4a]/40 focus:bg-white focus:ring-2 focus:ring-[#0b2c4a]/10"
+                      />
+                    </div>
+                    <div className="col-span-2 sm:col-span-1">
+                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">Department ID</label>
+                      <input
+                        type="text"
+                        placeholder="Firestore department ID"
+                        value={editStudentDeptId}
+                        onChange={(e) => setEditStudentDeptId(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 outline-none transition focus:border-[#0b2c4a]/40 focus:bg-white focus:ring-2 focus:ring-[#0b2c4a]/10"
+                      />
+                    </div>
+                  </>
+                ) : null}
               </div>
 
               {editFormError ? (

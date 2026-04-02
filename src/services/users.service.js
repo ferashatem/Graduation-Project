@@ -37,6 +37,8 @@ export const createUserProfile = async ({
   phoneNumber,
   role,
   collegeId,
+  departmentId,
+  year,
 }) => {
   if (!db) throw new Error("db is required.");
   const trimmedUid = normalizeValue(uid);
@@ -69,6 +71,13 @@ export const createUserProfile = async ({
       throw new Error("collegeId is required for the selected role.");
     }
     profile.collegeId = trimmedCollegeId;
+  }
+
+  if (normalizedRole === "student") {
+    const trimmedDeptId = normalizeValue(departmentId);
+    if (trimmedDeptId) profile.departmentId = trimmedDeptId;
+    const parsedYear = Number(year);
+    if (Number.isFinite(parsedYear) && parsedYear > 0) profile.year = parsedYear;
   }
 
   // Primary profile document — readable by admin via /users/{uid} rules.

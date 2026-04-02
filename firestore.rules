@@ -240,6 +240,16 @@ service cloud.firestore {
     match /courseAssignments/{assignmentId} {
       allow read: if signedIn();
       allow write: if roleIn(["super_admin", "admin"]);
+
+      match /materials/{materialId} {
+        allow read: if signedIn();
+        allow create: if signedIn()
+          && resolvedRoleIn(["assistant", "professor", "prof", "admin", "super_admin"])
+          && request.resource.data.uploaderId == request.auth.uid;
+        allow update, delete: if signedIn()
+          && resolvedRoleIn(["assistant", "professor", "prof", "admin", "super_admin"])
+          && resource.data.uploaderId == request.auth.uid;
+      }
     }
 
     /* -------------------------
