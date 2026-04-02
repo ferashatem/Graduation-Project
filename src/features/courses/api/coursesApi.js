@@ -1,4 +1,4 @@
-import { doc, getDocs, serverTimestamp, writeBatch } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDocs, query, serverTimestamp, where, writeBatch } from "firebase/firestore";
 import { db } from "../../../firebase/firebaseConfig";
 import {
   allCourseDoc,
@@ -88,5 +88,22 @@ export const deleteCourse = async (
   batch.delete(courseDoc(collegeId, yearId, departmentId, courseId));
   batch.delete(allCourseDoc(courseId));
   await batch.commit();
+
+  // Cascade: delete related courseAssignments
+  const assignmentsSnap = await getDocs(
+    query(collection(db, "courseAssignments"), where("courseId", "==", courseId))
+  );
+  for (const d of assignmentsSnap.docs) {
+    await deleteDoc(d.ref);
+  }
+
+  // Cascade: delete related roomSchedules
+  const roomSchedulesSnap = await getDocs(
+    query(collection(db, "roomSchedules"), where("courseId", "==", courseId))
+  );
+  for (const d of roomSchedulesSnap.docs) {
+    await deleteDoc(d.ref);
+  }
+
   return courseId;
 };

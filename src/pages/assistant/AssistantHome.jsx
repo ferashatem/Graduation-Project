@@ -25,7 +25,7 @@ const formatDate = (ts) => {
   return "-";
 };
 
-function ProfessorHome() {
+function AssistantHome() {
   const outletContext = useOutletContext() || {};
   const { user: outletUser, profile, profileLoading } = outletContext;
   const { user: authUser, authLoading } = useAuthUser();
@@ -51,7 +51,7 @@ function ProfessorHome() {
 
     const q = query(
       collection(db, "courseAssignments"),
-      where("professorUid", "==", user.uid)
+      where("assistantUids", "array-contains", user.uid)
     );
 
     const unsubscribe = onSnapshot(
@@ -78,7 +78,7 @@ function ProfessorHome() {
         data.name ||
         data.displayName ||
         user?.displayName ||
-        "Professor",
+        "Assistant",
       email: data.email || data.Email || user?.email || "Not available",
       college:
         data.collegeName ||
@@ -114,12 +114,12 @@ function ProfessorHome() {
   const handleRetry = useCallback(() => setRefreshKey((k) => k + 1), []);
 
   if ((authLoading && !outletUser) || loading || profileLoading) {
-    return <Loading label="Loading professor dashboard..." />;
+    return <Loading label="Loading assistant dashboard..." />;
   }
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Professor Home" />
+      <PageHeader title="Assistant Home" />
 
       {error ? <ErrorState message={error} onRetry={handleRetry} /> : null}
 
@@ -208,4 +208,4 @@ function StatCard({ label, value }) {
   );
 }
 
-export default ProfessorHome;
+export default AssistantHome;

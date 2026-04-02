@@ -67,23 +67,16 @@ service cloud.firestore {
       /* ----------------------------------------
          Subcollection inside each user:
          users/{uid}/profs/{profId}
-         This is what your React should write to.
+         users/{uid}/{roleCollection}/{docId}  ← role-indexed copies written by createUserProfile
       -----------------------------------------*/
       match /profs/{profId} {
-
-        // admin + super_admin can manage prof docs under a user
         allow read, create, update, delete: if roleIn(["super_admin", "admin"]);
-
-        // OPTIONAL:
-        // If you want the professor to read their own document too,
-        // and you store profId == auth.uid
-        // allow read: if roleIs("professor") && request.auth.uid == profId;
       }
 
-      // (Optional) If later you want assistants under users:
-      // match /assistants/{assistantId} {
-      //   allow read, create, update, delete: if roleIn(["super_admin", "admin"]);
-      // }
+      // Covers role-indexed copies at users/roles/{roleCollection}/{uid}
+      match /{roleCollection}/{docId} {
+        allow read, create, update, delete: if roleIn(["super_admin", "admin"]);
+      }
     }
 
     /* -------------------------
@@ -188,6 +181,16 @@ service cloud.firestore {
       allow create, update, delete: if roleIn(["super_admin", "admin"]);
     }
 
+    match /admins/{adminId} {
+      allow read: if roleIn(["super_admin", "admin"]);
+      allow create, update, delete: if roleIn(["super_admin", "admin"]);
+    }
+
+    match /super_admins/{adminId} {
+      allow read: if roleIs("super_admin");
+      allow create, update, delete: if roleIs("super_admin");
+    }
+
     /* -------------------------
        Offerings (manual attendance)
        /offerings/{offeringId}
@@ -235,20 +238,8 @@ service cloud.firestore {
        /courseAssignments/{assignmentId}
     --------------------------*/
     match /courseAssignments/{assignmentId} {
-
-      allow read, create, update, delete: if roleIn(["super_admin", "admin"]);
-
-      // Professor can read their own assignment (singular professorId field)
-      allow read: if signedIn()
-        && roleIn(["prof", "professor"])
-        && resource.data.professorId == request.auth.uid;
-
-      // Legacy array-based access (kept for backwards compatibility)
-      allow read: if signedIn()
-        && (
-          (roleIs("prof") && (request.auth.uid in resource.data.professorIds)) ||
-          (roleIs("assistant") && (request.auth.uid in resource.data.assistantIds))
-        );
+      allow read: if signedIn();
+      allow write: if roleIn(["super_admin", "admin"]);
     }
 
     /* -------------------------

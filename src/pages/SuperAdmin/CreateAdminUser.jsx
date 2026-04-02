@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { HiUser, HiMail, HiPhone, HiLockClosed, HiX, HiPlus } from "react-icons/hi";
 import { getApps, initializeApp } from "firebase/app";
 import {
   createUserWithEmailAndPassword,
@@ -751,62 +752,66 @@ function CreateAdminUser() {
 
       {canManageUsers && isModalOpen ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-4 backdrop-blur-sm sm:items-center"
           onClick={() => setIsModalOpen(false)}
         >
           <div
             role="dialog"
             aria-modal="true"
-            className="w-full max-w-5xl"
+            className="w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-slate-200"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-              <div className="flex items-center justify-between rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#0b2c4a]/10">
-                    <img src={BigLogo} alt="Benis Suef National University logo" className="h-8 w-8 object-contain" />
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-semibold text-[#0b2c4a]">Create Account</h2>
-                    <p className="text-sm text-slate-600">
-                      Add a new user account from the admin console.
-                    </p>
-                  </div>
+            {/* Modal header */}
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0b2c4a]/10">
+                  <HiPlus className="h-5 w-5 text-[#0b2c4a]" />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600 transition hover:border-slate-300 hover:text-slate-800"
-                >
-                  Close
-                </button>
+                <div>
+                  <h2 className="text-base font-semibold text-slate-800">Create Account</h2>
+                  <p className="text-xs text-slate-500">Add a new user to the portal</p>
+                </div>
               </div>
-
-              <form
-                className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200"
-                onSubmit={handleCreateAccount}
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                aria-label="Close"
               >
-                <div className="grid gap-5 md:grid-cols-2">
-                  <div className="md:col-span-2">
-                    <label htmlFor="admin-name" className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                      Full Name
-                    </label>
+                <HiX className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleCreateAccount} className="px-6 py-5">
+              <div className="grid grid-cols-2 gap-4">
+                {/* Full Name */}
+                <div className="col-span-2">
+                  <label htmlFor="admin-name" className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">
+                    Full Name
+                  </label>
+                  <div className="relative">
+                    <HiUser className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     <input
                       id="admin-name"
                       type="text"
-                      placeholder="Full name"
+                      placeholder="e.g. Ahmed Mohamed"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       autoComplete="name"
-                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-800 outline-none transition focus:border-[#0b2c4a]/40 focus:bg-white focus:ring-2 focus:ring-[#0b2c4a]/10"
                       required
                     />
                   </div>
+                </div>
 
-                  <div className="md:col-span-2">
-                    <label htmlFor="admin-email" className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                      Email
-                    </label>
+                {/* Email */}
+                <div className="col-span-2">
+                  <label htmlFor="admin-email" className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">
+                    Email
+                  </label>
+                  <div className="relative">
+                    <HiMail className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     <input
                       id="admin-email"
                       type="email"
@@ -814,15 +819,19 @@ function CreateAdminUser() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       autoComplete="email"
-                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-800 outline-none transition focus:border-[#0b2c4a]/40 focus:bg-white focus:ring-2 focus:ring-[#0b2c4a]/10"
                       required
                     />
                   </div>
+                </div>
 
-                  <div className="md:col-span-2">
-                    <label htmlFor="admin-phone" className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                      Phone Number
-                    </label>
+                {/* Phone */}
+                <div className="col-span-2 sm:col-span-1">
+                  <label htmlFor="admin-phone" className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">
+                    Phone
+                  </label>
+                  <div className="relative">
+                    <HiPhone className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     <input
                       id="admin-phone"
                       type="tel"
@@ -830,274 +839,211 @@ function CreateAdminUser() {
                       value={phoneNumber}
                       onChange={(e) => setPhoneNumber(e.target.value)}
                       autoComplete="tel"
-                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-800 outline-none transition focus:border-[#0b2c4a]/40 focus:bg-white focus:ring-2 focus:ring-[#0b2c4a]/10"
                     />
                   </div>
+                </div>
 
-                  <div className="md:col-span-2">
-                    <label htmlFor="admin-role" className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                      Role
-                    </label>
-                    <select
-                      id="admin-role"
-                      value={role}
-                      onChange={(e) => setRole(e.target.value)}
-                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
-                      required
-                    >
-                      <option value="student">Student</option>
-                      <option value="assistant">Assistant</option>
-                      <option value="professor">Professor</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                  </div>
-
-                  {roleNeedsCollege ? (
-                    <div className="md:col-span-2">
-                      <label htmlFor="admin-college" className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                        College
-                      </label>
-                      <select
-                        id="admin-college"
-                        value={collegeId}
-                        onChange={(e) => setCollegeId(e.target.value)}
-                        disabled={collegesLoading || collegeOptions.length === 0}
-                        className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10 disabled:bg-slate-100"
-                        required
-                      >
-                        {collegesLoading ? (
-                          <option value="">Loading colleges...</option>
-                        ) : null}
-                        {!collegesLoading && collegeOptions.length === 0 ? (
-                          <option value="">No colleges found</option>
-                        ) : null}
-                        {collegeOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                      {collegesError ? (
-                        <p className="mt-2 text-xs text-red-600">{collegesError}</p>
-                      ) : null}
-                      {isCollegeMissing ? (
-                        <p className="mt-2 text-xs text-amber-600">
-                          No colleges found. Create a college first.
-                        </p>
-                      ) : null}
-                      {isCollegeSelectionInvalid ? (
-                        <p className="mt-2 text-xs text-amber-600">
-                          Select a college to continue.
-                        </p>
-                      ) : null}
-                    </div>
-                  ) : null}
-
-                  <div>
-                    <label htmlFor="admin-password" className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                      Password
-                    </label>
+                {/* Password */}
+                <div className="col-span-2 sm:col-span-1">
+                  <label htmlFor="admin-password" className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <HiLockClosed className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     <input
                       id="admin-password"
                       type="password"
-                      placeholder="Create a password"
+                      placeholder="Min. 6 characters"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       autoComplete="new-password"
-                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-800 outline-none transition focus:border-[#0b2c4a]/40 focus:bg-white focus:ring-2 focus:ring-[#0b2c4a]/10"
                       required
                     />
                   </div>
                 </div>
 
-                {formError ? (
-                  <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700" role="alert">
-                    {formError}
+                {/* Role pills */}
+                <div className="col-span-2">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-500">Role</p>
+                  <div className="flex flex-wrap gap-2">
+                    {roleOptions.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setRole(opt.value)}
+                        className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
+                          role === opt.value
+                            ? "bg-[#0b2c4a] text-white shadow-sm"
+                            : "border border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-800"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
                   </div>
-                ) : null}
-
-                {successMessage ? (
-                  <div
-                    className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-700"
-                    role="status"
-                  >
-                    {successMessage}
-                  </div>
-                ) : null}
-
-                <div className="mt-6 flex flex-wrap items-center gap-4">
-                  <button
-                    type="submit"
-                    disabled={isCreateDisabled}
-                    className="flex items-center justify-center gap-3 rounded-2xl bg-[#0b2c4a] px-6 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-white shadow-lg transition hover:translate-y-[-1px] hover:bg-[#153a63] disabled:cursor-not-allowed disabled:opacity-70"
-                  >
-                    {loading ? (
-                      <>
-                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/70 border-t-white" />
-                        Creating
-                      </>
-                    ) : (
-                      "Create Account"
-                    )}
-                  </button>
-                  <span className="text-xs text-slate-500">
-                    The new user can sign in immediately after creation.
-                  </span>
                 </div>
-              </form>
-            </div>
+
+                {/* College */}
+                {roleNeedsCollege ? (
+                  <div className="col-span-2">
+                    <label htmlFor="admin-college" className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">
+                      College
+                    </label>
+                    <select
+                      id="admin-college"
+                      value={collegeId}
+                      onChange={(e) => setCollegeId(e.target.value)}
+                      disabled={collegesLoading || collegeOptions.length === 0}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 outline-none transition focus:border-[#0b2c4a]/40 focus:bg-white focus:ring-2 focus:ring-[#0b2c4a]/10 disabled:opacity-60"
+                      required
+                    >
+                      {collegesLoading ? <option value="">Loading colleges...</option> : null}
+                      {!collegesLoading && collegeOptions.length === 0 ? (
+                        <option value="">No colleges found</option>
+                      ) : null}
+                      {collegeOptions.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                    {collegesError ? <p className="mt-1.5 text-xs text-red-600">{collegesError}</p> : null}
+                    {isCollegeMissing ? <p className="mt-1.5 text-xs text-amber-600">No colleges found. Create a college first.</p> : null}
+                  </div>
+                ) : null}
+              </div>
+
+              {formError ? (
+                <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700" role="alert">
+                  {formError}
+                </div>
+              ) : null}
+
+              {successMessage ? (
+                <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-700" role="status">
+                  {successMessage}
+                </div>
+              ) : null}
+
+              <div className="mt-5 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCreateDisabled}
+                  className="flex items-center gap-2 rounded-xl bg-[#0b2c4a] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#153a63] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {loading ? (
+                    <>
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                      Creating…
+                    </>
+                  ) : (
+                    "Create Account"
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       ) : null}
 
       {canManageUsers && isEditModalOpen ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-4 backdrop-blur-sm sm:items-center"
           onClick={closeEditModal}
         >
           <div
             role="dialog"
             aria-modal="true"
-            className="w-full max-w-5xl"
+            className="w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-slate-200"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-              <div className="flex items-center justify-between rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#0b2c4a]/10">
-                    <img src={BigLogo} alt="Benis Suef National University logo" className="h-8 w-8 object-contain" />
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-semibold text-[#0b2c4a]">Edit User</h2>
-                    <p className="text-sm text-slate-600">
-                      Update account details and role assignments.
-                    </p>
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0b2c4a]/10">
+                  <HiUser className="h-5 w-5 text-[#0b2c4a]" />
+                </div>
+                <div>
+                  <h2 className="text-base font-semibold text-slate-800">Edit User</h2>
+                  <p className="text-xs text-slate-500">
+                    {editingUser ? getUserName(editingUser) : "Update account details"}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={closeEditModal}
+                className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                aria-label="Close"
+              >
+                <HiX className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditAccount} className="px-6 py-5">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <label htmlFor="edit-name" className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">Full Name</label>
+                  <div className="relative">
+                    <HiUser className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <input id="edit-name" type="text" placeholder="Full name" value={editName} onChange={(e) => setEditName(e.target.value)} autoComplete="name" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-800 outline-none transition focus:border-[#0b2c4a]/40 focus:bg-white focus:ring-2 focus:ring-[#0b2c4a]/10" required />
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={closeEditModal}
-                  className="rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600 transition hover:border-slate-300 hover:text-slate-800"
-                >
-                  Close
-                </button>
+
+                <div className="col-span-2">
+                  <label htmlFor="edit-email" className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">Email</label>
+                  <div className="relative">
+                    <HiMail className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <input id="edit-email" type="email" placeholder="user@example.com" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} autoComplete="email" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-800 outline-none transition focus:border-[#0b2c4a]/40 focus:bg-white focus:ring-2 focus:ring-[#0b2c4a]/10" required />
+                  </div>
+                </div>
+
+                <div className="col-span-2 sm:col-span-1">
+                  <label htmlFor="edit-phone" className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">Phone</label>
+                  <div className="relative">
+                    <HiPhone className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <input id="edit-phone" type="tel" placeholder="+20 100 000 0000" value={editPhoneNumber} onChange={(e) => setEditPhoneNumber(e.target.value)} autoComplete="tel" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-800 outline-none transition focus:border-[#0b2c4a]/40 focus:bg-white focus:ring-2 focus:ring-[#0b2c4a]/10" />
+                  </div>
+                </div>
+
+                <div className="col-span-2 sm:col-span-1">
+                  <label htmlFor="edit-password" className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">New Password</label>
+                  <div className="relative">
+                    <HiLockClosed className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <input id="edit-password" type="password" placeholder="Leave blank to keep" value={editPassword} onChange={(e) => setEditPassword(e.target.value)} autoComplete="new-password" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-800 outline-none transition focus:border-[#0b2c4a]/40 focus:bg-white focus:ring-2 focus:ring-[#0b2c4a]/10" />
+                  </div>
+                </div>
+
+                <div className="col-span-2">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-500">Role</p>
+                  <div className="flex flex-wrap gap-2">
+                    {roleOptions.map((opt) => (
+                      <button key={opt.value} type="button" onClick={() => setEditRole(opt.value)}
+                        className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${editRole === opt.value ? "bg-[#0b2c4a] text-white shadow-sm" : "border border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-800"}`}>
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
 
-              <form
-                className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200"
-                onSubmit={handleEditAccount}
-              >
-                <div className="grid gap-5 md:grid-cols-2">
-                  <div className="md:col-span-2">
-                    <label htmlFor="edit-name" className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                      Full Name
-                    </label>
-                    <input
-                      id="edit-name"
-                      type="text"
-                      placeholder="Full name"
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      autoComplete="name"
-                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
-                      required
-                    />
-                  </div>
+              {editFormError ? (
+                <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700" role="alert">{editFormError}</div>
+              ) : null}
 
-                  <div className="md:col-span-2">
-                    <label htmlFor="edit-email" className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                      Email
-                    </label>
-                    <input
-                      id="edit-email"
-                      type="email"
-                      placeholder="user@example.com"
-                      value={editEmail}
-                      onChange={(e) => setEditEmail(e.target.value)}
-                      autoComplete="email"
-                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
-                      required
-                    />
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label htmlFor="edit-phone" className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                      Phone Number
-                    </label>
-                    <input
-                      id="edit-phone"
-                      type="tel"
-                      placeholder="+20 100 000 0000"
-                      value={editPhoneNumber}
-                      onChange={(e) => setEditPhoneNumber(e.target.value)}
-                      autoComplete="tel"
-                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
-                    />
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label htmlFor="edit-role" className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                      Role
-                    </label>
-                    <select
-                      id="edit-role"
-                      value={editRole}
-                      onChange={(e) => setEditRole(e.target.value)}
-                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
-                      required
-                    >
-                      {roleOptions.map((tab) => (
-                        <option key={tab.value} value={tab.value}>
-                          {tab.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label htmlFor="edit-password" className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                      New Password (optional)
-                    </label>
-                    <input
-                      id="edit-password"
-                      type="password"
-                      placeholder="Leave blank to keep current"
-                      value={editPassword}
-                      onChange={(e) => setEditPassword(e.target.value)}
-                      autoComplete="new-password"
-                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
-                    />
-                  </div>
-
-                </div>
-
-                {editFormError ? (
-                  <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700" role="alert">
-                    {editFormError}
-                  </div>
-                ) : null}
-
-                <div className="mt-6 flex flex-wrap items-center gap-4">
-                  <button
-                    type="submit"
-                    disabled={editLoading}
-                    className="flex items-center justify-center gap-3 rounded-2xl bg-[#0b2c4a] px-6 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-white shadow-lg transition hover:translate-y-[-1px] hover:bg-[#153a63] disabled:cursor-not-allowed disabled:opacity-70"
-                  >
-                    {editLoading ? (
-                      <>
-                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/70 border-t-white" />
-                        Saving
-                      </>
-                    ) : (
-                      "Save Changes"
-                    )}
-                  </button>
-                  <span className="text-xs text-slate-500">
-                    Leave the password field empty to keep the current password.
-                  </span>
-                </div>
-              </form>
-            </div>
+              <div className="mt-5 flex items-center justify-end gap-3">
+                <button type="button" onClick={closeEditModal} className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50">Cancel</button>
+                <button type="submit" disabled={editLoading} className="flex items-center gap-2 rounded-xl bg-[#0b2c4a] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#153a63] disabled:cursor-not-allowed disabled:opacity-60">
+                  {editLoading ? (<><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />Saving…</>) : "Save Changes"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       ) : null}

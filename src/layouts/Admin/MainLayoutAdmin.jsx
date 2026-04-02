@@ -1,43 +1,100 @@
-import SideNavBar from "../../components/SideNavBar/SideNavBarRender";
-import profile from "../../assets/navbar/address-card-regular.svg"; 
-import book from "../../assets/navbar/book-solid.svg";
-import people from "../../assets/navbar/people-group-solid.svg";
-import assignment from "../../assets/navbar/assignment.svg";
-import school from "../../assets/navbar/school-solid.svg";
-import users from "../../assets/navbar/user-solid.svg";
-import building from "../../assets/navbar/building-solid.svg";
-import { Outlet } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Outlet, useLocation } from "react-router-dom";
+import { useAuthUser } from "../../auth/useAuthUser";
+import { getProfessorProfile } from "../../firebase/professorApi";
+import { getCollegeById } from "../../firebase/firestoreColleges";
+import AdminSidebar from "../../components/admin/AdminSidebar";
+import AdminTopbar from "../../components/admin/AdminTopbar";
 
-function MainLayout() {
-  const AdminNavItems = [
-    { icon: profile, title: "Home", link: "/admin/home" },
-    { icon: school, title: "Academic Structure", link: "/admin/colleges" },
-    // { icon: building, title: "Buildings", link: "/buildings" },
-    { icon: building, title: "Campus Buildings", link: "/admin/campus-buildings" },
-    // { icon: assignment, title: "Assignments", link: "/admin/assignments" },
-    // { icon: people, title: "Attendance", link: "/offerings" },
-    { icon: users, title: "User Management", link: "/admin/create-admin" },
-    { icon: users, title: "Bulk Import Users", link: "/admin/bulk-import-users" },
-  ];
+const PAGE_TITLES = [
+  ["/admin/campus-buildings", "Campus Buildings"],
+  ["/admin/bulk-import-users", "Bulk Import Users"],
+  ["/admin/create-admin", "User Management"],
+  ["/admin/assignments/new", "New Assignment"],
+  ["/admin/assignments", "Assignments"],
+  ["/admin/colleges", "Academic Structure"],
+  ["/admin/home", "Home"],
+  ["/admin", "Admin Dashboard"],
+  ["/offerings", "Offerings"],
+  ["/sessions", "Sessions"],
+];
+
+function resolveTitle(pathname) {
+  for (const [prefix, label] of PAGE_TITLES) {
+    if (pathname.startsWith(prefix)) return label;
+  }
+  return "Admin";
+}
+
+function MainLayoutAdmin() {
+  const { user, authLoading } = useAuthUser();
+  const location = useLocation();
+
+  const [profile, setProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const loadProfile = async () => {
+      if (!user?.uid) {
+        if (isActive) { setProfile(null); setProfileLoading(false); }
+        return;
+      }
+      setProfileLoading(true);
+      try {
+        const nextProfile = await getProfessorProfile(user.uid);
+        if (nextProfile && (nextProfile.collegeId || nextProfile.college)) {
+          const collegeDoc = await getCollegeById(
+            nextProfile.collegeId || nextProfile.college
+          ).catch(() => null);
+          if (collegeDoc?.name) nextProfile.collegeName = collegeDoc.name;
+        }
+        if (isActive) setProfile(nextProfile);
+      } catch {
+        if (isActive) setProfile(null);
+      } finally {
+        if (isActive) setProfileLoading(false);
+      }
+    };
+
+    if (!authLoading) loadProfile();
+    return () => { isActive = false; };
+  }, [authLoading, user?.uid]);
+
+  const pageTitle = useMemo(
+    () => resolveTitle(location.pathname),
+    [location.pathname]
+  );
+
+  const handleMenuClick = useCallback(() => setSidebarOpen((p) => !p), []);
+  const handleCloseSidebar = useCallback(() => setSidebarOpen(false), []);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-100">
-      {/* Sidebar - Visible on iPad landscape and larger */}
-      <div className="hidden ipad-landscape:block w-56 ipad-pro-landscape:w-64 flex-shrink-0">
-        <SideNavBar navItems={AdminNavItems} />
-      </div>
-
-      {/* Mobile Sidebar (Floating) - Visible on portrait and smaller screens */}
-      <div className="block ipad-landscape:hidden fixed z-50">
-        <SideNavBar navItems={AdminNavItems} mobile />
-      </div>
-
-      {/* Main content with responsive padding */}
-      <div className="flex-1 min-w-0 overflow-y-auto p-4 ipad-portrait:p-6 ipad-pro-portrait:p-8">
-        <Outlet />
+    <div className="flex min-h-screen bg-slate-50">
+      <AdminSidebar
+        open={sidebarOpen}
+        onClose={handleCloseSidebar}
+        onNavigate={handleCloseSidebar}
+        profile={profile}
+        user={user}
+        role="admin"
+      />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <AdminTopbar
+          title={pageTitle}
+          profile={profile}
+          user={user}
+          onMenuClick={handleMenuClick}
+          role="admin"
+        />
+        <main className="flex-1 overflow-y-auto p-4 ipad-portrait:p-6 ipad-pro-portrait:p-8">
+          <Outlet context={{ user, profile, profileLoading }} />
+        </main>
       </div>
     </div>
   );
 }
 
-export default MainLayout;
+export default MainLayoutAdmin;

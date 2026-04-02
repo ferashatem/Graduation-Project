@@ -8,6 +8,13 @@ import Loading from "../../components/common/Loading";
 import ErrorState from "../../components/common/ErrorState";
 import { getErrorMessage } from "../../utils/errorHelpers";
 
+const mergeAssignments = (profDocs, taDocs) => {
+  const map = new Map();
+  for (const d of profDocs) map.set(d.id, { ...d, _role: "professor" });
+  for (const d of taDocs) if (!map.has(d.id)) map.set(d.id, { ...d, _role: "ta" });
+  return Array.from(map.values());
+};
+
 const formatSchedule = (schedule) => {
   if (!schedule) return "-";
   if (typeof schedule === "string") return schedule;
@@ -42,15 +49,32 @@ function ProfessorDashboard() {
     setLoading(true);
     setError("");
 
-    const q = query(
+    let profDocs = [];
+    let taDocs = [];
+    let settled = 0;
+
+    const finish = () => {
+      settled += 1;
+      if (settled >= 2) {
+        setAssignments(mergeAssignments(profDocs, taDocs));
+        setLoading(false);
+      }
+    };
+
+    const qProf = query(
       collection(db, "courseAssignments"),
-      where("professorId", "==", user.uid)
+      where("professorUid", "==", user.uid)
+    );
+    const qTA = query(
+      collection(db, "courseAssignments"),
+      where("assistantUids", "array-contains", user.uid)
     );
 
-    const unsubscribe = onSnapshot(
-      q,
+    const unsubProf = onSnapshot(
+      qProf,
       (snap) => {
-        setAssignments(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        profDocs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        setAssignments(mergeAssignments(profDocs, taDocs));
         setLoading(false);
       },
       (err) => {
@@ -59,7 +83,19 @@ function ProfessorDashboard() {
       }
     );
 
-    return () => unsubscribe();
+    const unsubTA = onSnapshot(
+      qTA,
+      (snap) => {
+        taDocs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        finish();
+      },
+      () => finish()
+    );
+
+    return () => {
+      unsubProf();
+      unsubTA();
+    };
   }, [authLoading, user?.uid, refreshKey]);
 
   const handleRetry = useCallback(() => setRefreshKey((k) => k + 1), []);
@@ -86,9 +122,16 @@ function ProfessorDashboard() {
               className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200"
             >
               <div className="mb-4 space-y-0.5">
-                <h3 className="text-base font-semibold text-slate-800">
-                  {a.courseName || "Untitled Course"}
-                </h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-semibold text-slate-800">
+                    {a.courseName || "Untitled Course"}
+                  </h3>
+                  {a._role === "ta" ? (
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                      TA
+                    </span>
+                  ) : null}
+                </div>
                 {a.courseCode ? (
                   <p className="text-xs font-semibold tracking-wide text-blue-600">
                     {a.courseCode}
@@ -97,7 +140,7 @@ function ProfessorDashboard() {
               </div>
 
               <div className="space-y-2 text-sm">
-                <Row label="Term" value={a.termId || "-"} />
+                <Row label="Term" value={a.term || a.termId || "-"} />
                 <Row
                   label="Section"
                   value={

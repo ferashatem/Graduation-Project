@@ -516,6 +516,25 @@ const ensureNoOverlap = ({ schedules = [], startMin, endMin, day, ignoreId }) =>
   }
 };
 
+// Syncs a room schedule entry into all courseAssignment documents for the given course.
+// Pass entry=null to remove the schedule entry (e.g. on delete).
+const syncScheduleToCourseAssignments = async (courseId, scheduleId, entry) => {
+  if (!courseId || !scheduleId) return;
+  const q = query(
+    collection(db, "courseAssignments"),
+    where("courseId", "==", courseId)
+  );
+  const snap = await getDocs(q);
+  if (snap.empty) return;
+  const writes = snap.docs.map(async (docSnap) => {
+    const current = Array.isArray(docSnap.data().schedule) ? docSnap.data().schedule : [];
+    const filtered = current.filter((s) => s.scheduleId !== scheduleId);
+    const updated = entry ? [...filtered, { scheduleId, ...entry }] : filtered;
+    await updateDoc(docSnap.ref, { schedule: updated });
+  });
+  await Promise.all(writes);
+};
+
 // Schedule CRUD keeps room-level schedules and the roomSchedules mirror in sync.
 export const addSchedule = async (buildingId, floorId, roomId, payload) => {
   if (!buildingId || !floorId || !roomId)
@@ -574,6 +593,14 @@ export const addSchedule = async (buildingId, floorId, roomId, payload) => {
     await upsertRoomScheduleMirror(scheduleId, mirrorData, transaction);
   });
 
+  if (resolved.courseId) {
+    await syncScheduleToCourseAssignments(resolved.courseId, scheduleId, {
+      day: resolved.day,
+      startTime: minutesToTime(resolved.startMin),
+      endTime: minutesToTime(resolved.endMin),
+    });
+  }
+
   return { id: scheduleId, ...scheduleData };
 };
 
@@ -600,6 +627,11 @@ export const updateSchedule = async (
   );
 
   const scheduleRef = scheduleDoc(buildingId, floorId, roomId, scheduleId);
+
+  // Read the existing doc so we can clean up old courseAssignment links if courseId changed.
+  const existingSnap = await getDoc(scheduleRef);
+  const oldCourseId = existingSnap.exists() ? (existingSnap.data().courseId || null) : null;
+
   const scheduleData = {
     day: resolved.day,
     startMin: resolved.startMin,
@@ -635,16 +667,39 @@ export const updateSchedule = async (
     await upsertRoomScheduleMirror(scheduleId, mirrorData, transaction);
   });
 
+  // If the courseId changed, remove the schedule entry from the old course's assignments.
+  if (oldCourseId && oldCourseId !== resolved.courseId) {
+    await syncScheduleToCourseAssignments(oldCourseId, scheduleId, null);
+  }
+  if (resolved.courseId) {
+    await syncScheduleToCourseAssignments(resolved.courseId, scheduleId, {
+      day: resolved.day,
+      startTime: minutesToTime(resolved.startMin),
+      endTime: minutesToTime(resolved.endMin),
+    });
+  }
+
   return { id: scheduleId, ...scheduleData };
 };
 
 export const deleteSchedule = async (buildingId, floorId, roomId, scheduleId) => {
   if (!buildingId || !floorId || !roomId || !scheduleId)
     throw new Error("Schedule details are required.");
+
+  // Read the schedule to know which courseId to clean up.
+  const scheduleRef = scheduleDoc(buildingId, floorId, roomId, scheduleId);
+  const existingSnap = await getDoc(scheduleRef);
+  const courseId = existingSnap.exists() ? (existingSnap.data().courseId || null) : null;
+
   const batch = writeBatch(db);
-  batch.delete(scheduleDoc(buildingId, floorId, roomId, scheduleId));
+  batch.delete(scheduleRef);
   await deleteRoomScheduleMirror(scheduleId, batch);
   await batch.commit();
+
+  if (courseId) {
+    await syncScheduleToCourseAssignments(courseId, scheduleId, null);
+  }
+
   return scheduleId;
 };
 

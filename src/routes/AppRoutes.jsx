@@ -34,10 +34,9 @@ import ProfessorHome from "../pages/professor/ProfessorHome";
 import ProfessorCoursesPage from "../pages/professor/ProfessorCoursesPage";
 import ProfessorCourseDetailsPage from "../pages/professor/ProfessorCourseDetailsPage";
 import ProfessorDashboard from "../pages/professor/ProfessorDashboard";
-import OfferingsListPage from "../pages/offerings/OfferingsListPage";
-import OfferingDashboardPage from "../pages/offerings/OfferingDashboardPage";
-import CreateSessionPage from "../pages/offerings/CreateSessionPage";
-import SessionDetailsPage from "../pages/sessions/SessionDetailsPage";
+import AssistantLayout from "../layouts/AssistantLayout";
+import AssistantHome from "../pages/assistant/AssistantHome";
+import AssistantCoursesPage from "../pages/assistant/AssistantCoursesPage";
 
 function AppRoutes() {
   return (
@@ -115,35 +114,6 @@ function AppRoutes() {
           />
         </Route>
 
-        <Route
-          path="/offerings"
-          element={
-            <ProtectedRoute redirectTo="/signin">
-              <MainLayoutAdmin />
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<OfferingsListPage />} />
-          <Route
-            path=":offeringId/dashboard"
-            element={<OfferingDashboardPage />}
-          />
-          <Route
-            path=":offeringId/sessions/new"
-            element={<CreateSessionPage />}
-          />
-        </Route>
-
-        <Route
-          path="/sessions"
-          element={
-            <ProtectedRoute redirectTo="/signin">
-              <MainLayoutAdmin />
-            </ProtectedRoute>
-          }
-        >
-          <Route path=":sessionId" element={<SessionDetailsPage />} />
-        </Route>
 
         {/* Super Admin Routes */}
         <Route
@@ -207,6 +177,19 @@ function AppRoutes() {
             path="materials"
             element={<Navigate to="/professor/courses" replace />}
           />
+        </Route>
+
+        {/* Assistant Routes */}
+        <Route
+          path="/asst"
+          element={
+            <ProtectedRoute requiredRole="assistant" redirectTo="/signin">
+              <AssistantLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<AssistantHome />} />
+          <Route path="courses" element={<AssistantCoursesPage />} />
         </Route>
 
         {/* <Route path="/not-allowed" element={<Unauthorized />} /> */}

@@ -1,4 +1,4 @@
-import { collection, getDocs, orderBy, query } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, orderBy, query } from "firebase/firestore";
 import { db } from "./firebaseConfig";
 
 const COLLEGES_COLLECTION = "colleges";
@@ -10,6 +10,13 @@ const mapCollege = (snapshot) => {
     name: data.name || "",
     code: data.code || "",
   };
+};
+
+export const getCollegeById = async (collegeId) => {
+  if (!collegeId) return null;
+  const snap = await getDoc(doc(db, COLLEGES_COLLECTION, collegeId));
+  if (!snap.exists()) return null;
+  return mapCollege(snap);
 };
 
 export const fetchColleges = async () => {

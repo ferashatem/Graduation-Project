@@ -12,14 +12,14 @@ import {
   Snackbar,
   TextField,
 } from "@mui/material";
+import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { useParams } from "react-router-dom";
 import {
   getAssistantsByCollegeId,
   getProfsByCollegeId,
 } from "../../../services/users.service";
 import { assignCourseStaff } from "../../../services/courses.service";
-import { upsertAssignment } from "../api/courseAssignmentsApi";
-import { updateAssignment } from "../../../firebase/courseAssignmentsApi";
+import { db } from "../../../firebase/firebaseConfig";
 import { buildTermOptions } from "../utils/courseOfferingsUtils";
 import {
   buildOfferingId,
@@ -330,15 +330,6 @@ function AssignStaffDialog({ open, course, onClose }) {
       return;
     }
 
-    const payload = {
-      courseId: course.id,
-      termId: normalizedTermId,
-      yearLevel: yearLevelNumber,
-      section: normalizedSection,
-      professorId,
-      assistantIds,
-    };
-
     const optimisticAssignment = {
       offeringId: buildOfferingId({
         courseId: course.id,
@@ -363,41 +354,36 @@ function AssignStaffDialog({ open, course, onClose }) {
     setSaving(true);
 
     try {
-      await assignCourseStaff({
+      if (!offeringId) throw new Error("Could not build offering ID — check term, year level, and section.");
+
+      await setDoc(
+        doc(db, "courseAssignments", offeringId),
+        {
+          offeringId,
+          courseId: course.id,
+          courseName: course?.name || "",
+          courseCode: course?.code || "",
+          term: normalizedTermId,
+          yearLevel: yearLevelNumber,
+          section: normalizedSection,
+          professorUid: professorId,
+          professorEmail: selectedProfessor?.email || "",
+          assistantUids: assistantIds,
+          createdAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      assignCourseStaff({
         collegeId,
         yearId,
         departmentId: deptId,
         courseId: course.id,
         professorId,
         assistantIds,
-      });
-      const data = await upsertAssignment(payload);
-      const assignment = data?.assignment || optimisticAssignment;
+      }).catch(() => {});
 
-      // Extend the courseAssignments doc with display fields so professors
-      // can query by professorId (singular) and see course/schedule details.
-      if (offeringId) {
-        await updateAssignment(offeringId, {
-          courseName: course?.name || "",
-          courseCode: course?.code || "",
-          professorId,
-          professorName:
-            selectedProfessor?.name ||
-            selectedProfessor?.displayName ||
-            selectedProfessor?.fullName ||
-            "",
-          roomId: null,
-          buildingId: null,
-          schedule: null,
-        });
-      }
-      setSavedAssignment(assignment);
-      if (assignment?.professor) {
-        setSelectedProfessor(assignment.professor);
-      }
-      if (Array.isArray(assignment?.assistants)) {
-        setSelectedAssistants(assignment.assistants);
-      }
+      setSavedAssignment(optimisticAssignment);
       setToast({
         open: true,
         severity: "success",

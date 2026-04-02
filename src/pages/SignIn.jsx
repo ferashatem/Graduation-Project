@@ -63,9 +63,9 @@ function SignIn() {
       navigate("/super_admin/home", { replace: true });
     else if (role === "admin") navigate("/admin/home", { replace: true });
     else if (role === "professor")
-      navigate("/professor/home", { replace: true });
+      navigate("/prof", { replace: true });
     else if (role === "assistant")
-      navigate("/assistant/home", { replace: true });
+      navigate("/asst", { replace: true });
     // else navigate("/superadmin/home", { replace: true });
   }, [user, navigate, getRoleFromClaims]);
 
@@ -124,9 +124,9 @@ function SignIn() {
           navigate("/super_admin/home", { replace: true });
         else if (role === "admin") navigate("/admin/home", { replace: true });
         else if (role === "professor")
-          navigate("/professor/home", { replace: true });
+          navigate("/prof", { replace: true });
         else if (role === "assistant")
-          navigate("/assistant/home", { replace: true });
+          navigate("/asst", { replace: true });
         else navigate("/student/home", { replace: true });
       } catch (err) {
         console.error("Firebase SignIn Error:", err.code, err.message);

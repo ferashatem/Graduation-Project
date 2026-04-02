@@ -3,10 +3,10 @@ import { Outlet, useLocation } from "react-router-dom";
 import { useAuthUser } from "../auth/useAuthUser";
 import { getProfessorProfile } from "../firebase/professorApi";
 import { getCollegeById } from "../firebase/firestoreColleges";
-import ProfessorSidebar from "../components/professor/ProfessorSidebar";
-import ProfessorTopbar from "../components/professor/ProfessorTopbar";
+import AssistantSidebar from "../components/assistant/AssistantSidebar";
+import AssistantTopbar from "../components/assistant/AssistantTopbar";
 
-function ProfessorLayout() {
+function AssistantLayout() {
   const { user, authLoading } = useAuthUser();
   const location = useLocation();
 
@@ -53,10 +53,10 @@ function ProfessorLayout() {
 
   const pageTitle = useMemo(() => {
     const path = location.pathname;
-    if (path.startsWith("/prof/courses/")) return "Course Details";
-    if (path.startsWith("/prof/courses")) return "Courses";
-    if (path === "/prof" || path === "/prof/") return "Professor Home";
-    return "Professor";
+    if (path.startsWith("/asst/courses/")) return "Course Details";
+    if (path.startsWith("/asst/courses")) return "Courses";
+    if (path === "/asst" || path === "/asst/") return "Assistant Home";
+    return "Assistant";
   }, [location.pathname]);
 
   const handleMenuClick = useCallback(() => {
@@ -69,7 +69,7 @@ function ProfessorLayout() {
 
   return (
     <div className="flex min-h-screen bg-gray-100">
-      <ProfessorSidebar
+      <AssistantSidebar
         open={sidebarOpen}
         onClose={handleCloseSidebar}
         onNavigate={handleCloseSidebar}
@@ -77,7 +77,7 @@ function ProfessorLayout() {
         user={user}
       />
       <div className="flex min-w-0 flex-1 flex-col">
-        <ProfessorTopbar
+        <AssistantTopbar
           title={pageTitle}
           profile={profile}
           user={user}
@@ -91,4 +91,4 @@ function ProfessorLayout() {
   );
 }
 
-export default ProfessorLayout;
+export default AssistantLayout;

@@ -12,18 +12,18 @@ const resolveName = (profile, user) =>
   profile?.name ||
   profile?.displayName ||
   user?.displayName ||
-  "Professor";
+  "Assistant";
 
 const resolveEmail = (profile, user) =>
   profile?.email || profile?.Email || user?.email || "";
 
-function ProfessorSidebar({ open = false, onClose, onNavigate, profile, user }) {
+function AssistantSidebar({ open = false, onClose, onNavigate, profile, user }) {
   const navigate = useNavigate();
 
   const navItems = useMemo(
     () => [
-      { label: "Home", to: "/prof", icon: HiHome, end: true },
-      { label: "Courses", to: "/prof/courses", icon: HiBookOpen },
+      { label: "Home", to: "/asst", icon: HiHome, end: true },
+      { label: "Courses", to: "/asst/courses", icon: HiBookOpen },
     ],
     []
   );
@@ -66,7 +66,7 @@ function ProfessorSidebar({ open = false, onClose, onNavigate, profile, user }) 
           </div>
           <div className="min-w-0">
             <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
-              Professor
+              Assistant
             </p>
             <p className="truncate text-sm font-semibold text-slate-800">
               Dashboard
@@ -77,7 +77,7 @@ function ProfessorSidebar({ open = false, onClose, onNavigate, profile, user }) 
         <div className="mx-6 mb-2 flex items-center gap-3 rounded-2xl bg-white/70 px-4 py-3 shadow-sm ring-1 ring-white/60">
           <img
             src={avatarUrl}
-            alt="Professor avatar"
+            alt="Assistant avatar"
             className="h-10 w-10 rounded-full object-cover"
           />
           <div className="min-w-0">
@@ -133,4 +133,4 @@ function ProfessorSidebar({ open = false, onClose, onNavigate, profile, user }) 
   );
 }
 
-export default ProfessorSidebar;
+export default AssistantSidebar;
