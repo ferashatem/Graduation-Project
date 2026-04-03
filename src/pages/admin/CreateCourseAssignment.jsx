@@ -7,7 +7,7 @@ import {
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { Alert, Button } from "@mui/material";
-import { Link as RouterLink } from "react-router-dom";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
 import PageHeader from "../../components/common/PageHeader";
 import Loading from "../../components/common/Loading";
 import { auth, db } from "../../firebase/firebaseConfig";
@@ -18,6 +18,7 @@ import { getErrorMessage } from "../../utils/errorHelpers";
 const mapDoc = (snapshot) => ({ id: snapshot.id, ...snapshot.data() });
 
 function CreateCourseAssignment() {
+  const navigate = useNavigate();
   const [userId, setUserId] = useState("");
 
   useEffect(() => {
@@ -184,6 +185,7 @@ function CreateCourseAssignment() {
 
         await addAssignment(payload);
 
+        navigate("/admin/assignments");
         setSuccess("Assignment created successfully.");
         setCourseId("");
         setCollegeId("");

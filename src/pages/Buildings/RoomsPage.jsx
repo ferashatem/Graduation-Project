@@ -15,7 +15,6 @@ import { useAuth } from "../../context/AuthContext";
 import { DAY_OPTIONS, TIME_SLOTS, getDayLabel, getDefaultDayKey } from "./scheduleConstants";
 
 function RoomsPage() {
-  const isDev = useMemo(() => process.env.NODE_ENV !== "production", []);
   const navigate = useNavigate();
   const location = useLocation();
   const { buildingId } = useParams();
@@ -142,25 +141,6 @@ function RoomsPage() {
       return acc;
     }, {});
   }, [roomDaySlots, rooms, selectedDayKey]);
-
-  useEffect(() => {
-    if (!isDev) return;
-    const roomCounts = schedules.reduce((acc, schedule) => {
-      const roomKey = String(schedule?.roomId || "").trim();
-      if (!roomKey) return acc;
-      acc[roomKey] = (acc[roomKey] || 0) + 1;
-      return acc;
-    }, {});
-    const slotsByDay = {};
-    Object.entries(roomDaySlots).forEach(([roomKey, dayMap]) => {
-      slotsByDay[roomKey] = {};
-      Object.entries(dayMap).forEach(([dayKey, slotSet]) => {
-        slotsByDay[roomKey][dayKey] = Array.from(slotSet || []);
-      });
-    });
-    console.debug("[RoomsPage] schedule docs per room", roomCounts);
-    console.debug("[RoomsPage] slotsByDay", slotsByDay);
-  }, [isDev, roomDaySlots, schedules]);
 
   const breadcrumbs = useMemo(() => {
     const name = building?.name || "Rooms";

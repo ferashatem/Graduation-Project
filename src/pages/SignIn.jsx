@@ -29,8 +29,8 @@ function SignIn() {
           return { collection: collectionName, data: snap.data() };
         }
       }
-    } catch (err) {
-      console.error("Load user error:", err);
+    } catch {
+      // ignore — non-critical user doc fetch
     }
 
     return null;
@@ -41,32 +41,23 @@ function SignIn() {
 
     try {
       const tokenResult = await getIdTokenResult(firebaseUser, true);
-      console.log(tokenResult);
       return tokenResult?.claims?.role || null;
-      
-    } catch (err) {
-      console.error("Load claims role error:", err);
+    } catch {
       return null;
     }
   }, []);
 
-  // ✅ If already logged in, you can redirect
   const redirectIfLoggedIn = useCallback(async () => {
     if (!user) return;
 
     const roleFromClaims = await getRoleFromClaims(user);
     const role = roleFromClaims || "student";
-    console.log(roleFromClaims);
-    console.log(role);
 
-    if (role === "super_admin")
-      navigate("/super_admin/home", { replace: true });
+    if (role === "super_admin") navigate("/super_admin/home", { replace: true });
     else if (role === "admin") navigate("/admin/home", { replace: true });
-    else if (role === "professor")
-      navigate("/prof", { replace: true });
-    else if (role === "assistant")
-      navigate("/asst", { replace: true });
-    // else navigate("/superadmin/home", { replace: true });
+    else if (role === "professor") navigate("/prof", { replace: true });
+    else if (role === "assistant") navigate("/asst", { replace: true });
+    else if (role === "student") navigate("/student", { replace: true });
   }, [user, navigate, getRoleFromClaims]);
 
   React.useEffect(() => {
@@ -101,12 +92,7 @@ function SignIn() {
 
         const signedUser = userCred.user;
 
-        const userRecord = await getUserFromFirestore(signedUser.uid);
-        console.log("Signed in user (Firestore):", {
-          uid: signedUser.uid,
-          collection: userRecord?.collection || null,
-          data: userRecord?.data || null,
-        });
+        await getUserFromFirestore(signedUser.uid);
         const roleFromClaims = await getRoleFromClaims(signedUser);
         const role = roleFromClaims || "student";
 
@@ -130,7 +116,6 @@ function SignIn() {
         else if (role === "student") navigate("/student", { replace: true });
         else navigate("/student", { replace: true });
       } catch (err) {
-        console.error("Firebase SignIn Error:", err.code, err.message);
         alert("Login failed: " + err.message);
         setLoading(false);
       }

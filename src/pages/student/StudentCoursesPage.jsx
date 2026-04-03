@@ -210,9 +210,12 @@ function StudentCoursesPage() {
 
   const collegeId = profile?.collegeId || "";
   const departmentId = profile?.departmentId || "";
-  const year = profile?.year;
+  // Accept year stored as number OR string in Firestore
+  const yearRaw = profile?.year;
+  const yearNum = yearRaw != null ? Number(yearRaw) : null;
+  const yearStr = yearNum != null && !Number.isNaN(yearNum) ? String(yearNum) : null;
 
-  const canQuery = Boolean(collegeId && year);
+  const canQuery = Boolean(collegeId) && !profileLoading;
 
   useEffect(() => {
     if (!canQuery) { setAssignments([]); return; }
@@ -220,21 +223,32 @@ function StudentCoursesPage() {
     setLoading(true);
     setError("");
 
-    // Build query: filter by collegeId + yearLevel. Add departmentId if available.
-    let constraints = [
-      where("collegeId", "==", collegeId),
-      where("yearLevel", "==", year),
-    ];
-    if (departmentId) {
-      constraints.push(where("departmentId", "==", departmentId));
-    }
-
-    const q = query(collection(db, "courseAssignments"), ...constraints);
+    // Query only by collegeId (safe, no composite index needed).
+    // yearLevel + departmentId are filtered client-side to handle type mismatches.
+    const q = query(
+      collection(db, "courseAssignments"),
+      where("collegeId", "==", collegeId)
+    );
 
     const unsub = onSnapshot(
       q,
       (snap) => {
-        setAssignments(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        let docs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+        // Client-side year filter (handles both number and string storage)
+        if (yearNum != null && !Number.isNaN(yearNum)) {
+          docs = docs.filter((d) => {
+            const yl = d.yearLevel;
+            return Number(yl) === yearNum || String(yl) === yearStr;
+          });
+        }
+
+        // Client-side department filter (optional)
+        if (departmentId) {
+          docs = docs.filter((d) => d.departmentId === departmentId);
+        }
+
+        setAssignments(docs);
         setLoading(false);
       },
       (err) => {
@@ -244,7 +258,7 @@ function StudentCoursesPage() {
     );
 
     return () => unsub();
-  }, [canQuery, collegeId, departmentId, year]);
+  }, [canQuery, collegeId, departmentId, yearNum, yearStr]);
 
   const cards = useMemo(
     () =>
@@ -267,14 +281,14 @@ function StudentCoursesPage() {
     exportPdf(cards, name);
   }, [cards, profile]);
 
-  if (profileLoading) return <Loading label="Loading profile…" />;
+  if (profileLoading) return <Loading label="Loading your profile…" />;
 
   if (!canQuery) {
     return (
       <div className="space-y-6">
         <PageHeader title="My Courses" />
         <div className="rounded-2xl bg-amber-50 p-6 text-sm text-amber-700 ring-1 ring-amber-200">
-          Your profile is missing college or year information. Please contact your administrator.
+          Your profile is missing college information. Please contact your administrator to update your account.
         </div>
       </div>
     );
@@ -293,6 +307,12 @@ function StudentCoursesPage() {
           Export PDF
         </button>
       </div>
+
+      {!yearNum ? (
+        <div className="rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-700 ring-1 ring-amber-200">
+          Your year level is not set — showing all courses for your college. Ask your admin to set your year.
+        </div>
+      ) : null}
 
       {error ? <ErrorState message={error} /> : null}
 

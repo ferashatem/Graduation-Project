@@ -90,7 +90,6 @@ function CreateAdminUser() {
   const [collegeId, setCollegeId] = useState("");
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
   const [users, setUsers] = useState([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [usersError, setUsersError] = useState("");
@@ -201,8 +200,7 @@ function CreateAdminUser() {
       );
 
       setUsers(rows);
-    } catch (error) {
-      console.error("Load users error:", error);
+    } catch {
       setUsersError("Failed to load users.");
     } finally {
       setUsersLoading(false);
@@ -220,7 +218,6 @@ function CreateAdminUser() {
         setCollegeId(data[0].id);
       }
     } catch (error) {
-      console.error("Load colleges error:", error);
       setColleges([]);
       setCollegesError(error?.message || "Failed to load colleges.");
     } finally {
@@ -279,8 +276,8 @@ function CreateAdminUser() {
         if (trimmedName) {
           try {
             await updateProfile(createdUser, { displayName: trimmedName });
-          } catch (profileError) {
-            console.warn("Unable to update display name:", profileError);
+          } catch {
+            // non-critical — display name update failed
           }
         }
 
@@ -296,7 +293,6 @@ function CreateAdminUser() {
           year: normalizedRole === "student" ? Number(year) : undefined,
         });
 
-        setSuccessMessage("Account created successfully.");
         await loadUsers();
         setEmail("");
         setName("");
@@ -307,22 +303,23 @@ function CreateAdminUser() {
         setYear("");
         setStudentDeptId("");
         setSelectedYearDocId("");
+        setIsModalOpen(false);
+        setActionSuccess("Account created successfully.");
       } catch (error) {
-        console.error("Create account error:", error);
         setFormError(error?.message || "Account creation failed.");
 
         if (createdUser) {
           try {
             await deleteUser(createdUser);
-          } catch (cleanupError) {
-            console.warn("Failed to remove auth user after error:", cleanupError);
+          } catch {
+            // cleanup best-effort
           }
         }
       } finally {
         try {
           await signOut(secondaryAuth);
-        } catch (signOutError) {
-          console.warn("Secondary auth sign out failed:", signOutError);
+        } catch {
+          // secondary auth sign-out best-effort
         }
         setLoading(false);
       }
@@ -368,7 +365,6 @@ function CreateAdminUser() {
         setUsers((prevUsers) => prevUsers.filter((item) => item.id !== uid));
         setActionSuccess(`${confirmLabel} was deleted.`);
       } catch (error) {
-        console.error("Delete user error:", error);
         setActionError(error?.message || "Failed to delete user.");
       } finally {
         setDeletingUserId("");
@@ -482,7 +478,6 @@ function CreateAdminUser() {
         closeEditModal();
         await loadUsers();
       } catch (error) {
-        console.error("Edit account error:", error);
         setEditFormError(error?.message || "Failed to edit user.");
       } finally {
         setEditLoading(false);
@@ -1038,12 +1033,6 @@ function CreateAdminUser() {
               {formError ? (
                 <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700" role="alert">
                   {formError}
-                </div>
-              ) : null}
-
-              {successMessage ? (
-                <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-700" role="status">
-                  {successMessage}
                 </div>
               ) : null}
 

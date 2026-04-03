@@ -105,12 +105,10 @@ function CampusBuildingsPage() {
         setBuildings(data);
         setBuildingsError("");
         setBuildingsLoading(false);
-        console.log("[3D] buildings snapshot", data.length);
       },
       (error) => {
         setBuildingsError(getErrorMessage(error));
         setBuildingsLoading(false);
-        console.error("[3D] buildings snapshot error", error);
       }
     );
 
@@ -134,16 +132,10 @@ function CampusBuildingsPage() {
         setFloors(data);
         setFloorsError("");
         setFloorsLoading(false);
-        console.log(
-          "[3D] floors snapshot",
-          selectedBuildingId,
-          data.length
-        );
       },
       (error) => {
         setFloorsError(getErrorMessage(error));
         setFloorsLoading(false);
-        console.error("[3D] floors snapshot error", error);
       }
     );
 
@@ -168,16 +160,10 @@ function CampusBuildingsPage() {
         setRooms(data);
         setRoomsError("");
         setRoomsLoading(false);
-        console.log(
-          "[3D] rooms snapshot",
-          selectedFloorId,
-          data.length
-        );
       },
       (error) => {
         setRoomsError(getErrorMessage(error));
         setRoomsLoading(false);
-        console.error("[3D] rooms snapshot error", error);
       }
     );
 
@@ -366,8 +352,6 @@ function CampusBuildingsPage() {
     } catch (error) {
       setAvailableRoomIds(null);
       setAvailabilityError(getErrorMessage(error, "Failed to check availability."));
-      console.log(error);
-      
     } finally {
       setAvailabilityLoading(false);
     }

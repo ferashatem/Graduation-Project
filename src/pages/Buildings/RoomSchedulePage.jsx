@@ -14,7 +14,6 @@ import { useAuth } from "../../context/AuthContext";
 import { DAY_OPTIONS, TIME_SLOTS, getDayLabel, getDefaultDayKey } from "./scheduleConstants";
 
 export default  function RoomSchedulePage() {
-  const isDev = useMemo(() => process.env.NODE_ENV !== "production", []);
   const navigate = useNavigate();
   const location = useLocation();
   const { buildingId, roomId } = useParams();
@@ -69,31 +68,15 @@ export default  function RoomSchedulePage() {
       setSchedules([]);
       return;
     }
-    if (isDev) {
-      console.debug("[RoomSchedulePage] schedule listener start", {
-        collegeId,
-        buildingId,
-        roomId,
-        dayKey: selectedDayKey,
-        path: `colleges/${collegeId}/buildings/${buildingId}/rooms/${roomId}/schedule`,
-      });
-    }
     const unsubscribe = listenRoomDaySchedule(
       { collegeId, buildingId, roomId, dayKey: selectedDayKey },
       (data) => {
-        if (isDev) {
-          console.debug("[RoomSchedulePage] schedule snapshot", {
-            dayKey: selectedDayKey,
-            count: data.length,
-            slotKeys: data.map((item) => item.slotKey),
-          });
-        }
         setSchedules(data);
       },
       (error) => setScheduleError(getErrorMessage(error))
     );
     return () => unsubscribe();
-  }, [buildingId, collegeId, isDev, roomId, selectedDayKey]);
+  }, [buildingId, collegeId, roomId, selectedDayKey]);
 
   const scheduleBySlot = useMemo(() => {
     const map = new Map();

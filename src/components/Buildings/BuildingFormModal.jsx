@@ -7,9 +7,8 @@ import {
   DialogContent,
   DialogTitle,
 } from "@mui/material";
-import { getAuth } from "firebase/auth";
 
-function  BuildingFormModal({
+function BuildingFormModal({
   open,
   initialValues,
   colleges = [],
@@ -25,49 +24,8 @@ function  BuildingFormModal({
   const [collegeId, setCollegeId] = useState("");
   const [localError, setLocalError] = useState("");
 
-  const loadAllUsers = useCallback(async (firebaseUser) => {
-    if (!firebaseUser) return;
-
-    try {
-      const tokenResult = await firebaseUser.getIdTokenResult(true);
-      const role = tokenResult?.claims?.role || null;
-console.log(role);
-
-      if (role !== "super_admin") {
-        console.warn("Skipping users list: requires super_admin role.");
-        return;
-      }
-
-      
-      // console.log("All users (users collection):", users);
-    } catch (err) {
-      console.error("Load users error:", err);
-    }
-  }, []);
-
-  loadAllUsers()
-
-  /* --------------------------------------------------
-     🔴 Log external (server / firebase) errors
-  -------------------------------------------------- */
-  useEffect(() => {
-    if (error) {
-      console.error("[BuildingFormModal] External error:", error);
-    }
-  }, [error]);
-
-  /* --------------------------------------------------
-     🔴 Log local validation errors
-  -------------------------------------------------- */
-  useEffect(() => {
-    if (localError) {
-      console.warn("[BuildingFormModal] Validation error:", localError);
-    }
-  }, [localError]);
-
   useEffect(() => {
     if (!open) return;
-
     setName(initialValues?.name || "");
     setCode(initialValues?.code || "");
     setCollegeId(initialValues?.collegeId || defaultCollegeId || "");
@@ -90,34 +48,26 @@ console.log(role);
   }, [loading, onClose]);
 
   const handleSave = useCallback(() => {
-    try {
-      setLocalError("");
+    setLocalError("");
 
-      const trimmedName = name.trim();
-      if (!trimmedName) {
-        setLocalError("Building name is required.");
-        return;
-      }
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      setLocalError("Building name is required.");
+      return;
+    }
 
-      const resolvedCollegeId = collegeId || defaultCollegeId;
-      if (!resolvedCollegeId) {
-        setLocalError("College is required.");
-        return;
-      }
+    const resolvedCollegeId = collegeId || defaultCollegeId;
+    if (!resolvedCollegeId) {
+      setLocalError("College is required.");
+      return;
+    }
 
-      if (onSubmit) {
-        onSubmit({
-          name: trimmedName,
-          code: code.trim(),
-          collegeId: resolvedCollegeId,
-        });
-      }
-    } catch (err) {
-      console.error(
-        "[BuildingFormModal] Unexpected error during save:",
-        err
-      );
-      setLocalError("Unexpected error occurred. Please try again.");
+    if (onSubmit) {
+      onSubmit({
+        name: trimmedName,
+        code: code.trim(),
+        collegeId: resolvedCollegeId,
+      });
     }
   }, [collegeId, code, defaultCollegeId, name, onSubmit]);
 

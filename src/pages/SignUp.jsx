@@ -36,7 +36,6 @@ function SignUp() {
       try {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
-        console.log("User created in Auth:", user.uid);
         await setDoc(
           doc(db, "Users", user.uid),
           {
@@ -52,7 +51,6 @@ function SignUp() {
         setPassword("");
         setConfirmPassword("");
       } catch (error) {
-        console.error("Sign up error:", error.message);
         setFormError(error.message || "Sign up failed.");
       } finally {
         setLoading(false);
