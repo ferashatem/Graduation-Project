@@ -210,12 +210,9 @@ function StudentCoursesPage() {
 
   const collegeId = profile?.collegeId || "";
   const departmentId = profile?.departmentId || "";
-  // Accept year stored as number OR string in Firestore
-  const yearRaw = profile?.year;
-  const yearNum = yearRaw != null ? Number(yearRaw) : null;
-  const yearStr = yearNum != null && !Number.isNaN(yearNum) ? String(yearNum) : null;
+  const yearId = profile?.yearId || "";
 
-  const canQuery = Boolean(collegeId) && !profileLoading;
+  const canQuery = Boolean(collegeId) && Boolean(yearId) && Boolean(departmentId) && !profileLoading;
 
   useEffect(() => {
     if (!canQuery) { setAssignments([]); return; }
@@ -223,32 +220,17 @@ function StudentCoursesPage() {
     setLoading(true);
     setError("");
 
-    // Query only by collegeId (safe, no composite index needed).
-    // yearLevel + departmentId are filtered client-side to handle type mismatches.
     const q = query(
-      collection(db, "courseAssignments"),
-      where("collegeId", "==", collegeId)
+      collection(db, "allCourses"),
+      where("collegeId", "==", collegeId),
+      where("yearId", "==", yearId),
+      where("departmentId", "==", departmentId)
     );
 
     const unsub = onSnapshot(
       q,
       (snap) => {
-        let docs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-
-        // Client-side year filter (handles both number and string storage)
-        if (yearNum != null && !Number.isNaN(yearNum)) {
-          docs = docs.filter((d) => {
-            const yl = d.yearLevel;
-            return Number(yl) === yearNum || String(yl) === yearStr;
-          });
-        }
-
-        // Client-side department filter (optional)
-        if (departmentId) {
-          docs = docs.filter((d) => d.departmentId === departmentId);
-        }
-
-        setAssignments(docs);
+        setAssignments(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
         setLoading(false);
       },
       (err) => {
@@ -258,20 +240,22 @@ function StudentCoursesPage() {
     );
 
     return () => unsub();
-  }, [canQuery, collegeId, departmentId, yearNum, yearStr]);
+  }, [canQuery, collegeId, departmentId, yearId]);
 
   const cards = useMemo(
     () =>
       assignments.map((a) => ({
         id: a.id,
-        courseName: a.courseName || a.CourseName || "Untitled course",
-        courseCode: a.courseCode || "-",
-        term: a.term || a.termId || "-",
-        yearLevel: a.yearLevel,
-        section: a.section,
-        building: a.building || "",
-        room: a.room || "",
-        schedule: Array.isArray(a.schedule) ? a.schedule : [],
+        courseName: a.name || "Untitled course",
+        courseCode: a.code || "-",
+        creditHours: a.creditHours,
+        description: a.description || "",
+        term: "-",
+        yearLevel: null,
+        section: null,
+        building: "",
+        room: "",
+        schedule: [],
       })),
     [assignments]
   );
@@ -308,9 +292,9 @@ function StudentCoursesPage() {
         </button>
       </div>
 
-      {!yearNum ? (
+      {!yearId || !departmentId ? (
         <div className="rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-700 ring-1 ring-amber-200">
-          Your year level is not set — showing all courses for your college. Ask your admin to set your year.
+          Your year or department is not set — contact your admin to update your account.
         </div>
       ) : null}
 

@@ -39,6 +39,7 @@ export const createUserProfile = async ({
   collegeId,
   departmentId,
   year,
+  yearId,
 }) => {
   if (!db) throw new Error("db is required.");
   const trimmedUid = normalizeValue(uid);
@@ -78,6 +79,8 @@ export const createUserProfile = async ({
     if (trimmedDeptId) profile.departmentId = trimmedDeptId;
     const parsedYear = Number(year);
     if (Number.isFinite(parsedYear) && parsedYear > 0) profile.year = parsedYear;
+    const trimmedYearId = normalizeValue(yearId);
+    if (trimmedYearId) profile.yearId = trimmedYearId;
   }
 
   // Primary profile document — readable by admin via /users/{uid} rules.

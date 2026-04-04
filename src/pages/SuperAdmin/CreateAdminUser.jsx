@@ -118,6 +118,7 @@ function CreateAdminUser() {
   const [deptsLoading, setDeptsLoading] = useState(false);
   const [editYear, setEditYear] = useState("");
   const [editStudentDeptId, setEditStudentDeptId] = useState("");
+  const [editYearDocId, setEditYearDocId] = useState("");
 
   const deleteUserAccount = useMemo(
     () => httpsCallable(functions, "deleteUserAccount"),
@@ -229,7 +230,7 @@ function CreateAdminUser() {
     async (e) => {
       e.preventDefault();
       setFormError("");
-      setSuccessMessage("");
+      // setSuccessMessage("");
 
       const trimmedEmail = email.trim();
       const trimmedName = name.trim();
@@ -291,6 +292,7 @@ function CreateAdminUser() {
           collegeId: needsCollege ? collegeId : "",
           departmentId: normalizedRole === "student" ? studentDeptId : "",
           year: normalizedRole === "student" ? Number(year) : undefined,
+          yearId: normalizedRole === "student" ? selectedYearDocId : undefined,
         });
 
         await loadUsers();
@@ -334,6 +336,9 @@ function CreateAdminUser() {
       isCollegeMissing,
       isAdmin,
       loadUsers,
+      selectedYearDocId,
+      studentDeptId,
+      year,
     ]
   );
 
@@ -392,6 +397,7 @@ function CreateAdminUser() {
     setEditRole(getUserRoleKey(currentUser) || "student");
     setEditPassword("");
     setEditYear(currentUser?.year != null ? String(currentUser.year) : "");
+    setEditYearDocId(currentUser?.yearId || "");
     setEditStudentDeptId(currentUser?.departmentId || "");
     setEditFormError("");
     setActionError("");
@@ -469,6 +475,7 @@ function CreateAdminUser() {
           const parsedYear = Number(editYear);
           if (Number.isFinite(parsedYear) && parsedYear > 0) studentUpdate.year = parsedYear;
           if (editStudentDeptId.trim()) studentUpdate.departmentId = editStudentDeptId.trim();
+          if (editYearDocId.trim()) studentUpdate.yearId = editYearDocId.trim();
           if (Object.keys(studentUpdate).length > 0) {
             await updateDoc(doc(db, "users", uid), studentUpdate);
           }
@@ -494,6 +501,9 @@ function CreateAdminUser() {
       isAdmin,
       loadUsers,
       closeEditModal,
+      editStudentDeptId,
+      editYear,
+      editYearDocId,
     ]
   );
 
@@ -1163,6 +1173,16 @@ function CreateAdminUser() {
                         placeholder="Firestore department ID"
                         value={editStudentDeptId}
                         onChange={(e) => setEditStudentDeptId(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 outline-none transition focus:border-[#0b2c4a]/40 focus:bg-white focus:ring-2 focus:ring-[#0b2c4a]/10"
+                      />
+                    </div>
+                    <div className="col-span-2 sm:col-span-1">
+                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">Year ID</label>
+                      <input
+                        type="text"
+                        placeholder="Firestore year doc ID"
+                        value={editYearDocId}
+                        onChange={(e) => setEditYearDocId(e.target.value)}
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 outline-none transition focus:border-[#0b2c4a]/40 focus:bg-white focus:ring-2 focus:ring-[#0b2c4a]/10"
                       />
                     </div>
