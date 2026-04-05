@@ -40,6 +40,11 @@ import AssistantCoursesPage from "../pages/assistant/AssistantCoursesPage";
 import StudentLayout from "../layouts/StudentLayout";
 import StudentHome from "../pages/student/StudentHome";
 import StudentCoursesPage from "../pages/student/StudentCoursesPage";
+import StudentQuizzesPage from "../pages/student/StudentQuizzesPage";
+import StudentQuizTakePage from "../pages/student/StudentQuizTakePage";
+import StudentQuizResultPage from "../pages/student/StudentQuizResultPage";
+import ProfessorQuizzesPage from "../pages/professor/ProfessorQuizzesPage";
+import ProfessorQuizResultsPage from "../pages/professor/ProfessorQuizResultsPage";
 
 function AppRoutes() {
   return (
@@ -155,6 +160,8 @@ function AppRoutes() {
             path="courses/:courseDocId"
             element={<ProfessorCourseDetailsPage />}
           />
+          <Route path="quizzes" element={<ProfessorQuizzesPage />} />
+          <Route path="quizzes/:quizId/results" element={<ProfessorQuizResultsPage />} />
           <Route
             path="materials"
             element={<Navigate to="/prof/courses" replace />}
@@ -206,6 +213,9 @@ function AppRoutes() {
         >
           <Route index element={<StudentHome />} />
           <Route path="courses" element={<StudentCoursesPage />} />
+          <Route path="quizzes" element={<StudentQuizzesPage />} />
+          <Route path="quizzes/:quizId" element={<StudentQuizTakePage />} />
+          <Route path="quizzes/:quizId/result" element={<StudentQuizResultPage />} />
         </Route>
 
         {/* <Route path="/not-allowed" element={<Unauthorized />} /> */}

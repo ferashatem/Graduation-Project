@@ -3,7 +3,8 @@
     "allow": [
       "Bash(firebase deploy:*)",
       "Bash(xargs grep:*)",
-      "Bash(xargs basename:*)"
+      "Bash(xargs basename:*)",
+      "Bash(node -e \"const fs=require\\('fs'\\); const code=fs.readFileSync\\('src/pages/SuperAdmin/CreateAdminUser.jsx','utf8'\\); console.log\\('Lines:', code.split\\('\\\\n'\\).length\\); console.log\\('editCollegeId references:', \\(code.match\\(/editCollegeId/g\\)||[]\\).length\\); console.log\\('editCollegeYears references:', \\(code.match\\(/editCollegeYears/g\\)||[]\\).length\\); console.log\\('editDepts references:', \\(code.match\\(/editDepts/g\\)||[]\\).length\\);\")"
     ]
   }
 }

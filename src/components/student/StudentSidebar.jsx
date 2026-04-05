@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { signOut } from "firebase/auth";
-import { HiBookOpen, HiHome, HiLogout } from "react-icons/hi";
+import { HiBookOpen, HiHome, HiLogout, HiPencilAlt } from "react-icons/hi";
 import { auth } from "../../firebase/firebaseConfig";
 import logo from "../../assets/university-logo.png";
 import fallbackAvatar from "../../assets/imgs/profile.png";
@@ -19,6 +19,7 @@ function StudentSidebar({ open = false, onClose, onNavigate, profile, user }) {
     () => [
       { label: "Home", to: "/student", icon: HiHome, end: true },
       { label: "My Courses", to: "/student/courses", icon: HiBookOpen },
+      { label: "Quizzes", to: "/student/quizzes", icon: HiPencilAlt },
     ],
     []
   );

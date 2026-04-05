@@ -40,6 +40,9 @@ function StudentLayout() {
   const pageTitle = useMemo(() => {
     const path = location.pathname;
     if (path.startsWith("/student/courses")) return "My Courses";
+    if (path.includes("/student/quizzes/") && path.endsWith("/result")) return "Quiz Result";
+    if (path.includes("/student/quizzes/")) return "Take Quiz";
+    if (path.startsWith("/student/quizzes")) return "Quizzes";
     if (path === "/student" || path === "/student/") return "Home";
     return "Student";
   }, [location.pathname]);

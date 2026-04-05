@@ -266,6 +266,27 @@ function RoomScheduleDialog({
       if (!assignmentPayload) return;
 
       if (assignmentDocs.length === 0) {
+        // Before creating a new doc, check if an existing courseAssignment for
+        // this courseId already exists (e.g. created by AssignStaffDialog without
+        // a scheduleId). If so, update that doc instead of creating a duplicate.
+        const existingByCoursSnap = await getDocs(
+          query(
+            collection(db, "courseAssignments"),
+            where("courseId", "==", schedulePayload.courseId)
+          )
+        );
+        const docsWithoutSchedule = existingByCoursSnap.docs.filter(
+          (d) => !d.data().scheduleId
+        );
+        if (docsWithoutSchedule.length > 0) {
+          await Promise.all(
+            docsWithoutSchedule.map((d) =>
+              updateDoc(d.ref, { ...assignmentPayload, updatedAt: serverTimestamp() })
+            )
+          );
+          return;
+        }
+
         await addDoc(collection(db, "courseAssignments"), {
           ...assignmentPayload,
           createdAt: serverTimestamp(),

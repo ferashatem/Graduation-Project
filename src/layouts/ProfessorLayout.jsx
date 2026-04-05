@@ -55,6 +55,8 @@ function ProfessorLayout() {
     const path = location.pathname;
     if (path.startsWith("/prof/courses/")) return "Course Details";
     if (path.startsWith("/prof/courses")) return "Courses";
+    if (path.startsWith("/prof/quizzes/") && path.endsWith("/results")) return "Quiz Results";
+    if (path.startsWith("/prof/quizzes")) return "Quizzes";
     if (path === "/prof" || path === "/prof/") return "Professor Home";
     return "Professor";
   }, [location.pathname]);

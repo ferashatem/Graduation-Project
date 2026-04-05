@@ -119,6 +119,11 @@ function CreateAdminUser() {
   const [editYear, setEditYear] = useState("");
   const [editStudentDeptId, setEditStudentDeptId] = useState("");
   const [editYearDocId, setEditYearDocId] = useState("");
+  const [editCollegeId, setEditCollegeId] = useState("");
+  const [editCollegeYears, setEditCollegeYears] = useState([]);
+  const [editCollegeYearsLoading, setEditCollegeYearsLoading] = useState(false);
+  const [editDepts, setEditDepts] = useState([]);
+  const [editDeptsLoading, setEditDeptsLoading] = useState(false);
 
   const deleteUserAccount = useMemo(
     () => httpsCallable(functions, "deleteUserAccount"),
@@ -399,7 +404,12 @@ function CreateAdminUser() {
     setEditYear(currentUser?.year != null ? String(currentUser.year) : "");
     setEditYearDocId(currentUser?.yearId || "");
     setEditStudentDeptId(currentUser?.departmentId || "");
+    setEditCollegeId(currentUser?.collegeId || "");
+    setEditCollegeYears([]);
+    setEditDepts([]);
     setEditFormError("");
+    // Load colleges if not yet loaded
+    if (colleges.length === 0) loadColleges();
     setActionError("");
     setActionSuccess("");
     setIsEditModalOpen(true);
@@ -415,6 +425,10 @@ function CreateAdminUser() {
     setEditPassword("");
     setEditYear("");
     setEditStudentDeptId("");
+    setEditYearDocId("");
+    setEditCollegeId("");
+    setEditCollegeYears([]);
+    setEditDepts([]);
     setEditFormError("");
     setEditLoading(false);
   }, []);
@@ -474,6 +488,7 @@ function CreateAdminUser() {
           const studentUpdate = {};
           const parsedYear = Number(editYear);
           if (Number.isFinite(parsedYear) && parsedYear > 0) studentUpdate.year = parsedYear;
+          if (editCollegeId.trim()) studentUpdate.collegeId = editCollegeId.trim();
           if (editStudentDeptId.trim()) studentUpdate.departmentId = editStudentDeptId.trim();
           if (editYearDocId.trim()) studentUpdate.yearId = editYearDocId.trim();
           if (Object.keys(studentUpdate).length > 0) {
@@ -504,6 +519,7 @@ function CreateAdminUser() {
       editStudentDeptId,
       editYear,
       editYearDocId,
+      editCollegeId,
     ]
   );
 
@@ -584,6 +600,45 @@ function CreateAdminUser() {
       .finally(() => { if (isActive) setDeptsLoading(false); });
     return () => { isActive = false; };
   }, [role, collegeId, selectedYearDocId]);
+
+  // Load years for edit modal student cascade
+  useEffect(() => {
+    if (!isEditModalOpen || editRole !== "student" || !editCollegeId) {
+      setEditCollegeYears([]);
+      setEditYearDocId((prev) => prev); // keep existing value
+      return;
+    }
+    let isActive = true;
+    setEditCollegeYearsLoading(true);
+    getDocs(collection(db, "colleges", editCollegeId, "years"))
+      .then((snap) => {
+        if (!isActive) return;
+        const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        items.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        setEditCollegeYears(items);
+      })
+      .catch(() => { if (isActive) setEditCollegeYears([]); })
+      .finally(() => { if (isActive) setEditCollegeYearsLoading(false); });
+    return () => { isActive = false; };
+  }, [isEditModalOpen, editRole, editCollegeId]);
+
+  // Load departments for edit modal student cascade
+  useEffect(() => {
+    if (!isEditModalOpen || editRole !== "student" || !editCollegeId || !editYearDocId) {
+      setEditDepts([]);
+      return;
+    }
+    let isActive = true;
+    setEditDeptsLoading(true);
+    getDocs(collection(db, "colleges", editCollegeId, "years", editYearDocId, "departments"))
+      .then((snap) => {
+        if (!isActive) return;
+        setEditDepts(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      })
+      .catch(() => { if (isActive) setEditDepts([]); })
+      .finally(() => { if (isActive) setEditDeptsLoading(false); });
+    return () => { isActive = false; };
+  }, [isEditModalOpen, editRole, editCollegeId, editYearDocId]);
 
   const filteredUsers = useMemo(() => {
     const roleFiltered =
@@ -1155,8 +1210,36 @@ function CreateAdminUser() {
 
                 {editRole === "student" ? (
                   <>
+                    <div className="col-span-2">
+                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">College</label>
+                      <select
+                        value={editCollegeId}
+                        onChange={(e) => { setEditCollegeId(e.target.value); setEditYearDocId(""); setEditStudentDeptId(""); }}
+                        disabled={collegesLoading || collegeOptions.length === 0}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 outline-none transition focus:border-[#0b2c4a]/40 focus:bg-white focus:ring-2 focus:ring-[#0b2c4a]/10 disabled:opacity-60"
+                      >
+                        <option value="">{collegesLoading ? "Loading..." : "Select college"}</option>
+                        {collegeOptions.map((option) => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </select>
+                    </div>
                     <div className="col-span-2 sm:col-span-1">
-                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">Year Level</label>
+                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">Year</label>
+                      <select
+                        value={editYearDocId}
+                        onChange={(e) => { setEditYearDocId(e.target.value); setEditStudentDeptId(""); }}
+                        disabled={editCollegeYearsLoading || editCollegeYears.length === 0}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 outline-none transition focus:border-[#0b2c4a]/40 focus:bg-white focus:ring-2 focus:ring-[#0b2c4a]/10 disabled:opacity-60"
+                      >
+                        <option value="">{editCollegeYearsLoading ? "Loading..." : "Select year"}</option>
+                        {editCollegeYears.map((y) => (
+                          <option key={y.id} value={y.id}>{y.name || y.id}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="col-span-2 sm:col-span-1">
+                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">Year Level (number)</label>
                       <input
                         type="number"
                         min="1"
@@ -1166,25 +1249,19 @@ function CreateAdminUser() {
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 outline-none transition focus:border-[#0b2c4a]/40 focus:bg-white focus:ring-2 focus:ring-[#0b2c4a]/10"
                       />
                     </div>
-                    <div className="col-span-2 sm:col-span-1">
-                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">Department ID</label>
-                      <input
-                        type="text"
-                        placeholder="Firestore department ID"
+                    <div className="col-span-2">
+                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">Department</label>
+                      <select
                         value={editStudentDeptId}
                         onChange={(e) => setEditStudentDeptId(e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 outline-none transition focus:border-[#0b2c4a]/40 focus:bg-white focus:ring-2 focus:ring-[#0b2c4a]/10"
-                      />
-                    </div>
-                    <div className="col-span-2 sm:col-span-1">
-                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">Year ID</label>
-                      <input
-                        type="text"
-                        placeholder="Firestore year doc ID"
-                        value={editYearDocId}
-                        onChange={(e) => setEditYearDocId(e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 outline-none transition focus:border-[#0b2c4a]/40 focus:bg-white focus:ring-2 focus:ring-[#0b2c4a]/10"
-                      />
+                        disabled={editDeptsLoading || editDepts.length === 0}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 outline-none transition focus:border-[#0b2c4a]/40 focus:bg-white focus:ring-2 focus:ring-[#0b2c4a]/10 disabled:opacity-60"
+                      >
+                        <option value="">{editDeptsLoading ? "Loading..." : "Select department"}</option>
+                        {editDepts.map((d) => (
+                          <option key={d.id} value={d.id}>{d.name || d.id}</option>
+                        ))}
+                      </select>
                     </div>
                   </>
                 ) : null}
