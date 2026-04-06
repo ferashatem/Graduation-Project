@@ -54,7 +54,8 @@ function SignIn() {
     const roleFromClaims = await getRoleFromClaims(user);
     const role = roleFromClaims || "student";
 
-    if (role === "super_admin") navigate("/super_admin/home", { replace: true });
+    if (role === "super_admin")
+      navigate("/super_admin/home", { replace: true });
     else if (role === "admin") navigate("/admin/home", { replace: true });
     else if (role === "professor") navigate("/prof", { replace: true });
     else if (role === "assistant") navigate("/asst", { replace: true });
@@ -89,7 +90,7 @@ function SignIn() {
         const userCred = await signInWithEmailAndPassword(
           auth,
           email,
-          password
+          password,
         );
 
         const signedUser = userCred.user;
@@ -104,28 +105,33 @@ function SignIn() {
         localStorage.setItem("userName", userName);
         localStorage.setItem(
           "user",
-          JSON.stringify({ uid: signedUser.uid, email: signedUser.email, role })
+          JSON.stringify({
+            uid: signedUser.uid,
+            email: signedUser.email,
+            role,
+          }),
         );
 
         // ✅ Redirect based on real role
         if (role === "super_admin")
           navigate("/super_admin/home", { replace: true });
         else if (role === "admin") navigate("/admin/home", { replace: true });
-        else if (role === "professor")
-          navigate("/prof", { replace: true });
-        else if (role === "assistant")
-          navigate("/asst", { replace: true });
+        else if (role === "professor") navigate("/prof", { replace: true });
+        else if (role === "assistant") navigate("/asst", { replace: true });
         else if (role === "student") navigate("/student", { replace: true });
         else navigate("/student", { replace: true });
       } catch (err) {
-        const msg = err.code === "auth/invalid-credential" || err.code === "auth/wrong-password" || err.code === "auth/user-not-found"
-          ? "Invalid email or password."
-          : err.message || "Login failed. Please try again.";
+        const msg =
+          err.code === "auth/invalid-credential" ||
+          err.code === "auth/wrong-password" ||
+          err.code === "auth/user-not-found"
+            ? "Invalid email or password."
+            : err.message || "Login failed. Please try again.";
         setLoginError(msg);
         setLoading(false);
       }
     },
-    [email, password, navigate, getUserFromFirestore, getRoleFromClaims]
+    [email, password, navigate, getUserFromFirestore, getRoleFromClaims],
   );
 
   if (authLoading) return pageLoadingUI;
@@ -145,7 +151,7 @@ function SignIn() {
 
           <div className="max-w-xl">
             <h1 className="text-4xl font-semibold leading-tight tracking-tight text-[#0b2c4a] lg:text-5xl lg:leading-tight font-['Palatino_Linotype','Book_Antiqua','Palatino','serif']">
-              Benis Suef National University
+              beni Suef National University
             </h1>
             <p className="mt-4 text-base text-[#1d3557]/80 lg:text-lg">
               Sign in to reach student services, faculty resources, and campus
@@ -157,7 +163,7 @@ function SignIn() {
             <div className="h-14 w-14 rounded-2xl bg-white p-2 shadow-sm">
               <img
                 src={BigLogo}
-                alt="Benis Suef National University logo"
+                alt="beni Suef National University logo"
                 className="h-full w-full object-contain"
               />
             </div>
@@ -177,7 +183,7 @@ function SignIn() {
                 <div className="h-full w-full rounded-full bg-white p-3">
                   <img
                     src={BigLogo}
-                    alt="Benis Suef National University logo"
+                    alt="beni Suef National University logo"
                     className="h-full w-full object-contain"
                   />
                 </div>

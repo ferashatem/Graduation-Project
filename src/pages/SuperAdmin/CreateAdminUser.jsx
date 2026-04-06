@@ -1,5 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { HiUser, HiMail, HiPhone, HiLockClosed, HiX, HiPlus } from "react-icons/hi";
+import {
+  HiUser,
+  HiMail,
+  HiPhone,
+  HiLockClosed,
+  HiX,
+  HiPlus,
+} from "react-icons/hi";
 import { getApps, initializeApp } from "firebase/app";
 import {
   createUserWithEmailAndPassword,
@@ -50,7 +57,9 @@ const getUserRoleKey = (user) => {
 
 const formatRoleLabel = (roleKey) => {
   if (!roleKey) return "N/A";
-  return roleKey.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+  return roleKey
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 };
 
 const getUserName = (user) =>
@@ -127,11 +136,11 @@ function CreateAdminUser() {
 
   const deleteUserAccount = useMemo(
     () => httpsCallable(functions, "deleteUserAccount"),
-    [functions]
+    [functions],
   );
   const editUserAccount = useMemo(
     () => httpsCallable(functions, "editUserAccount"),
-    [functions]
+    [functions],
   );
 
   const isSuperAdmin = userRole === "super_admin";
@@ -145,7 +154,7 @@ function CreateAdminUser() {
 
   const roleNeedsCollege = useMemo(
     () => ROLE_REQUIRES_COLLEGE.includes(role),
-    [role]
+    [role],
   );
   const collegeOptions = useMemo(
     () =>
@@ -153,11 +162,11 @@ function CreateAdminUser() {
         value: college.id,
         label: resolveCollegeName(college),
       })),
-    [colleges]
+    [colleges],
   );
   const isCollegeMissing = useMemo(
     () => roleNeedsCollege && !collegesLoading && collegeOptions.length === 0,
-    [roleNeedsCollege, collegesLoading, collegeOptions.length]
+    [roleNeedsCollege, collegesLoading, collegeOptions.length],
   );
   const isCollegeSelectionInvalid = useMemo(
     () =>
@@ -165,14 +174,20 @@ function CreateAdminUser() {
       !collegesLoading &&
       collegeOptions.length > 0 &&
       !collegeId,
-    [roleNeedsCollege, collegesLoading, collegeOptions.length, collegeId]
+    [roleNeedsCollege, collegesLoading, collegeOptions.length, collegeId],
   );
   const isCreateDisabled = useMemo(() => {
     if (!roleNeedsCollege) return loading;
     if (collegesLoading) return true;
     if (collegeOptions.length === 0) return true;
     return loading || !collegeId;
-  }, [roleNeedsCollege, collegesLoading, collegeOptions.length, collegeId, loading]);
+  }, [
+    roleNeedsCollege,
+    collegesLoading,
+    collegeOptions.length,
+    collegeId,
+    loading,
+  ]);
 
   const loadUsers = useCallback(async () => {
     if (!user) return;
@@ -202,7 +217,7 @@ function CreateAdminUser() {
 
       rows.sort(
         (first, second) =>
-          (second?.createdAt?.seconds ?? 0) - (first?.createdAt?.seconds ?? 0)
+          (second?.createdAt?.seconds ?? 0) - (first?.createdAt?.seconds ?? 0),
       );
 
       setUsers(rows);
@@ -240,7 +255,9 @@ function CreateAdminUser() {
       const trimmedEmail = email.trim();
       const trimmedName = name.trim();
       const trimmedPhoneNumber = phoneNumber.trim();
-      const normalizedRole = String(role || "").trim().toLowerCase();
+      const normalizedRole = String(role || "")
+        .trim()
+        .toLowerCase();
       const needsCollege = ROLE_REQUIRES_COLLEGE.includes(normalizedRole);
 
       if (!trimmedEmail || !trimmedName || !password || !normalizedRole) {
@@ -271,7 +288,7 @@ function CreateAdminUser() {
         const userCred = await createUserWithEmailAndPassword(
           secondaryAuth,
           trimmedEmail,
-          password
+          password,
         );
         createdUser = userCred.user;
 
@@ -344,7 +361,7 @@ function CreateAdminUser() {
       selectedYearDocId,
       studentDeptId,
       year,
-    ]
+    ],
   );
 
   const handleDeleteUser = useCallback(
@@ -362,7 +379,9 @@ function CreateAdminUser() {
       const displayName = getUserName(currentUser);
       const emailLabel = getUserEmail(currentUser);
       const confirmLabel = displayName !== "N/A" ? displayName : emailLabel;
-      const shouldDelete = window.confirm(`Delete ${confirmLabel}? This cannot be undone.`);
+      const shouldDelete = window.confirm(
+        `Delete ${confirmLabel}? This cannot be undone.`,
+      );
 
       if (!shouldDelete) return;
 
@@ -380,40 +399,49 @@ function CreateAdminUser() {
         setDeletingUserId("");
       }
     },
-    [deleteUserAccount, isAdmin]
+    [deleteUserAccount, isAdmin],
   );
 
-  const openEditModal = useCallback((currentUser) => {
-    if (!currentUser) return;
+  const openEditModal = useCallback(
+    (currentUser) => {
+      if (!currentUser) return;
 
-    const targetRole = getUserRoleKey(currentUser);
-    if (isAdmin && targetRole === "super_admin") {
-      setActionError("Admins cannot edit super admin accounts.");
+      const targetRole = getUserRoleKey(currentUser);
+      if (isAdmin && targetRole === "super_admin") {
+        setActionError("Admins cannot edit super admin accounts.");
+        setActionSuccess("");
+        return;
+      }
+
+      setEditingUser(currentUser);
+      setEditName(
+        currentUser?.name ??
+          currentUser?.fullName ??
+          currentUser?.displayName ??
+          currentUser?.Full_Name ??
+          "",
+      );
+      setEditEmail(currentUser?.email ?? currentUser?.Email ?? "");
+      setEditPhoneNumber(
+        currentUser?.phoneNumber ?? currentUser?.Phone_Number ?? "",
+      );
+      setEditRole(getUserRoleKey(currentUser) || "student");
+      setEditPassword("");
+      setEditYear(currentUser?.year != null ? String(currentUser.year) : "");
+      setEditYearDocId(currentUser?.yearId || "");
+      setEditStudentDeptId(currentUser?.departmentId || "");
+      setEditCollegeId(currentUser?.collegeId || "");
+      setEditCollegeYears([]);
+      setEditDepts([]);
+      setEditFormError("");
+      // Load colleges if not yet loaded
+      if (colleges.length === 0) loadColleges();
+      setActionError("");
       setActionSuccess("");
-      return;
-    }
-
-    setEditingUser(currentUser);
-    setEditName(
-      currentUser?.name ?? currentUser?.fullName ?? currentUser?.displayName ?? currentUser?.Full_Name ?? ""
-    );
-    setEditEmail(currentUser?.email ?? currentUser?.Email ?? "");
-    setEditPhoneNumber(currentUser?.phoneNumber ?? currentUser?.Phone_Number ?? "");
-    setEditRole(getUserRoleKey(currentUser) || "student");
-    setEditPassword("");
-    setEditYear(currentUser?.year != null ? String(currentUser.year) : "");
-    setEditYearDocId(currentUser?.yearId || "");
-    setEditStudentDeptId(currentUser?.departmentId || "");
-    setEditCollegeId(currentUser?.collegeId || "");
-    setEditCollegeYears([]);
-    setEditDepts([]);
-    setEditFormError("");
-    // Load colleges if not yet loaded
-    if (colleges.length === 0) loadColleges();
-    setActionError("");
-    setActionSuccess("");
-    setIsEditModalOpen(true);
-  }, [isAdmin]);
+      setIsEditModalOpen(true);
+    },
+    [isAdmin],
+  );
 
   const closeEditModal = useCallback(() => {
     setIsEditModalOpen(false);
@@ -487,9 +515,12 @@ function CreateAdminUser() {
         if (editRole === "student") {
           const studentUpdate = {};
           const parsedYear = Number(editYear);
-          if (Number.isFinite(parsedYear) && parsedYear > 0) studentUpdate.year = parsedYear;
-          if (editCollegeId.trim()) studentUpdate.collegeId = editCollegeId.trim();
-          if (editStudentDeptId.trim()) studentUpdate.departmentId = editStudentDeptId.trim();
+          if (Number.isFinite(parsedYear) && parsedYear > 0)
+            studentUpdate.year = parsedYear;
+          if (editCollegeId.trim())
+            studentUpdate.collegeId = editCollegeId.trim();
+          if (editStudentDeptId.trim())
+            studentUpdate.departmentId = editStudentDeptId.trim();
           if (editYearDocId.trim()) studentUpdate.yearId = editYearDocId.trim();
           if (Object.keys(studentUpdate).length > 0) {
             await updateDoc(doc(db, "users", uid), studentUpdate);
@@ -520,7 +551,7 @@ function CreateAdminUser() {
       editYear,
       editYearDocId,
       editCollegeId,
-    ]
+    ],
   );
 
   useEffect(() => {
@@ -577,9 +608,15 @@ function CreateAdminUser() {
         setDepts([]);
         setStudentDeptId("");
       })
-      .catch(() => { if (isActive) setCollegeYears([]); })
-      .finally(() => { if (isActive) setCollegeYearsLoading(false); });
-    return () => { isActive = false; };
+      .catch(() => {
+        if (isActive) setCollegeYears([]);
+      })
+      .finally(() => {
+        if (isActive) setCollegeYearsLoading(false);
+      });
+    return () => {
+      isActive = false;
+    };
   }, [role, collegeId]);
 
   useEffect(() => {
@@ -590,15 +627,30 @@ function CreateAdminUser() {
     }
     let isActive = true;
     setDeptsLoading(true);
-    getDocs(collection(db, "colleges", collegeId, "years", selectedYearDocId, "departments"))
+    getDocs(
+      collection(
+        db,
+        "colleges",
+        collegeId,
+        "years",
+        selectedYearDocId,
+        "departments",
+      ),
+    )
       .then((snap) => {
         if (!isActive) return;
         setDepts(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
         setStudentDeptId("");
       })
-      .catch(() => { if (isActive) setDepts([]); })
-      .finally(() => { if (isActive) setDeptsLoading(false); });
-    return () => { isActive = false; };
+      .catch(() => {
+        if (isActive) setDepts([]);
+      })
+      .finally(() => {
+        if (isActive) setDeptsLoading(false);
+      });
+    return () => {
+      isActive = false;
+    };
   }, [role, collegeId, selectedYearDocId]);
 
   // Load years for edit modal student cascade
@@ -617,34 +669,62 @@ function CreateAdminUser() {
         items.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
         setEditCollegeYears(items);
       })
-      .catch(() => { if (isActive) setEditCollegeYears([]); })
-      .finally(() => { if (isActive) setEditCollegeYearsLoading(false); });
-    return () => { isActive = false; };
+      .catch(() => {
+        if (isActive) setEditCollegeYears([]);
+      })
+      .finally(() => {
+        if (isActive) setEditCollegeYearsLoading(false);
+      });
+    return () => {
+      isActive = false;
+    };
   }, [isEditModalOpen, editRole, editCollegeId]);
 
   // Load departments for edit modal student cascade
   useEffect(() => {
-    if (!isEditModalOpen || editRole !== "student" || !editCollegeId || !editYearDocId) {
+    if (
+      !isEditModalOpen ||
+      editRole !== "student" ||
+      !editCollegeId ||
+      !editYearDocId
+    ) {
       setEditDepts([]);
       return;
     }
     let isActive = true;
     setEditDeptsLoading(true);
-    getDocs(collection(db, "colleges", editCollegeId, "years", editYearDocId, "departments"))
+    getDocs(
+      collection(
+        db,
+        "colleges",
+        editCollegeId,
+        "years",
+        editYearDocId,
+        "departments",
+      ),
+    )
       .then((snap) => {
         if (!isActive) return;
         setEditDepts(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
       })
-      .catch(() => { if (isActive) setEditDepts([]); })
-      .finally(() => { if (isActive) setEditDeptsLoading(false); });
-    return () => { isActive = false; };
+      .catch(() => {
+        if (isActive) setEditDepts([]);
+      })
+      .finally(() => {
+        if (isActive) setEditDeptsLoading(false);
+      });
+    return () => {
+      isActive = false;
+    };
   }, [isEditModalOpen, editRole, editCollegeId, editYearDocId]);
 
   const filteredUsers = useMemo(() => {
     const roleFiltered =
       activeRole === "all"
         ? users
-        : users.filter((currentUser) => getUserRoleKey(currentUser) === activeRole);
+        : users.filter(
+            (currentUser) => getUserRoleKey(currentUser) === activeRole,
+          );
     const query = searchTerm.trim().toLowerCase();
 
     if (!query) return roleFiltered;
@@ -663,14 +743,16 @@ function CreateAdminUser() {
       ];
 
       return searchableValues.some((value) =>
-        String(value ?? "").toLowerCase().includes(query)
+        String(value ?? "")
+          .toLowerCase()
+          .includes(query),
       );
     });
   }, [activeRole, searchTerm, users]);
 
   const totalPages = useMemo(
     () => Math.ceil(filteredUsers.length / USERS_PER_PAGE) || 1,
-    [filteredUsers.length]
+    [filteredUsers.length],
   );
 
   const paginatedUsers = useMemo(() => {
@@ -707,10 +789,16 @@ function CreateAdminUser() {
       <div className="flex flex-col gap-4 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-4">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#0b2c4a]/10">
-            <img src={BigLogo} alt="Benis Suef National University logo" className="h-8 w-8 object-contain" />
+            <img
+              src={BigLogo}
+              alt="beni Suef National University logo"
+              className="h-8 w-8 object-contain"
+            />
           </div>
           <div>
-            <h1 className="text-2xl font-semibold text-[#0b2c4a]">User Management</h1>
+            <h1 className="text-2xl font-semibold text-[#0b2c4a]">
+              User Management
+            </h1>
             <p className="text-sm text-slate-600">
               Create new accounts and assign roles for the portal.
             </p>
@@ -730,8 +818,12 @@ function CreateAdminUser() {
       <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h2 className="text-xl font-semibold text-[#0b2c4a]">User Directory</h2>
-            <p className="text-sm text-slate-600">Browse and filter users by role.</p>
+            <h2 className="text-xl font-semibold text-[#0b2c4a]">
+              User Directory
+            </h2>
+            <p className="text-sm text-slate-600">
+              Browse and filter users by role.
+            </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex flex-wrap gap-2">
@@ -766,13 +858,19 @@ function CreateAdminUser() {
         </div>
 
         {actionError ? (
-          <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700" role="alert">
+          <div
+            className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700"
+            role="alert"
+          >
             {actionError}
           </div>
         ) : null}
 
         {actionSuccess ? (
-          <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-700" role="status">
+          <div
+            className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-700"
+            role="status"
+          >
             {actionSuccess}
           </div>
         ) : null}
@@ -817,12 +915,19 @@ function CreateAdminUser() {
                     </td>
                     <td className="px-4 py-4">{getUserEmail(currentUser)}</td>
                     <td className="px-4 py-4">{getUserPhone(currentUser)}</td>
-                    <td className="px-4 py-4">{getUserCollegeId(currentUser)}</td>
-                    <td className="px-4 py-4">{formatRoleLabel(getUserRoleKey(currentUser))}</td>
-                    <td className="px-4 py-4">{formatCreatedAt(currentUser?.createdAt)}</td>
+                    <td className="px-4 py-4">
+                      {getUserCollegeId(currentUser)}
+                    </td>
+                    <td className="px-4 py-4">
+                      {formatRoleLabel(getUserRoleKey(currentUser))}
+                    </td>
+                    <td className="px-4 py-4">
+                      {formatCreatedAt(currentUser?.createdAt)}
+                    </td>
                     <td className="px-4 py-4 text-right">
                       {canManageUsers ? (
-                        isAdmin && getUserRoleKey(currentUser) === "super_admin" ? (
+                        isAdmin &&
+                        getUserRoleKey(currentUser) === "super_admin" ? (
                           <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
                             Protected
                           </span>
@@ -841,7 +946,9 @@ function CreateAdminUser() {
                               disabled={deletingUserId === currentUser.id}
                               className="inline-flex items-center justify-center rounded-full border border-red-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-red-600 transition hover:border-red-300 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                              {deletingUserId === currentUser.id ? "Deleting" : "Delete"}
+                              {deletingUserId === currentUser.id
+                                ? "Deleting"
+                                : "Delete"}
                             </button>
                           </div>
                         )
@@ -875,7 +982,9 @@ function CreateAdminUser() {
               </span>
               <button
                 type="button"
-                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                onClick={() =>
+                  setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                }
                 disabled={currentPage === totalPages}
                 className="rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600 transition hover:border-slate-300 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
               >
@@ -904,8 +1013,12 @@ function CreateAdminUser() {
                   <HiPlus className="h-5 w-5 text-[#0b2c4a]" />
                 </div>
                 <div>
-                  <h2 className="text-base font-semibold text-slate-800">Create Account</h2>
-                  <p className="text-xs text-slate-500">Add a new user to the portal</p>
+                  <h2 className="text-base font-semibold text-slate-800">
+                    Create Account
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Add a new user to the portal
+                  </p>
                 </div>
               </div>
               <button
@@ -923,7 +1036,10 @@ function CreateAdminUser() {
               <div className="grid grid-cols-2 gap-4">
                 {/* Full Name */}
                 <div className="col-span-2">
-                  <label htmlFor="admin-name" className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">
+                  <label
+                    htmlFor="admin-name"
+                    className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500"
+                  >
                     Full Name
                   </label>
                   <div className="relative">
@@ -943,7 +1059,10 @@ function CreateAdminUser() {
 
                 {/* Email */}
                 <div className="col-span-2">
-                  <label htmlFor="admin-email" className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">
+                  <label
+                    htmlFor="admin-email"
+                    className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500"
+                  >
                     Email
                   </label>
                   <div className="relative">
@@ -963,7 +1082,10 @@ function CreateAdminUser() {
 
                 {/* Phone */}
                 <div className="col-span-2 sm:col-span-1">
-                  <label htmlFor="admin-phone" className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">
+                  <label
+                    htmlFor="admin-phone"
+                    className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500"
+                  >
                     Phone
                   </label>
                   <div className="relative">
@@ -982,7 +1104,10 @@ function CreateAdminUser() {
 
                 {/* Password */}
                 <div className="col-span-2 sm:col-span-1">
-                  <label htmlFor="admin-password" className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">
+                  <label
+                    htmlFor="admin-password"
+                    className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500"
+                  >
                     Password
                   </label>
                   <div className="relative">
@@ -1002,7 +1127,9 @@ function CreateAdminUser() {
 
                 {/* Role pills */}
                 <div className="col-span-2">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-500">Role</p>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-500">
+                    Role
+                  </p>
                   <div className="flex flex-wrap gap-2">
                     {roleOptions.map((opt) => (
                       <button
@@ -1024,7 +1151,10 @@ function CreateAdminUser() {
                 {/* College */}
                 {roleNeedsCollege ? (
                   <div className="col-span-2">
-                    <label htmlFor="admin-college" className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">
+                    <label
+                      htmlFor="admin-college"
+                      className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500"
+                    >
                       College
                     </label>
                     <select
@@ -1035,23 +1165,37 @@ function CreateAdminUser() {
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 outline-none transition focus:border-[#0b2c4a]/40 focus:bg-white focus:ring-2 focus:ring-[#0b2c4a]/10 disabled:opacity-60"
                       required
                     >
-                      {collegesLoading ? <option value="">Loading colleges...</option> : null}
+                      {collegesLoading ? (
+                        <option value="">Loading colleges...</option>
+                      ) : null}
                       {!collegesLoading && collegeOptions.length === 0 ? (
                         <option value="">No colleges found</option>
                       ) : null}
                       {collegeOptions.map((option) => (
-                        <option key={option.value} value={option.value}>{option.label}</option>
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
                       ))}
                     </select>
-                    {collegesError ? <p className="mt-1.5 text-xs text-red-600">{collegesError}</p> : null}
-                    {isCollegeMissing ? <p className="mt-1.5 text-xs text-amber-600">No colleges found. Create a college first.</p> : null}
+                    {collegesError ? (
+                      <p className="mt-1.5 text-xs text-red-600">
+                        {collegesError}
+                      </p>
+                    ) : null}
+                    {isCollegeMissing ? (
+                      <p className="mt-1.5 text-xs text-amber-600">
+                        No colleges found. Create a college first.
+                      </p>
+                    ) : null}
                   </div>
                 ) : null}
 
                 {role === "student" ? (
                   <>
                     <div className="col-span-2 sm:col-span-1">
-                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">Year Level</label>
+                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">
+                        Year Level
+                      </label>
                       <input
                         type="number"
                         min="1"
@@ -1063,31 +1207,47 @@ function CreateAdminUser() {
                     </div>
 
                     <div className="col-span-2 sm:col-span-1">
-                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">Year (for dept)</label>
+                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">
+                        Year (for dept)
+                      </label>
                       <select
                         value={selectedYearDocId}
                         onChange={(e) => setSelectedYearDocId(e.target.value)}
-                        disabled={collegeYearsLoading || collegeYears.length === 0}
+                        disabled={
+                          collegeYearsLoading || collegeYears.length === 0
+                        }
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 outline-none transition focus:border-[#0b2c4a]/40 focus:bg-white focus:ring-2 focus:ring-[#0b2c4a]/10 disabled:opacity-60"
                       >
-                        <option value="">{collegeYearsLoading ? "Loading..." : "Select year"}</option>
+                        <option value="">
+                          {collegeYearsLoading ? "Loading..." : "Select year"}
+                        </option>
                         {collegeYears.map((y) => (
-                          <option key={y.id} value={y.id}>{y.name || y.id}</option>
+                          <option key={y.id} value={y.id}>
+                            {y.name || y.id}
+                          </option>
                         ))}
                       </select>
                     </div>
 
                     <div className="col-span-2">
-                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">Department</label>
+                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">
+                        Department
+                      </label>
                       <select
                         value={studentDeptId}
                         onChange={(e) => setStudentDeptId(e.target.value)}
                         disabled={deptsLoading || depts.length === 0}
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 outline-none transition focus:border-[#0b2c4a]/40 focus:bg-white focus:ring-2 focus:ring-[#0b2c4a]/10 disabled:opacity-60"
                       >
-                        <option value="">{deptsLoading ? "Loading..." : "Select department (optional)"}</option>
+                        <option value="">
+                          {deptsLoading
+                            ? "Loading..."
+                            : "Select department (optional)"}
+                        </option>
                         {depts.map((d) => (
-                          <option key={d.id} value={d.id}>{d.name || d.id}</option>
+                          <option key={d.id} value={d.id}>
+                            {d.name || d.id}
+                          </option>
                         ))}
                       </select>
                     </div>
@@ -1096,7 +1256,10 @@ function CreateAdminUser() {
               </div>
 
               {formError ? (
-                <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700" role="alert">
+                <div
+                  className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700"
+                  role="alert"
+                >
                   {formError}
                 </div>
               ) : null}
@@ -1146,9 +1309,13 @@ function CreateAdminUser() {
                   <HiUser className="h-5 w-5 text-[#0b2c4a]" />
                 </div>
                 <div>
-                  <h2 className="text-base font-semibold text-slate-800">Edit User</h2>
+                  <h2 className="text-base font-semibold text-slate-800">
+                    Edit User
+                  </h2>
                   <p className="text-xs text-slate-500">
-                    {editingUser ? getUserName(editingUser) : "Update account details"}
+                    {editingUser
+                      ? getUserName(editingUser)
+                      : "Update account details"}
                   </p>
                 </div>
               </div>
@@ -1165,43 +1332,103 @@ function CreateAdminUser() {
             <form onSubmit={handleEditAccount} className="px-6 py-5">
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <label htmlFor="edit-name" className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">Full Name</label>
+                  <label
+                    htmlFor="edit-name"
+                    className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500"
+                  >
+                    Full Name
+                  </label>
                   <div className="relative">
                     <HiUser className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                    <input id="edit-name" type="text" placeholder="Full name" value={editName} onChange={(e) => setEditName(e.target.value)} autoComplete="name" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-800 outline-none transition focus:border-[#0b2c4a]/40 focus:bg-white focus:ring-2 focus:ring-[#0b2c4a]/10" required />
+                    <input
+                      id="edit-name"
+                      type="text"
+                      placeholder="Full name"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      autoComplete="name"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-800 outline-none transition focus:border-[#0b2c4a]/40 focus:bg-white focus:ring-2 focus:ring-[#0b2c4a]/10"
+                      required
+                    />
                   </div>
                 </div>
 
                 <div className="col-span-2">
-                  <label htmlFor="edit-email" className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">Email</label>
+                  <label
+                    htmlFor="edit-email"
+                    className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500"
+                  >
+                    Email
+                  </label>
                   <div className="relative">
                     <HiMail className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                    <input id="edit-email" type="email" placeholder="user@example.com" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} autoComplete="email" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-800 outline-none transition focus:border-[#0b2c4a]/40 focus:bg-white focus:ring-2 focus:ring-[#0b2c4a]/10" required />
+                    <input
+                      id="edit-email"
+                      type="email"
+                      placeholder="user@example.com"
+                      value={editEmail}
+                      onChange={(e) => setEditEmail(e.target.value)}
+                      autoComplete="email"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-800 outline-none transition focus:border-[#0b2c4a]/40 focus:bg-white focus:ring-2 focus:ring-[#0b2c4a]/10"
+                      required
+                    />
                   </div>
                 </div>
 
                 <div className="col-span-2 sm:col-span-1">
-                  <label htmlFor="edit-phone" className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">Phone</label>
+                  <label
+                    htmlFor="edit-phone"
+                    className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500"
+                  >
+                    Phone
+                  </label>
                   <div className="relative">
                     <HiPhone className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                    <input id="edit-phone" type="tel" placeholder="+20 100 000 0000" value={editPhoneNumber} onChange={(e) => setEditPhoneNumber(e.target.value)} autoComplete="tel" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-800 outline-none transition focus:border-[#0b2c4a]/40 focus:bg-white focus:ring-2 focus:ring-[#0b2c4a]/10" />
+                    <input
+                      id="edit-phone"
+                      type="tel"
+                      placeholder="+20 100 000 0000"
+                      value={editPhoneNumber}
+                      onChange={(e) => setEditPhoneNumber(e.target.value)}
+                      autoComplete="tel"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-800 outline-none transition focus:border-[#0b2c4a]/40 focus:bg-white focus:ring-2 focus:ring-[#0b2c4a]/10"
+                    />
                   </div>
                 </div>
 
                 <div className="col-span-2 sm:col-span-1">
-                  <label htmlFor="edit-password" className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">New Password</label>
+                  <label
+                    htmlFor="edit-password"
+                    className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500"
+                  >
+                    New Password
+                  </label>
                   <div className="relative">
                     <HiLockClosed className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                    <input id="edit-password" type="password" placeholder="Leave blank to keep" value={editPassword} onChange={(e) => setEditPassword(e.target.value)} autoComplete="new-password" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-800 outline-none transition focus:border-[#0b2c4a]/40 focus:bg-white focus:ring-2 focus:ring-[#0b2c4a]/10" />
+                    <input
+                      id="edit-password"
+                      type="password"
+                      placeholder="Leave blank to keep"
+                      value={editPassword}
+                      onChange={(e) => setEditPassword(e.target.value)}
+                      autoComplete="new-password"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-800 outline-none transition focus:border-[#0b2c4a]/40 focus:bg-white focus:ring-2 focus:ring-[#0b2c4a]/10"
+                    />
                   </div>
                 </div>
 
                 <div className="col-span-2">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-500">Role</p>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-500">
+                    Role
+                  </p>
                   <div className="flex flex-wrap gap-2">
                     {roleOptions.map((opt) => (
-                      <button key={opt.value} type="button" onClick={() => setEditRole(opt.value)}
-                        className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${editRole === opt.value ? "bg-[#0b2c4a] text-white shadow-sm" : "border border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-800"}`}>
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setEditRole(opt.value)}
+                        className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${editRole === opt.value ? "bg-[#0b2c4a] text-white shadow-sm" : "border border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-800"}`}
+                      >
                         {opt.label}
                       </button>
                     ))}
@@ -1211,35 +1438,63 @@ function CreateAdminUser() {
                 {editRole === "student" ? (
                   <>
                     <div className="col-span-2">
-                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">College</label>
+                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">
+                        College
+                      </label>
                       <select
                         value={editCollegeId}
-                        onChange={(e) => { setEditCollegeId(e.target.value); setEditYearDocId(""); setEditStudentDeptId(""); }}
-                        disabled={collegesLoading || collegeOptions.length === 0}
+                        onChange={(e) => {
+                          setEditCollegeId(e.target.value);
+                          setEditYearDocId("");
+                          setEditStudentDeptId("");
+                        }}
+                        disabled={
+                          collegesLoading || collegeOptions.length === 0
+                        }
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 outline-none transition focus:border-[#0b2c4a]/40 focus:bg-white focus:ring-2 focus:ring-[#0b2c4a]/10 disabled:opacity-60"
                       >
-                        <option value="">{collegesLoading ? "Loading..." : "Select college"}</option>
+                        <option value="">
+                          {collegesLoading ? "Loading..." : "Select college"}
+                        </option>
                         {collegeOptions.map((option) => (
-                          <option key={option.value} value={option.value}>{option.label}</option>
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
                         ))}
                       </select>
                     </div>
                     <div className="col-span-2 sm:col-span-1">
-                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">Year</label>
+                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">
+                        Year
+                      </label>
                       <select
                         value={editYearDocId}
-                        onChange={(e) => { setEditYearDocId(e.target.value); setEditStudentDeptId(""); }}
-                        disabled={editCollegeYearsLoading || editCollegeYears.length === 0}
+                        onChange={(e) => {
+                          setEditYearDocId(e.target.value);
+                          setEditStudentDeptId("");
+                        }}
+                        disabled={
+                          editCollegeYearsLoading ||
+                          editCollegeYears.length === 0
+                        }
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 outline-none transition focus:border-[#0b2c4a]/40 focus:bg-white focus:ring-2 focus:ring-[#0b2c4a]/10 disabled:opacity-60"
                       >
-                        <option value="">{editCollegeYearsLoading ? "Loading..." : "Select year"}</option>
+                        <option value="">
+                          {editCollegeYearsLoading
+                            ? "Loading..."
+                            : "Select year"}
+                        </option>
                         {editCollegeYears.map((y) => (
-                          <option key={y.id} value={y.id}>{y.name || y.id}</option>
+                          <option key={y.id} value={y.id}>
+                            {y.name || y.id}
+                          </option>
                         ))}
                       </select>
                     </div>
                     <div className="col-span-2 sm:col-span-1">
-                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">Year Level (number)</label>
+                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">
+                        Year Level (number)
+                      </label>
                       <input
                         type="number"
                         min="1"
@@ -1250,16 +1505,24 @@ function CreateAdminUser() {
                       />
                     </div>
                     <div className="col-span-2">
-                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">Department</label>
+                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-500">
+                        Department
+                      </label>
                       <select
                         value={editStudentDeptId}
                         onChange={(e) => setEditStudentDeptId(e.target.value)}
                         disabled={editDeptsLoading || editDepts.length === 0}
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 outline-none transition focus:border-[#0b2c4a]/40 focus:bg-white focus:ring-2 focus:ring-[#0b2c4a]/10 disabled:opacity-60"
                       >
-                        <option value="">{editDeptsLoading ? "Loading..." : "Select department"}</option>
+                        <option value="">
+                          {editDeptsLoading
+                            ? "Loading..."
+                            : "Select department"}
+                        </option>
                         {editDepts.map((d) => (
-                          <option key={d.id} value={d.id}>{d.name || d.id}</option>
+                          <option key={d.id} value={d.id}>
+                            {d.name || d.id}
+                          </option>
                         ))}
                       </select>
                     </div>
@@ -1268,13 +1531,35 @@ function CreateAdminUser() {
               </div>
 
               {editFormError ? (
-                <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700" role="alert">{editFormError}</div>
+                <div
+                  className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700"
+                  role="alert"
+                >
+                  {editFormError}
+                </div>
               ) : null}
 
               <div className="mt-5 flex items-center justify-end gap-3">
-                <button type="button" onClick={closeEditModal} className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50">Cancel</button>
-                <button type="submit" disabled={editLoading} className="flex items-center gap-2 rounded-xl bg-[#0b2c4a] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#153a63] disabled:cursor-not-allowed disabled:opacity-60">
-                  {editLoading ? (<><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />Saving…</>) : "Save Changes"}
+                <button
+                  type="button"
+                  onClick={closeEditModal}
+                  className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={editLoading}
+                  className="flex items-center gap-2 rounded-xl bg-[#0b2c4a] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#153a63] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {editLoading ? (
+                    <>
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                      Saving…
+                    </>
+                  ) : (
+                    "Save Changes"
+                  )}
                 </button>
               </div>
             </form>

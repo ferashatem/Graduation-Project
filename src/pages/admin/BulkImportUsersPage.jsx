@@ -83,7 +83,7 @@ function BulkImportUsersPage() {
 
   const bulkCreateUsers = useMemo(
     () => httpsCallable(functions, "bulkCreateUsers"),
-    [functions]
+    [functions],
   );
 
   const validationRows = useMemo(
@@ -117,28 +117,27 @@ function BulkImportUsersPage() {
 
         return { ...row, errors };
       }),
-    [rows]
+    [rows],
   );
 
   const hasErrors = useMemo(
     () => validationRows.some((row) => row.errors.length > 0),
-    [validationRows]
+    [validationRows],
   );
 
   const errorCount = useMemo(
-    () =>
-      validationRows.reduce((total, row) => total + row.errors.length, 0),
-    [validationRows]
+    () => validationRows.reduce((total, row) => total + row.errors.length, 0),
+    [validationRows],
   );
 
   const canImport = useMemo(
     () => validationRows.length > 0 && !hasErrors && !importing,
-    [validationRows.length, hasErrors, importing]
+    [validationRows.length, hasErrors, importing],
   );
 
   const resultSummary = useMemo(() => {
     const successCount = importResults.filter(
-      (result) => result?.status === "success"
+      (result) => result?.status === "success",
     ).length;
     return {
       successCount,
@@ -191,24 +190,30 @@ function BulkImportUsersPage() {
       const headerIndexMap = buildHeaderIndexMap(sheetRows[0]);
       const requiredHeaders = ["username", "email", "password", "role"];
       const missingHeaders = requiredHeaders.filter(
-        (key) => headerIndexMap[key] === undefined
+        (key) => headerIndexMap[key] === undefined,
       );
 
       if (missingHeaders.length) {
-        throw new Error(`Missing required headers: ${missingHeaders.join(", ")}.`);
+        throw new Error(
+          `Missing required headers: ${missingHeaders.join(", ")}.`,
+        );
       }
 
       const parsedRows = sheetRows
         .slice(1)
         .map((row, rowIndex) => {
           const username = normalizeCellValue(row[headerIndexMap.username]);
-          const email = normalizeCellValue(row[headerIndexMap.email]).toLowerCase();
+          const email = normalizeCellValue(
+            row[headerIndexMap.email],
+          ).toLowerCase();
           const phone =
             headerIndexMap.phone !== undefined
               ? normalizeCellValue(row[headerIndexMap.phone])
               : "";
           const password = normalizeCellValue(row[headerIndexMap.password]);
-          const role = normalizeCellValue(row[headerIndexMap.role]).toLowerCase();
+          const role = normalizeCellValue(
+            row[headerIndexMap.role],
+          ).toLowerCase();
 
           return {
             index: rowIndex,
@@ -222,8 +227,8 @@ function BulkImportUsersPage() {
         })
         .filter((row) =>
           [row.username, row.email, row.phone, row.password, row.role].some(
-            (value) => String(value || "").trim()
-          )
+            (value) => String(value || "").trim(),
+          ),
         );
 
       if (!parsedRows.length) {
@@ -277,7 +282,7 @@ function BulkImportUsersPage() {
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#0b2c4a]/10">
             <img
               src={BigLogo}
-              alt="Benis Suef National University logo"
+              alt="beni Suef National University logo"
               className="h-8 w-8 object-contain"
             />
           </div>
@@ -306,7 +311,8 @@ function BulkImportUsersPage() {
               Upload Excel File
             </h2>
             <p className="text-sm text-slate-600">
-              Required headers: username, email, password, role. Phone is optional.
+              Required headers: username, email, password, role. Phone is
+              optional.
             </p>
             <p className="text-xs text-slate-500">
               Accepted roles: {ACCEPTED_ROLES.join(", ")}.
@@ -461,9 +467,7 @@ function BulkImportUsersPage() {
                         ? result.index + 1
                         : index + 1}
                     </td>
-                    <td className="px-4 py-4">
-                      {result?.email || "Unknown"}
-                    </td>
+                    <td className="px-4 py-4">{result?.email || "Unknown"}</td>
                     <td className="px-4 py-4">
                       <span
                         className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${

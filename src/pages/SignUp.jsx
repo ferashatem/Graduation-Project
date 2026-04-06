@@ -34,7 +34,11 @@ function SignUp() {
       setLoading(true);
 
       try {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const userCredential = await createUserWithEmailAndPassword(
+          auth,
+          email,
+          password,
+        );
         const user = userCredential.user;
         await setDoc(
           doc(db, "Users", user.uid),
@@ -44,7 +48,7 @@ function SignUp() {
             role: "student",
             createdAt: serverTimestamp(),
           },
-          { merge: true }
+          { merge: true },
         );
         setSuccessMessage("Account created. You can sign in now.");
         setEmail("");
@@ -56,7 +60,7 @@ function SignUp() {
         setLoading(false);
       }
     },
-    [email, password, confirmPassword]
+    [email, password, confirmPassword],
   );
 
   return (
@@ -77,17 +81,23 @@ function SignUp() {
               Create your campus access
             </h1>
             <p className="mt-4 text-base text-[#1d3557]/80 lg:text-lg">
-              No university email yet? Use any valid email address to create a portal account and we will connect you to
-              the right services.
+              No university email yet? Use any valid email address to create a
+              portal account and we will connect you to the right services.
             </p>
           </div>
 
           <div className="flex items-center gap-4 rounded-2xl bg-white/70 p-4 shadow-sm ring-1 ring-white/60">
             <div className="h-14 w-14 rounded-2xl bg-white p-2 shadow-sm">
-              <img src={BigLogo} alt="Benis Suef National University logo" className="h-full w-full object-contain" />
+              <img
+                src={BigLogo}
+                alt="beni Suef National University logo"
+                className="h-full w-full object-contain"
+              />
             </div>
             <div className="text-sm text-[#1d3557]/70">
-              <p className="text-base font-semibold text-[#0b2c4a]">New Accounts Welcome</p>
+              <p className="text-base font-semibold text-[#0b2c4a]">
+                New Accounts Welcome
+              </p>
               <p>Create a secure login to access the university portal.</p>
             </div>
           </div>
@@ -98,13 +108,19 @@ function SignUp() {
             <div className="flex flex-col items-center text-center">
               <div className="h-24 w-24 rounded-full bg-[#0b2c4a] p-[3px] shadow-lg">
                 <div className="h-full w-full rounded-full bg-white p-3">
-                  <img src={BigLogo} alt="Benis Suef National University logo" className="h-full w-full object-contain" />
+                  <img
+                    src={BigLogo}
+                    alt="beni Suef National University logo"
+                    className="h-full w-full object-contain"
+                  />
                 </div>
               </div>
               <h2 className="mt-5 text-2xl font-semibold text-[#0b2c4a] font-['Palatino_Linotype','Book_Antiqua','Palatino','serif']">
                 Create Account
               </h2>
-              <p className="mt-2 text-sm text-[#1d3557]/70">Set up your portal credentials to get started.</p>
+              <p className="mt-2 text-sm text-[#1d3557]/70">
+                Set up your portal credentials to get started.
+              </p>
             </div>
 
             <form className="mt-8 flex flex-col gap-5" onSubmit={handleSignUp}>
@@ -166,7 +182,10 @@ function SignUp() {
               </div>
 
               {formError ? (
-                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700" role="alert">
+                <div
+                  className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700"
+                  role="alert"
+                >
                   {formError}
                 </div>
               ) : null}
@@ -207,7 +226,8 @@ function SignUp() {
             </div>
 
             <div className="mt-6 rounded-2xl bg-[#0b2c4a]/5 px-4 py-3 text-xs text-[#1d3557]/70">
-              Use a secure password and keep it private. For help, contact the IT helpdesk.
+              Use a secure password and keep it private. For help, contact the
+              IT helpdesk.
             </div>
           </div>
         </div>
