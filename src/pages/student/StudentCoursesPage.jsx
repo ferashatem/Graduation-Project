@@ -1,6 +1,14 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { collection, onSnapshot, query, where } from "firebase/firestore";
+import {
+  collection,
+  collectionGroup,
+  getDoc,
+  doc,
+  onSnapshot,
+  query,
+  where,
+} from "firebase/firestore";
 import jsPDF from "jspdf";
 import { db } from "../../firebase/firebaseConfig";
 import PageHeader from "../../components/common/PageHeader";
@@ -63,7 +71,7 @@ function CourseCard({ course }) {
   const scheduleEntries = useMemo(() => {
     if (!Array.isArray(course.schedule) || course.schedule.length === 0) return [];
     return course.schedule.map((entry) => {
-      const day = entry.day || "";
+      const day = entry.day || entry.dayKey || "";
       const start = entry.startTime || entry.start || "";
       const end = entry.endTime || entry.end || "";
       if (!day && !start) return null;
@@ -83,8 +91,9 @@ function CourseCard({ course }) {
         </div>
 
         <div className="mt-4 space-y-2 text-sm">
-          <Row label="Term" value={course.term || "-"} />
-          <Row label="Year" value={course.yearLevel ? `Year ${course.yearLevel}` : "-"} />
+          {course.collegeName ? <Row label="College" value={course.collegeName} /> : null}
+          {course.departmentName ? <Row label="Department" value={course.departmentName} /> : null}
+          <Row label="Year" value={course.yearLabel || "-"} />
           <Row label="Section" value={course.section ? `§${course.section}` : "-"} />
           <div className="pt-1 border-t border-slate-100" />
           <Row
@@ -170,16 +179,17 @@ const exportPdf = (courses, studentName) => {
     if (idx > 0) gap(5);
     if (y > 240) { pdf.addPage(); y = margin; }
 
-    // Card background
     pdf.setFillColor(245, 248, 255);
-    pdf.roundedRect(margin - 3, y - 5, pageW - margin * 2 + 6, 52, 3, 3, "F");
+    pdf.roundedRect(margin - 3, y - 5, pageW - margin * 2 + 6, 62, 3, 3, "F");
 
     line(course.courseName, 13, true, [11, 44, 74]);
     if (course.courseCode && course.courseCode !== "-") {
       line(course.courseCode, 10, false, [29, 95, 163]);
     }
     gap(1);
-    line(`Term: ${course.term || "-"}  |  Year: ${course.yearLevel ? `Year ${course.yearLevel}` : "-"}  |  Section: ${course.section ? `§${course.section}` : "-"}`, 10);
+    if (course.collegeName) line(`College: ${course.collegeName}`, 10);
+    if (course.departmentName) line(`Department: ${course.departmentName}`, 10);
+    line(`Year: ${course.yearLabel || "-"}  |  Section: ${course.section ? `§${course.section}` : "-"}`, 10);
 
     const building = course.building && course.room
       ? `${course.building} / ${course.room}`
@@ -188,7 +198,7 @@ const exportPdf = (courses, studentName) => {
 
     const schedEntries = Array.isArray(course.schedule)
       ? course.schedule.map((e) => {
-          const d = e.day || ""; const s = e.startTime || ""; const en = e.endTime || "";
+          const d = e.day || e.dayKey || ""; const s = e.startTime || e.start || ""; const en = e.endTime || e.end || "";
           return s && en ? `${d} ${s} - ${en}`.trim() : d;
         }).filter(Boolean)
       : [];
@@ -202,11 +212,21 @@ const exportPdf = (courses, studentName) => {
 
 function StudentCoursesPage() {
   const outletContext = useOutletContext() || {};
-  const { user, profile, profileLoading } = outletContext;
+  const { profile, profileLoading } = outletContext;
 
-  const [assignments, setAssignments] = useState([]);
+  const [rawCourses, setRawCourses] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Resolved labels for college / year / department
+  const [collegeName, setCollegeName] = useState("");
+  const [yearLabel, setYearLabel] = useState("");
+  const [departmentName, setDepartmentName] = useState("");
+
+  // Schedule entries keyed by courseId
+  const [schedulesByCourse, setSchedulesByCourse] = useState({});
+  // Building names keyed by buildingId
+  const [buildingNames, setBuildingNames] = useState({});
 
   const collegeId = profile?.collegeId || "";
   const departmentId = profile?.departmentId || "";
@@ -214,8 +234,36 @@ function StudentCoursesPage() {
 
   const canQuery = Boolean(collegeId) && Boolean(yearId) && Boolean(departmentId) && !profileLoading;
 
+  // ── Fetch college / year / department names ──
   useEffect(() => {
-    if (!canQuery) { setAssignments([]); return; }
+    if (!collegeId) return;
+    getDoc(doc(db, "colleges", collegeId)).then((snap) => {
+      if (snap.exists()) setCollegeName(snap.data().name || "");
+    }).catch(() => {});
+  }, [collegeId]);
+
+  useEffect(() => {
+    if (!collegeId || !yearId) return;
+    getDoc(doc(db, "colleges", collegeId, "years", yearId)).then((snap) => {
+      if (snap.exists()) {
+        const d = snap.data();
+        // year docs may store level as number or name as string
+        const label = d.name || (d.level != null ? `Year ${d.level}` : "") || yearId;
+        setYearLabel(label);
+      }
+    }).catch(() => {});
+  }, [collegeId, yearId]);
+
+  useEffect(() => {
+    if (!collegeId || !yearId || !departmentId) return;
+    getDoc(doc(db, "colleges", collegeId, "years", yearId, "departments", departmentId)).then((snap) => {
+      if (snap.exists()) setDepartmentName(snap.data().name || "");
+    }).catch(() => {});
+  }, [collegeId, yearId, departmentId]);
+
+  // ── Fetch courses ──
+  useEffect(() => {
+    if (!canQuery) { setRawCourses([]); return; }
 
     setLoading(true);
     setError("");
@@ -230,7 +278,7 @@ function StudentCoursesPage() {
     const unsub = onSnapshot(
       q,
       (snap) => {
-        setAssignments(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        setRawCourses(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
         setLoading(false);
       },
       (err) => {
@@ -242,22 +290,108 @@ function StudentCoursesPage() {
     return () => unsub();
   }, [canQuery, collegeId, departmentId, yearId]);
 
+  // ── Subscribe to schedule entries for the student's courses ──
+  useEffect(() => {
+    if (rawCourses.length === 0 || !collegeId) return;
+
+    const courseIds = rawCourses.map((c) => c.id);
+
+    // Firestore `in` supports up to 30 values; batch if needed
+    const chunks = [];
+    for (let i = 0; i < courseIds.length; i += 30) {
+      chunks.push(courseIds.slice(i, i + 30));
+    }
+
+    const unsubscribers = chunks.map((chunk) => {
+      const schedulesQuery = query(
+        collectionGroup(db, "schedule"),
+        where("courseId", "in", chunk)
+      );
+
+      return onSnapshot(
+        schedulesQuery,
+        (snap) => {
+          const map = {};
+          const buildingIds = new Set();
+          snap.docs.forEach((d) => {
+            const data = d.data();
+            if (!data.courseId) return;
+            if (!map[data.courseId]) map[data.courseId] = [];
+            map[data.courseId].push({ id: d.id, ...data });
+            // derive buildingId from path if not stored as field
+            const pathBuildingId =
+              data.buildingId ||
+              (() => {
+                const parts = d.ref.path.split("/");
+                const idx = parts.indexOf("buildings");
+                return idx >= 0 ? parts[idx + 1] : "";
+              })();
+            if (pathBuildingId) {
+              buildingIds.add(pathBuildingId);
+              if (!data.buildingId) map[data.courseId].at(-1).buildingId = pathBuildingId;
+            }
+            const pathRoomId =
+              data.roomId ||
+              (() => {
+                const parts = d.ref.path.split("/");
+                const idx = parts.indexOf("rooms");
+                return idx >= 0 ? parts[idx + 1] : "";
+              })();
+            if (pathRoomId && !data.roomId) map[data.courseId].at(-1).roomId = pathRoomId;
+          });
+
+          setSchedulesByCourse((prev) => ({ ...prev, ...map }));
+
+          // Fetch building names
+          Promise.all(
+            [...buildingIds].map((bid) =>
+              getDoc(doc(db, "colleges", collegeId, "buildings", bid))
+                .then((s) => [bid, s.exists() ? (s.data().name || bid) : bid])
+                .catch(() => [bid, bid])
+            )
+          ).then((pairs) => {
+            if (pairs.length > 0) {
+              setBuildingNames((prev) => ({ ...prev, ...Object.fromEntries(pairs) }));
+            }
+          });
+        },
+        (err) => {
+          console.error("[StudentCoursesPage] schedule query error:", err?.code, err?.message);
+        }
+      );
+    });
+
+    return () => unsubscribers.forEach((unsub) => unsub());
+  }, [rawCourses, collegeId]);
+
   const cards = useMemo(
     () =>
-      assignments.map((a) => ({
-        id: a.id,
-        courseName: a.name || "Untitled course",
-        courseCode: a.code || "-",
-        creditHours: a.creditHours,
-        description: a.description || "",
-        term: "-",
-        yearLevel: null,
-        section: null,
-        building: "",
-        room: "",
-        schedule: [],
-      })),
-    [assignments]
+      rawCourses.map((a) => {
+        const entries = schedulesByCourse[a.id] || [];
+        // Derive building/room from first schedule entry that has it
+        const firstWithBuilding = entries.find((e) => e.buildingId);
+        const buildingId = firstWithBuilding?.buildingId || "";
+        const building = buildingNames[buildingId] || buildingId;
+        const room = firstWithBuilding?.roomId || firstWithBuilding?.roomName || "";
+        // section from first schedule entry
+        const section = entries[0]?.section || "";
+
+        return {
+          id: a.id,
+          courseName: a.name || "Untitled course",
+          courseCode: a.code || "-",
+          creditHours: a.creditHours,
+          description: a.description || "",
+          collegeName,
+          departmentName,
+          yearLabel,
+          section,
+          building,
+          room,
+          schedule: entries,
+        };
+      }),
+    [rawCourses, schedulesByCourse, buildingNames, collegeName, departmentName, yearLabel]
   );
 
   const handleExportPdf = useCallback(() => {

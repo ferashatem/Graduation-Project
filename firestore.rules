@@ -395,6 +395,15 @@ service cloud.firestore {
     }
 
     /* -------------------------
+       CollectionGroup: schedule
+       Required for collectionGroup("schedule") queries
+       (e.g. StudentCoursesPage fetching building/time slots)
+    --------------------------*/
+    match /{path=**}/schedule/{scheduleId} {
+      allow read: if signedIn();
+    }
+
+    /* -------------------------
       Default DENY (important)
     --------------------------*/
     match /{document=**} {
