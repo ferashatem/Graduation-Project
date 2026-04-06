@@ -189,7 +189,7 @@ function ProfessorCoursesPage() {
 
     const q = query(
       collection(db, "courseAssignments"),
-      where("professorUid", "==", user.uid)
+      where("professorIds", "array-contains", user.uid)
     );
 
     const unsubscribe = onSnapshot(

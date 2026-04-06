@@ -234,30 +234,20 @@ function StudentCoursesPage() {
 
   const canQuery = Boolean(collegeId) && Boolean(yearId) && Boolean(departmentId) && !profileLoading;
 
-  // ── Fetch college / year / department names ──
-  useEffect(() => {
-    if (!collegeId) return;
-    getDoc(doc(db, "colleges", collegeId)).then((snap) => {
-      if (snap.exists()) setCollegeName(snap.data().name || "");
-    }).catch(() => {});
-  }, [collegeId]);
-
-  useEffect(() => {
-    if (!collegeId || !yearId) return;
-    getDoc(doc(db, "colleges", collegeId, "years", yearId)).then((snap) => {
-      if (snap.exists()) {
-        const d = snap.data();
-        // year docs may store level as number or name as string
-        const label = d.name || (d.level != null ? `Year ${d.level}` : "") || yearId;
-        setYearLabel(label);
-      }
-    }).catch(() => {});
-  }, [collegeId, yearId]);
-
+  // ── Fetch college / year / department names (single batch) ──
   useEffect(() => {
     if (!collegeId || !yearId || !departmentId) return;
-    getDoc(doc(db, "colleges", collegeId, "years", yearId, "departments", departmentId)).then((snap) => {
-      if (snap.exists()) setDepartmentName(snap.data().name || "");
+    Promise.all([
+      getDoc(doc(db, "colleges", collegeId)),
+      getDoc(doc(db, "colleges", collegeId, "years", yearId)),
+      getDoc(doc(db, "colleges", collegeId, "years", yearId, "departments", departmentId)),
+    ]).then(([collegeSnap, yearSnap, deptSnap]) => {
+      if (collegeSnap.exists()) setCollegeName(collegeSnap.data().name || "");
+      if (yearSnap.exists()) {
+        const d = yearSnap.data();
+        setYearLabel(d.name || (d.level != null ? `Year ${d.level}` : "") || yearId);
+      }
+      if (deptSnap.exists()) setDepartmentName(deptSnap.data().name || "");
     }).catch(() => {});
   }, [collegeId, yearId, departmentId]);
 
@@ -340,7 +330,7 @@ function StudentCoursesPage() {
             if (pathRoomId && !data.roomId) map[data.courseId].at(-1).roomId = pathRoomId;
           });
 
-          setSchedulesByCourse((prev) => ({ ...prev, ...map }));
+          setSchedulesByCourse(map);
 
           // Fetch building names
           Promise.all(
@@ -355,9 +345,7 @@ function StudentCoursesPage() {
             }
           });
         },
-        (err) => {
-          console.error("[StudentCoursesPage] schedule query error:", err?.code, err?.message);
-        }
+        () => {}
       );
     });
 

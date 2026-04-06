@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import {
   collection, deleteDoc, doc, getDocs, onSnapshot,
-  query, serverTimestamp, setDoc, updateDoc, where,
+  query, serverTimestamp, setDoc, updateDoc, where, writeBatch,
 } from "firebase/firestore";
 import { HiBookOpen, HiPencil, HiPlus, HiTrash, HiX, HiChevronDown, HiChevronUp } from "react-icons/hi";
 import { db } from "../../firebase/firebaseConfig";
@@ -422,16 +422,15 @@ function ProfessorQuizzesPage() {
   }, []);
 
   const handleDelete = useCallback(async (quiz) => {
-    // Delete submissions first
     const subSnap = await getDocs(query(collection(db, "quizSubmissions"), where("quizId", "==", quiz.id)));
-    await Promise.all(subSnap.docs.map((d) => deleteDoc(d.ref)));
-    await deleteDoc(doc(db, "quizzes", quiz.id));
+    const batch = writeBatch(db);
+    subSnap.docs.forEach((d) => batch.delete(d.ref));
+    batch.delete(doc(db, "quizzes", quiz.id));
+    await batch.commit();
   }, []);
 
   return (
     <div className="space-y-6">
-      <style>{`.label-xs{display:block;margin-bottom:6px;font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.12em;color:#64748b}.field{width:100%;border-radius:0.75rem;border:1px solid #e2e8f0;background:#f8fafc;padding:0.5rem 0.75rem;font-size:0.875rem;color:#1e293b;outline:none}.field:focus{border-color:rgba(11,44,74,0.4);background:#fff;box-shadow:0 0 0 3px rgba(11,44,74,0.08)}`}</style>
-
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-[#0b2c4a]">My Quizzes</h1>

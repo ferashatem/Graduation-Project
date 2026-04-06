@@ -16,6 +16,7 @@ function SignIn() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loginError, setLoginError] = useState("");
 
   const getUserFromFirestore = useCallback(async (uid) => {
     if (!uid) return null;
@@ -80,6 +81,7 @@ function SignIn() {
   const handleSubmit = useCallback(
     async (e) => {
       e.preventDefault();
+      setLoginError("");
       setLoading(true);
 
       try {
@@ -116,7 +118,10 @@ function SignIn() {
         else if (role === "student") navigate("/student", { replace: true });
         else navigate("/student", { replace: true });
       } catch (err) {
-        alert("Login failed: " + err.message);
+        const msg = err.code === "auth/invalid-credential" || err.code === "auth/wrong-password" || err.code === "auth/user-not-found"
+          ? "Invalid email or password."
+          : err.message || "Login failed. Please try again.";
+        setLoginError(msg);
         setLoading(false);
       }
     },
@@ -223,6 +228,12 @@ function SignIn() {
                   required
                 />
               </div>
+
+              {loginError ? (
+                <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-700 ring-1 ring-red-200">
+                  {loginError}
+                </p>
+              ) : null}
 
               <button
                 type="submit"

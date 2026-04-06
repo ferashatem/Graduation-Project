@@ -243,3 +243,29 @@ strong {
 .spinner-border {
   display: none;
 }
+
+/* Quiz modal form fields (ProfessorQuizzesPage) */
+.label-xs {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #64748b;
+}
+.field {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: #1e293b;
+  outline: none;
+}
+.field:focus {
+  border-color: rgba(11, 44, 74, 0.4);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(11, 44, 74, 0.08);
+}

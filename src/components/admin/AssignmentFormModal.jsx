@@ -229,6 +229,7 @@ function AssignmentFormModal({
         const duplicateSnap = await getDocs(duplicateQuery);
         if (!duplicateSnap.empty) {
           setError("An assignment already exists for this course and term.");
+          setSaving(false);
           return;
         }
       }

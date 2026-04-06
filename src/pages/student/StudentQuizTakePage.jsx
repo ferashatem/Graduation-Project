@@ -73,6 +73,7 @@ function StudentQuizTakePage() {
       if (!active) return;
       if (!quizSnap.exists()) { setError("Quiz not found."); setLoading(false); return; }
       const quizData = { id: quizSnap.id, ...quizSnap.data() };
+      if (!quizData.isPublished) { setError("This quiz is not available."); setLoading(false); return; }
       setQuiz(quizData);
       if (!subSnap.empty) {
         setAlreadySubmitted(true);

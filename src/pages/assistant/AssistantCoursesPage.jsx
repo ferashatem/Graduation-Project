@@ -172,7 +172,7 @@ function AssistantCoursesPage() {
 
     const q = query(
       collection(db, "courseAssignments"),
-      where("assistantUids", "array-contains", user.uid)
+      where("assistantIds", "array-contains", user.uid)
     );
 
     const unsubscribe = onSnapshot(
@@ -218,13 +218,13 @@ function AssistantCoursesPage() {
 
       {error ? <ErrorState message={error} onRetry={handleRetry} /> : null}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {cards.length === 0 ? (
-          <div className="rounded-2xl bg-white p-6 text-sm text-slate-500 shadow-sm ring-1 ring-slate-200">
-            No courses assigned yet.
-          </div>
-        ) : (
-          cards.map((course) => (
+      {cards.length === 0 ? (
+        <div className="rounded-2xl bg-white p-6 text-sm text-slate-500 shadow-sm ring-1 ring-slate-200">
+          No courses assigned yet.
+        </div>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {cards.map((course) => (
             <AssistantCourseCard
               key={course.id}
               course={course}
@@ -232,9 +232,9 @@ function AssistantCoursesPage() {
               user={user}
               profile={profile}
             />
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

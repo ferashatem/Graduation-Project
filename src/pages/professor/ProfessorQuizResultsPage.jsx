@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useOutletContext } from "react-router-dom";
 import { collection, doc, getDoc, getDocs, query, where } from "firebase/firestore";
 import { HiArrowLeft, HiChevronDown, HiChevronUp } from "react-icons/hi";
 import { db } from "../../firebase/firebaseConfig";
@@ -85,12 +85,14 @@ function SubmissionRow({ submission, questions }) {
 
 function ProfessorQuizResultsPage() {
   const { quizId } = useParams();
+  const { user } = useOutletContext() || {};
   const [quiz, setQuiz] = useState(null);
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (!user?.uid) return;
     let active = true;
     setLoading(true);
     Promise.all([
@@ -99,14 +101,16 @@ function ProfessorQuizResultsPage() {
     ]).then(([quizSnap, subSnap]) => {
       if (!active) return;
       if (!quizSnap.exists()) { setError("Quiz not found."); setLoading(false); return; }
-      setQuiz({ id: quizSnap.id, ...quizSnap.data() });
+      const quizData = { id: quizSnap.id, ...quizSnap.data() };
+      if (quizData.createdBy !== user.uid) { setError("You are not authorized to view these results."); setLoading(false); return; }
+      setQuiz(quizData);
       setSubmissions(subSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
       setLoading(false);
     }).catch((e) => {
       if (active) { setError(e.message || "Failed to load."); setLoading(false); }
     });
     return () => { active = false; };
-  }, [quizId]);
+  }, [quizId, user?.uid]);
 
   const stats = useMemo(() => {
     if (!submissions.length) return null;
