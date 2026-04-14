@@ -9,6 +9,10 @@
     ],
     "rewrites": [
       {
+        "source": "/api/generate-quiz",
+        "function": "generateQuiz"
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }
