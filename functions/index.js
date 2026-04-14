@@ -3,7 +3,7 @@ Cloud Functions callable user management with role-based access controls.
 Admins are limited to professor/assistant/student to prevent privilege escalation.
 Client-side before calling: await auth.currentUser.getIdToken(true);
 */
-const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onCall, HttpsError, onRequest } = require("firebase-functions/v2/https");
 const { onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { logger } = require("firebase-functions");
 const admin = require("firebase-admin");
@@ -1980,6 +1980,102 @@ exports.syncRoleClaimOnUserWrite = onDocumentWritten(
       logger.info(`syncRoleClaimOnUserWrite: uid=${uid} role=${role}`);
     } catch (err) {
       logger.error(`syncRoleClaimOnUserWrite: failed for uid=${uid}`, err);
+    }
+  }
+);
+
+// ─── generateQuiz ─────────────────────────────────────────────────────────────
+// Requires GEMINI_API_KEY in Firebase Functions secrets.
+// Set with: firebase functions:secrets:set GEMINI_API_KEY
+exports.generateQuiz = onRequest(
+  { cors: true, secrets: ["GEMINI_API_KEY"] },
+  async (req, res) => {
+    if (req.method !== "POST") {
+      return res.status(405).json({ error: "Method not allowed" });
+    }
+
+    const contentType = req.headers["content-type"] || "";
+    if (!contentType.includes("multipart/form-data")) {
+      return res.status(400).json({ error: "Expected multipart/form-data" });
+    }
+
+    try {
+      // Extract boundary and parse multipart body manually
+      const boundaryMatch = contentType.match(/boundary=([^;]+)/);
+      if (!boundaryMatch) return res.status(400).json({ error: "No boundary in content-type" });
+      const boundary = boundaryMatch[1].trim();
+
+      const rawBody = req.rawBody;
+      if (!rawBody) return res.status(400).json({ error: "Empty body" });
+
+      const boundaryBuf = Buffer.from("--" + boundary);
+      const fileParts = [];
+      let start = 0;
+      while (start < rawBody.length) {
+        const boundaryIdx = rawBody.indexOf(boundaryBuf, start);
+        if (boundaryIdx === -1) break;
+        const headerStart = boundaryIdx + boundaryBuf.length + 2;
+        const headerEnd = rawBody.indexOf(Buffer.from("\r\n\r\n"), headerStart);
+        if (headerEnd === -1) break;
+        const headerStr = rawBody.slice(headerStart, headerEnd).toString();
+        const dataStart = headerEnd + 4;
+        const nextBoundary = rawBody.indexOf(boundaryBuf, dataStart);
+        const dataEnd = nextBoundary === -1 ? rawBody.length : nextBoundary - 2;
+        if (headerStr.includes('name="file"')) {
+          fileParts.push(rawBody.slice(dataStart, dataEnd));
+        }
+        start = nextBoundary === -1 ? rawBody.length : nextBoundary;
+      }
+
+      if (fileParts.length === 0) return res.status(400).json({ error: "No file found in request" });
+
+      const base64Pdf = fileParts[0].toString("base64");
+
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) return res.status(500).json({ error: "GEMINI_API_KEY not configured" });
+
+      const geminiRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{
+              parts: [
+                {
+                  inline_data: {
+                    mime_type: "application/pdf",
+                    data: base64Pdf,
+                  },
+                },
+                {
+                  text: 'You are a university exam generator. Read this lecture PDF and output ONLY valid JSON — no markdown, no backticks, no preamble. Return an array of exactly 10 objects. Each object: {"question": "string", "options": ["A","B","C","D"], "correctIndex": 0} where correctIndex is 0-based index of correct option.',
+                },
+              ],
+            }],
+            generationConfig: {
+              temperature: 0.3,
+              maxOutputTokens: 4096,
+            },
+          }),
+        }
+      );
+
+      const geminiData = await geminiRes.json();
+
+      if (!geminiRes.ok) {
+        logger.error("Gemini API error", geminiData);
+        throw new Error(geminiData.error?.message || "Gemini API error");
+      }
+
+      const raw = geminiData.candidates[0].content.parts[0].text;
+      const clean = raw.replace(/```json|```/g, "").trim();
+      const questions = JSON.parse(clean);
+
+      return res.status(200).json({ questions });
+    } catch (err) {
+      logger.error("generateQuiz error", err);
+      return res.status(500).json({ error: err.message || "Generation failed" });
     }
   }
 );
