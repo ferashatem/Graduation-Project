@@ -49,32 +49,42 @@ function CollegesPage() {
     const target = confirmState.row;
     handleCloseConfirm();
     if (!target) return;
-    const result = await deleteCollege(target.id);
-    if (!result.ok) {
+    const result = await deleteCollege(target.code);
+    if (result.ok) {
+      reload();
+    } else {
       setActionError(result.error);
     }
-  }, [confirmState.row, deleteCollege, handleCloseConfirm]);
+  }, [confirmState.row, deleteCollege, handleCloseConfirm, reload]);
 
   const handleSubmit = useCallback(
     async (values) => {
       setActionError("");
       const result = editing
-        ? await updateCollege(editing.id, values)
+        ? await updateCollege(editing.code, values)
         : await addCollege(values);
 
       if (result.ok) {
         setDialogOpen(false);
         setEditing(null);
+        reload();
       } else {
         setActionError(result.error);
       }
     },
-    [addCollege, editing, updateCollege]
+    [addCollege, editing, updateCollege, reload]
   );
 
   const handleManageYears = useCallback(
     (row) => {
       navigate(`/admin/colleges/${row.id}/years`);
+    },
+    [navigate]
+  );
+
+  const handleManageDepartments = useCallback(
+    (row) => {
+      navigate(`/admin/colleges/${row.id}/${row.code}/departments`);
     },
     [navigate]
   );
@@ -102,6 +112,7 @@ function CollegesPage() {
           onEdit={handleEdit}
           onDelete={handleDeletePrompt}
           onManage={handleManageYears}
+          onManageDepartments={handleManageDepartments}
         />
       )}
 

@@ -64,6 +64,7 @@ function CollegeFormDialog({
       await onSubmit({
         name: values.name.trim(),
         code: values.code.trim(),
+        universityCode: "BSNU",
       });
     },
     [onSubmit, validate, values.code, values.name]
@@ -90,7 +91,7 @@ function CollegeFormDialog({
             required
           />
           <TextField
-            label="College Code (optional)"
+            label="College Code"
             name="code"
             value={values.code}
             onChange={handleChange}

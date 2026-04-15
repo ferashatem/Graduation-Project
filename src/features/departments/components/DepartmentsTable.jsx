@@ -1,19 +1,15 @@
 import { useCallback, useMemo } from "react";
 import { DataGrid } from "@mui/x-data-grid";
-import { Button, IconButton } from "@mui/material";
+import { IconButton } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 
-function DepartmentRowActions({ row, onEdit, onDelete, onManage }) {
+function DepartmentRowActions({ row, onEdit, onDelete }) {
   const handleEdit = useCallback(() => onEdit(row), [onEdit, row]);
   const handleDelete = useCallback(() => onDelete(row), [onDelete, row]);
-  const handleManage = useCallback(() => onManage(row), [onManage, row]);
 
   return (
     <div className="flex items-center gap-2">
-      <Button size="small" variant="outlined" onClick={handleManage}>
-        Manage Courses
-      </Button>
       <IconButton size="small" color="primary" onClick={handleEdit}>
         <EditIcon fontSize="inherit" />
       </IconButton>
@@ -24,7 +20,7 @@ function DepartmentRowActions({ row, onEdit, onDelete, onManage }) {
   );
 }
 
-function DepartmentsTable({ rows, loading, onEdit, onDelete, onManage }) {
+function DepartmentsTable({ rows, loading, onEdit, onDelete }) {
   const gridRows = useMemo(() => rows || [], [rows]);
 
   const columns = useMemo(
@@ -34,8 +30,7 @@ function DepartmentsTable({ rows, loading, onEdit, onDelete, onManage }) {
       {
         field: "actions",
         headerName: "Actions",
-        flex: 1,
-        minWidth: 260,
+        width: 120,
         sortable: false,
         filterable: false,
         renderCell: (params) => (
@@ -43,12 +38,11 @@ function DepartmentsTable({ rows, loading, onEdit, onDelete, onManage }) {
             row={params.row}
             onEdit={onEdit}
             onDelete={onDelete}
-            onManage={onManage}
           />
         ),
       },
     ],
-    [onDelete, onEdit, onManage]
+    [onDelete, onEdit]
   );
 
   return (

@@ -1,32 +1,22 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Navigate } from "react-router-dom";
-import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "../firebase/firebaseConfig";
 
+/**
+ * Protects a route by checking the role stored in localStorage after API login.
+ * `role` prop should match the value stored (e.g. "admin", "super_admin").
+ */
 export default function RequireRole({ role, children }) {
-  const [loading, setLoading] = useState(true);
-  const [isAuthed, setIsAuthed] = useState(false);
-  const [ok, setOk] = useState(false);
+  const storedRole = (localStorage.getItem("role") || "").toLowerCase();
+  const token = localStorage.getItem("token");
 
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        setIsAuthed(false);
-        setOk(false);
-        setLoading(false);
-        return;
-      }
-      const tokenResult = await user.getIdTokenResult(true);
-      setIsAuthed(true);
-      setOk(tokenResult.claims?.role === role);
-      setLoading(false);
-    });
+  if (!token) return <Navigate to="/signin" replace />;
 
-    return () => unsub();
-  }, [role]);
+  // Normalise "superadmin" / "super_admin" differences
+  const normalise = (r) => r.replace(/[\s_]/g, "").toLowerCase();
 
-  if (loading) return <div>Loading...</div>;
-  if (!isAuthed) return <Navigate to="/" replace />;
-  if (!ok) return <Navigate to="/not-allowed" replace />;
+  if (normalise(storedRole) !== normalise(role)) {
+    return <Navigate to="/signin" replace />;
+  }
+
   return children;
 }

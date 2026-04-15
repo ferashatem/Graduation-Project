@@ -1,55 +1,31 @@
-import {
-  addDoc,
-  deleteDoc,
-  getDoc,
-  getDocs,
-  serverTimestamp,
-  updateDoc,
-} from "firebase/firestore";
-import { collegesCollection, collegeDoc } from "../../../firebase/firestorePaths";
-
-const mapDoc = (snapshot) => ({ id: snapshot.id, ...snapshot.data() });
-
-export const fetchColleges = async () => {
-  const snapshot = await getDocs(collegesCollection());
-  return snapshot.docs.map(mapDoc);
-};
+import apiClient from "../../../api/apiClient";
 
 export const getCollegeById = async (collegeId) => {
-  const snapshot = await getDoc(collegeDoc(collegeId));
-  if (!snapshot.exists()) return null;
-  return mapDoc(snapshot);
+  const res = await apiClient.get(`/Colleges/${collegeId}`);
+  return res.data?.data ?? res.data;
 };
 
-export const createCollege = async ({ name, code }) => {
-  const payload = {
-    name: name.trim(),
-    createdAt: serverTimestamp(),
-  };
-
-  if (code && code.trim()) {
-    payload.code = code.trim();
-  }
-
-  const docRef = await addDoc(collegesCollection(), payload);
-  return {
-    id: docRef.id,
-    ...payload,
-    createdAt: new Date(),
-  };
+export const fetchColleges = async () => {
+  const res = await apiClient.get("/Colleges");
+  console.log("fetchColleges raw response:", res.data);
+  // Response shape: { success, data: { items: [...], pageNumber, pageSize, ... } }
+  const payload = res.data?.data;
+  // Paginated: { data: [...], page, pageSize, ... }
+  // Flat: [...]
+  return Array.isArray(payload) ? payload : (payload?.data ?? payload?.items ?? []);
 };
 
-export const updateCollege = async (collegeId, updates) => {
-  const payload = {
-    name: updates.name.trim(),
-    code: updates.code ? updates.code.trim() : "",
-  };
-
-  await updateDoc(collegeDoc(collegeId), payload);
-  return payload;
+export const createCollege = async ({ name, code, universityCode }) => {
+  const res = await apiClient.post("/Colleges", { name, code, universityCode });
+  return res.data?.data ?? res.data;
 };
 
-export const deleteCollege = async (collegeId) => {
-  await deleteDoc(collegeDoc(collegeId));
-  return collegeId;
+export const updateCollege = async (collegeCode, { name, code, universityCode }) => {
+  const res = await apiClient.put(`/Colleges/${collegeCode}`, { name, code, universityCode });
+  return res.data?.data ?? res.data;
+};
+
+export const deleteCollege = async (collegeCode) => {
+  await apiClient.delete(`/Colleges/${collegeCode}`);
+  return collegeCode;
 };

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Button, Alert } from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
 import PageHeader from "../../../components/common/PageHeader";
@@ -8,13 +8,12 @@ import ErrorState from "../../../components/common/ErrorState";
 import DepartmentsTable from "../components/DepartmentsTable";
 import DepartmentFormDialog from "../components/DepartmentFormDialog";
 import { useDepartments } from "../hooks/useDepartments";
-import { getCollegeById } from "../../colleges/api/collegesApi";
-import { getYearById } from "../../years/api/yearsApi";
-import { getErrorMessage } from "../../../utils/errorHelpers";
 
 function DepartmentsPage() {
   const navigate = useNavigate();
-  const { collegeId, yearId } = useParams();
+  // collegeId = ULID (for fetching), collegeCode = code (for POST/PUT)
+  const { collegeId, collegeCode } = useParams();
+
   const {
     departments,
     loading,
@@ -23,45 +22,21 @@ function DepartmentsPage() {
     addDepartment,
     updateDepartment,
     deleteDepartment,
-  } = useDepartments(collegeId, yearId);
+  } = useDepartments(collegeId, collegeCode);
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [confirmState, setConfirmState] = useState({ open: false, row: null });
   const [actionError, setActionError] = useState("");
-  const [collegeName, setCollegeName] = useState("");
-  const [yearName, setYearName] = useState("");
 
   const rows = useMemo(() => departments, [departments]);
-
-  const loadBreadcrumbs = useCallback(async () => {
-    if (!collegeId || !yearId) return;
-    try {
-      const [college, year] = await Promise.all([
-        getCollegeById(collegeId),
-        getYearById(collegeId, yearId),
-      ]);
-      setCollegeName(college?.name || "College");
-      setYearName(year?.name || "Year");
-    } catch (err) {
-      setActionError(getErrorMessage(err));
-    }
-  }, [collegeId, yearId]);
-
-  useEffect(() => {
-    loadBreadcrumbs();
-  }, [loadBreadcrumbs]);
 
   const breadcrumbs = useMemo(
     () => [
       { label: "Colleges", to: "/admin/colleges" },
-      {
-        label: collegeName || "College",
-        to: `/admin/colleges/${collegeId}/years`,
-      },
-      { label: yearName || "Year" },
       { label: "Departments" },
     ],
-    [collegeId, collegeName, yearName]
+    []
   );
 
   const handleAdd = useCallback(() => {
@@ -76,9 +51,7 @@ function DepartmentsPage() {
     setDialogOpen(true);
   }, []);
 
-  const handleCloseDialog = useCallback(() => {
-    setDialogOpen(false);
-  }, []);
+  const handleCloseDialog = useCallback(() => setDialogOpen(false), []);
 
   const handleDeletePrompt = useCallback((row) => {
     setConfirmState({ open: true, row });
@@ -92,36 +65,30 @@ function DepartmentsPage() {
     const target = confirmState.row;
     handleCloseConfirm();
     if (!target) return;
-    const result = await deleteDepartment(target.id);
-    if (!result.ok) {
+    const result = await deleteDepartment(target.code);
+    if (result.ok) {
+      reload();
+    } else {
       setActionError(result.error);
     }
-  }, [confirmState.row, deleteDepartment, handleCloseConfirm]);
+  }, [confirmState.row, deleteDepartment, handleCloseConfirm, reload]);
 
   const handleSubmit = useCallback(
     async (values) => {
       setActionError("");
       const result = editing
-        ? await updateDepartment(editing.id, values)
+        ? await updateDepartment(editing.code, values)
         : await addDepartment(values);
 
       if (result.ok) {
         setDialogOpen(false);
         setEditing(null);
+        reload();
       } else {
         setActionError(result.error);
       }
     },
-    [addDepartment, editing, updateDepartment]
-  );
-
-  const handleManageCourses = useCallback(
-    (row) => {
-      navigate(
-        `/admin/colleges/${collegeId}/years/${yearId}/departments/${row.id}/courses`
-      );
-    },
-    [collegeId, navigate, yearId]
+    [addDepartment, editing, updateDepartment, reload]
   );
 
   return (
@@ -146,7 +113,6 @@ function DepartmentsPage() {
           loading={loading}
           onEdit={handleEdit}
           onDelete={handleDeletePrompt}
-          onManage={handleManageCourses}
         />
       )}
 
@@ -161,7 +127,7 @@ function DepartmentsPage() {
       <ConfirmDialog
         open={confirmState.open}
         title="Delete department?"
-        message="This will remove the department. Related courses are not deleted automatically."
+        message="This will permanently remove the department."
         confirmLabel="Delete"
         onConfirm={handleConfirmDelete}
         onClose={handleCloseConfirm}
