@@ -1,83 +1,27 @@
 // src/pages/SignIn.jsx
-import React, { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import "../assets/styles/styles.css";
-import { Link, useNavigate } from "react-router-dom";
-import { getIdTokenResult, signInWithEmailAndPassword } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
-import { auth, db } from "../firebase/firebaseConfig";
-import { useAuthUser } from "../auth/useAuthUser";
+import { useNavigate } from "react-router-dom";
 
 import BigLogo from "../assets/university-logo.png";
 
+const API_BASE = "";
+
+function redirectByRole(role, navigate) {
+  if (role === "SuperAdmin") navigate("/super_admin/home", { replace: true });
+  else if (role === "Admin") navigate("/admin/home", { replace: true });
+  else if (role === "Professor") navigate("/prof", { replace: true });
+  else if (role === "Assistant") navigate("/asst", { replace: true });
+  else navigate("/student", { replace: true });
+}
+
 function SignIn() {
-  const { user, authLoading } = useAuthUser();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [loginError, setLoginError] = useState("");
-
-  const getUserFromFirestore = useCallback(async (uid) => {
-    if (!uid) return null;
-
-    try {
-      const collections = ["Users", "users"];
-
-      for (const collectionName of collections) {
-        const snap = await getDoc(doc(db, collectionName, uid));
-        if (snap.exists()) {
-          return { collection: collectionName, data: snap.data() };
-        }
-      }
-    } catch {
-      // ignore — non-critical user doc fetch
-    }
-
-    return null;
-  }, []);
-
-  const getRoleFromClaims = useCallback(async (firebaseUser) => {
-    if (!firebaseUser) return null;
-
-    try {
-      const tokenResult = await getIdTokenResult(firebaseUser, true);
-      return tokenResult?.claims?.role || null;
-    } catch {
-      return null;
-    }
-  }, []);
-
-  const redirectIfLoggedIn = useCallback(async () => {
-    if (!user) return;
-
-    const roleFromClaims = await getRoleFromClaims(user);
-    const role = roleFromClaims || "student";
-
-    if (role === "super_admin")
-      navigate("/super_admin/home", { replace: true });
-    else if (role === "admin") navigate("/admin/home", { replace: true });
-    else if (role === "professor") navigate("/prof", { replace: true });
-    else if (role === "assistant") navigate("/asst", { replace: true });
-    else if (role === "student") navigate("/student", { replace: true });
-  }, [user, navigate, getRoleFromClaims]);
-
-  React.useEffect(() => {
-    if (!authLoading && user) redirectIfLoggedIn();
-  }, [authLoading, user, redirectIfLoggedIn]);
-
-  const pageLoadingUI = useMemo(() => {
-    return (
-      <section className="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-gradient-to-br from-[#f7f1e6] via-[#edf4ff] to-[#c7d7ff]">
-        <div className="pointer-events-none absolute -top-24 -left-20 h-72 w-72 rounded-full bg-[#103c6b]/15 blur-3xl" />
-        <div className="pointer-events-none absolute bottom-0 right-0 h-80 w-80 translate-x-1/3 rounded-full bg-[#ffcf70]/30 blur-3xl" />
-        <div className="relative z-10 flex items-center gap-3 rounded-full bg-white/80 px-5 py-3 text-sm font-semibold text-[#0b2c4a] shadow-lg">
-          <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#0b2c4a]/40 border-t-[#0b2c4a]" />
-          Preparing your portal...
-        </div>
-      </section>
-    );
-  }, []);
 
   const handleSubmit = useCallback(
     async (e) => {
@@ -86,55 +30,38 @@ function SignIn() {
       setLoading(true);
 
       try {
-        // Firebase email/password sign-in :contentReference[oaicite:3]{index=3}
-        const userCred = await signInWithEmailAndPassword(
-          auth,
-          email,
-          password,
-        );
+        const requestBody = { email, password };
+        console.log("Login request payload:", requestBody);
+        const res = await fetch(`${API_BASE}/api/Auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(requestBody),
+        });
 
-        const signedUser = userCred.user;
+        const json = await res.json();
+        console.log("Login response:", json);
 
-        await getUserFromFirestore(signedUser.uid);
-        const roleFromClaims = await getRoleFromClaims(signedUser);
-        const role = roleFromClaims || "student";
+        if (!res.ok || !json.success) {
+          throw new Error(json.message || "Invalid email or password.");
+        }
 
-        // Optional: store lightweight info locally (NOT security)
-        const userName =
-          signedUser.displayName || signedUser.email?.split("@")[0] || "User";
-        localStorage.setItem("userName", userName);
-        localStorage.setItem(
-          "user",
-          JSON.stringify({
-            uid: signedUser.uid,
-            email: signedUser.email,
-            role,
-          }),
-        );
+        const { token, role, fullName, userId, refreshToken, email: userEmail } = json.data;
 
-        // ✅ Redirect based on real role
-        if (role === "super_admin")
-          navigate("/super_admin/home", { replace: true });
-        else if (role === "admin") navigate("/admin/home", { replace: true });
-        else if (role === "professor") navigate("/prof", { replace: true });
-        else if (role === "assistant") navigate("/asst", { replace: true });
-        else if (role === "student") navigate("/student", { replace: true });
-        else navigate("/student", { replace: true });
+        localStorage.setItem("token", token);
+        localStorage.setItem("role", role);
+        localStorage.setItem("userName", fullName || email.split("@")[0]);
+        localStorage.setItem("userEmail", userEmail || email);
+        localStorage.setItem("userId", userId);
+        localStorage.setItem("refreshToken", refreshToken);
+
+        redirectByRole(role, navigate);
       } catch (err) {
-        const msg =
-          err.code === "auth/invalid-credential" ||
-          err.code === "auth/wrong-password" ||
-          err.code === "auth/user-not-found"
-            ? "Invalid email or password."
-            : err.message || "Login failed. Please try again.";
-        setLoginError(msg);
+        setLoginError(err.message || "Login failed. Please try again.");
         setLoading(false);
       }
     },
-    [email, password, navigate, getUserFromFirestore, getRoleFromClaims],
+    [email, password, navigate],
   );
-
-  if (authLoading) return pageLoadingUI;
 
   return (
     <section className="relative min-h-screen w-full overflow-hidden bg-gradient-to-br from-[#f7f1e6] via-[#edf4ff] to-[#c7d7ff] text-[#0b2c4a]">

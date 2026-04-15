@@ -4,13 +4,17 @@ import { Button, IconButton } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 
-function CollegeRowActions({ row, onEdit, onDelete, onManage }) {
+function CollegeRowActions({ row, onEdit, onDelete, onManage, onManageDepartments }) {
   const handleEdit = useCallback(() => onEdit(row), [onEdit, row]);
   const handleDelete = useCallback(() => onDelete(row), [onDelete, row]);
   const handleManage = useCallback(() => onManage(row), [onManage, row]);
+  const handleManageDepartments = useCallback(() => onManageDepartments(row), [onManageDepartments, row]);
 
   return (
     <div className="flex items-center gap-2">
+      <Button size="small" variant="outlined" onClick={handleManageDepartments}>
+        Departments
+      </Button>
       <Button size="small" variant="outlined" onClick={handleManage}>
         Manage Years
       </Button>
@@ -24,7 +28,7 @@ function CollegeRowActions({ row, onEdit, onDelete, onManage }) {
   );
 }
 
-function CollegesTable({ rows, loading, onEdit, onDelete, onManage }) {
+function CollegesTable({ rows, loading, onEdit, onDelete, onManage, onManageDepartments }) {
   const gridRows = useMemo(() => rows || [], [rows]);
 
   const columns = useMemo(
@@ -35,7 +39,7 @@ function CollegesTable({ rows, loading, onEdit, onDelete, onManage }) {
         field: "actions",
         headerName: "Actions",
         flex: 1,
-        minWidth: 240,
+        minWidth: 360,
         sortable: false,
         filterable: false,
         renderCell: (params) => (
@@ -44,11 +48,12 @@ function CollegesTable({ rows, loading, onEdit, onDelete, onManage }) {
             onEdit={onEdit}
             onDelete={onDelete}
             onManage={onManage}
+            onManageDepartments={onManageDepartments}
           />
         ),
       },
     ],
-    [onDelete, onEdit, onManage]
+    [onDelete, onEdit, onManage, onManageDepartments]
   );
 
   return (

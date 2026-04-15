@@ -17,7 +17,11 @@ export const useColleges = () => {
     setError("");
     try {
       const data = await fetchColleges();
-      setColleges(data);
+      console.log("fetchColleges returned:", data);
+      // DataGrid requires an `id` field; fall back to `code` if `id` is missing
+      const normalised = data.map((c) => ({ ...c, id: c.id ?? c.code }));
+      console.log("normalised colleges:", normalised);
+      setColleges(normalised);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {

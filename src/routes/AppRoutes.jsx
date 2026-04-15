@@ -67,6 +67,10 @@ function AppRoutes() {
           <Route path="home" element={<Home />} />
           <Route path="create-admin" element={<CreateAdminUser />} />
           <Route path="colleges" element={<CollegesPage />} />
+          <Route
+            path="colleges/:collegeId/:collegeCode/departments"
+            element={<DepartmentsPage />}
+          />
           <Route path="colleges/:collegeId/years" element={<YearsPage />} />
           <Route
             path="colleges/:collegeId/years/:yearId/departments"
