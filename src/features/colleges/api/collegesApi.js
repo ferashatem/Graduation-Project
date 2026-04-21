@@ -1,3 +1,4 @@
+
 import apiClient from "../../../api/apiClient";
 
 export const getCollegeById = async (collegeId) => {
