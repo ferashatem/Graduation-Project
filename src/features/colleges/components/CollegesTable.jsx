@@ -9,13 +9,9 @@ function CollegeRowActions({ row, onEdit, onDelete, onManage, onManageDepartment
   const handleEdit = useCallback(() => onEdit(row), [onEdit, row]);
   const handleDelete = useCallback(() => onDelete(row), [onDelete, row]);
   const handleManage = useCallback(() => onManage(row), [onManage, row]);
-  const handleManageDepartments = useCallback(() => onManageDepartments(row), [onManageDepartments, row]);
 
   return (
     <div className="flex items-center gap-2">
-      <Button size="small" variant="outlined" onClick={handleManageDepartments}>
-        Departments
-      </Button>
       <Button size="small" variant="outlined" onClick={handleManage}>
         Manage Years
       </Button>
@@ -29,7 +25,7 @@ function CollegeRowActions({ row, onEdit, onDelete, onManage, onManageDepartment
   );
 }
 
-function CollegesTable({ rows, loading, onEdit, onDelete, onManage, onManageDepartments }) {
+function CollegesTable({ rows, loading, onEdit, onDelete, onManage }) {
   const gridRows = useMemo(() => rows || [], [rows]);
 
   const columns = useMemo(
@@ -49,12 +45,11 @@ function CollegesTable({ rows, loading, onEdit, onDelete, onManage, onManageDepa
             onEdit={onEdit}
             onDelete={onDelete}
             onManage={onManage}
-            onManageDepartments={onManageDepartments}
           />
         ),
       },
     ],
-    [onDelete, onEdit, onManage, onManageDepartments]
+    [onDelete, onEdit, onManage]
   );
 
   return (

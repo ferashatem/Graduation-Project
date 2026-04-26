@@ -7,9 +7,11 @@ import {
   Button,
   TextField,
   Alert,
+  FormControlLabel,
+  Switch,
 } from "@mui/material";
 
-const emptyValues = { name: "", order: "" };
+const emptyValues = { name: "", order: "", isActive: true };
 
 function YearFormDialog({
   open,
@@ -40,14 +42,15 @@ function YearFormDialog({
           typeof initialValues?.order === "number"
             ? String(initialValues.order)
             : "",
+        isActive: initialValues?.isActive ?? true,
       });
       setErrors({});
     }
   }, [open, initialValues]);
 
   const handleChange = useCallback((event) => {
-    const { name, value } = event.target;
-    setValues((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = event.target;
+    setValues((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
   }, []);
 
   const validate = useCallback(() => {
@@ -73,6 +76,7 @@ function YearFormDialog({
       await onSubmit({
         name: values.name.trim(),
         order: Number(values.order),
+        isActive: values.isActive,
       });
     },
     [onSubmit, validate, values.name, values.order]
@@ -109,6 +113,16 @@ function YearFormDialog({
             fullWidth
             required
             inputProps={{ min: 1, step: 1 }}
+          />
+          <FormControlLabel
+            control={
+              <Switch
+                name="isActive"
+                checked={values.isActive}
+                onChange={handleChange}
+              />
+            }
+            label="Active"
           />
         </DialogContent>
         <DialogActions>

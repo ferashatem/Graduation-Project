@@ -83,12 +83,6 @@ function CollegesPage() {
     [navigate]
   );
 
-  const handleManageDepartments = useCallback(
-    (row) => {
-      navigate(`/admin/colleges/${row.id}/${row.code}/departments`);
-    },
-    [navigate]
-  );
 
   return (
     <div className="space-y-5">
@@ -113,7 +107,7 @@ function CollegesPage() {
           onEdit={handleEdit}
           onDelete={handleDeletePrompt}
           onManage={handleManageYears}
-          onManageDepartments={handleManageDepartments}
+          // onManageDepartments={handleManageDepartments}
         />
       )}
 

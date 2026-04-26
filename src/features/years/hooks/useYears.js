@@ -1,10 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-  createYear,
-  deleteYear,
-  fetchYears,
-  updateYear,
-} from "../api/yearsApi";
+import { createYear, deleteYear, fetchYears, updateYear } from "../api/yearsApi";
 import { getErrorMessage } from "../../../utils/errorHelpers";
 
 export const useYears = (collegeId) => {
@@ -18,7 +13,6 @@ export const useYears = (collegeId) => {
       setLoading(false);
       return;
     }
-
     setLoading(true);
     setError("");
     try {
@@ -39,7 +33,7 @@ export const useYears = (collegeId) => {
     async (payload) => {
       setError("");
       try {
-        const created = await createYear(collegeId, payload);
+        const created = await createYear({ ...payload, collegeId });
         setYears((prev) => [...prev, created]);
         return { ok: true };
       } catch (err) {
@@ -58,7 +52,7 @@ export const useYears = (collegeId) => {
         prev.map((year) => (year.id === yearId ? { ...year, ...updates } : year))
       );
       try {
-        await updateYear(collegeId, yearId, updates);
+        await updateYear(yearId, updates);
         return { ok: true };
       } catch (err) {
         const message = getErrorMessage(err);
@@ -75,7 +69,7 @@ export const useYears = (collegeId) => {
       const previous = years;
       setYears((prev) => prev.filter((year) => year.id !== yearId));
       try {
-        await deleteYear(collegeId, yearId);
+        await deleteYear(yearId);
         return { ok: true };
       } catch (err) {
         const message = getErrorMessage(err);
@@ -84,7 +78,7 @@ export const useYears = (collegeId) => {
         return { ok: false, error: message };
       }
     },
-    [collegeId, years]
+    [years]
   );
 
   return {
