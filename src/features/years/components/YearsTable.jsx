@@ -4,15 +4,22 @@ import { Button, IconButton } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 
-function YearRowActions({ row, onEdit, onDelete, onManage }) {
+function YearRowActions({ row, onEdit, onDelete, onManage, onManageSemesters }) {
   const handleEdit = useCallback(() => onEdit(row), [onEdit, row]);
   const handleDelete = useCallback(() => onDelete(row), [onDelete, row]);
   const handleManage = useCallback(() => onManage(row), [onManage, row]);
+  const handleSemesters = useCallback(
+    () => onManageSemesters && onManageSemesters(row),
+    [onManageSemesters, row]
+  );
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 flex-wrap">
       <Button size="small" variant="outlined" onClick={handleManage}>
-        Manage Departments
+        Departments
+      </Button>
+      <Button size="small" variant="outlined" color="secondary" onClick={handleSemesters}>
+        Semesters
       </Button>
       <IconButton size="small" color="primary" onClick={handleEdit}>
         <EditIcon fontSize="inherit" />
@@ -24,7 +31,7 @@ function YearRowActions({ row, onEdit, onDelete, onManage }) {
   );
 }
 
-function YearsTable({ rows, loading, onEdit, onDelete, onManage }) {
+function YearsTable({ rows, loading, onEdit, onDelete, onManage, onManageSemesters }) {
   const gridRows = useMemo(() => rows || [], [rows]);
 
   const columns = useMemo(
@@ -44,6 +51,7 @@ function YearsTable({ rows, loading, onEdit, onDelete, onManage }) {
             onEdit={onEdit}
             onDelete={onDelete}
             onManage={onManage}
+            onManageSemesters={onManageSemesters}
           />
         ),
       },

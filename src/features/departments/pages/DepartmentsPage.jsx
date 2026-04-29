@@ -92,6 +92,14 @@ function DepartmentsPage() {
     [addDepartment, editing, updateDepartment, reload]
   );
 
+  const handleManageBatches = useCallback(
+    (row) => {
+      // pass both ULID (for GET by-department) and code (for POST/PUT)
+      navigate(`/admin/departments/${row.id}/${row.code}/batches`);
+    },
+    [navigate]
+  );
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -114,6 +122,7 @@ function DepartmentsPage() {
           loading={loading}
           onEdit={handleEdit}
           onDelete={handleDeletePrompt}
+          onManageBatches={handleManageBatches}
         />
       )}
 
