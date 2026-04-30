@@ -6,6 +6,7 @@ import PageHeader from "../../components/common/PageHeader";
 import Loading from "../../components/common/Loading";
 import ErrorState from "../../components/common/ErrorState";
 import { fetchAllDoctors } from "../../features/doctors/api/doctorsApi";
+import { fetchAllDepartments } from "../../features/departments/api/departmentsApi";
 import { getErrorMessage } from "../../utils/errorHelpers";
 
 const breadcrumbs = [{ label: "Staff Affairs" }, { label: "Doctors" }];
@@ -19,9 +20,30 @@ function DoctorsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
+
     try {
-      const data = await fetchAllDoctors();
-      setDoctors(data.map((d) => ({ ...d, id: d.id ?? d.email })));
+      const [doctorResponse, departments] = await Promise.all([
+        fetchAllDoctors({ size: 100 }),
+        fetchAllDepartments(),
+      ]);
+
+      const departmentMap = new Map(
+        departments.map((department) => [String(department.id), department])
+      );
+
+      const nextDoctors = doctorResponse.items.map((doctor) => ({
+        ...doctor,
+        id:
+          doctor.id ??
+          doctor.code ??
+          doctor.universityEmail ??
+          doctor.email,
+        email: doctor.universityEmail || doctor.email || "",
+        departmentName:
+          departmentMap.get(String(doctor.departmentId))?.name || "—",
+      }));
+
+      setDoctors(nextDoctors);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -35,12 +57,18 @@ function DoctorsPage() {
 
   const filtered = useMemo(() => {
     if (!search.trim()) return doctors;
-    const q = search.toLowerCase();
-    return doctors.filter(
-      (d) =>
-        d.name?.toLowerCase().includes(q) ||
-        d.fullName?.toLowerCase().includes(q) ||
-        d.email?.toLowerCase().includes(q)
+
+    const query = search.toLowerCase();
+    return doctors.filter((doctor) =>
+      [
+        doctor.name,
+        doctor.fullName,
+        doctor.email,
+        doctor.universityStaffId,
+        doctor.code,
+      ].some((value) =>
+        String(value || "").toLowerCase().includes(query)
+      )
     );
   }, [doctors, search]);
 
@@ -63,22 +91,21 @@ function DoctorsPage() {
         headerName: "Name",
         flex: 1,
         minWidth: 200,
-        valueGetter: (value, row) => row.fullName || row.name || "",
+        valueGetter: (params) => params.row.fullName || params.row.name || "",
       },
-      { field: "email", headerName: "Email", flex: 1, minWidth: 200 },
+      { field: "email", headerName: "Email", flex: 1, minWidth: 220 },
+      {
+        field: "universityStaffId",
+        headerName: "Staff ID",
+        flex: 1,
+        minWidth: 160,
+        valueGetter: (params) => params.row.universityStaffId || "—",
+      },
       {
         field: "departmentName",
         headerName: "Department",
         flex: 1,
         minWidth: 180,
-        valueGetter: (value, row) => row.departmentName || row.department?.name || "—",
-      },
-      {
-        field: "specialization",
-        headerName: "Specialization",
-        flex: 1,
-        minWidth: 180,
-        valueGetter: (value, row) => row.specialization || "—",
       },
     ],
     []
@@ -91,7 +118,7 @@ function DoctorsPage() {
       <div className="flex gap-4">
         <TextField
           size="small"
-          placeholder="Search by name or email…"
+          placeholder="Search by name, email, code, or staff ID..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           InputProps={{
@@ -107,7 +134,7 @@ function DoctorsPage() {
 
       {error && !loading ? <ErrorState message={error} onRetry={load} /> : null}
       {loading && doctors.length === 0 ? (
-        <Loading label="Loading doctors…" />
+        <Loading label="Loading doctors..." />
       ) : (
         <div className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 overflow-hidden">
           <DataGrid

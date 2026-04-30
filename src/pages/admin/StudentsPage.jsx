@@ -1,18 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Alert,
-  Avatar,
-  Chip,
-  MenuItem,
-  TextField,
-  InputAdornment,
-} from "@mui/material";
+import { Avatar, Chip, InputAdornment, TextField } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import SearchIcon from "@mui/icons-material/Search";
 import PageHeader from "../../components/common/PageHeader";
 import Loading from "../../components/common/Loading";
 import ErrorState from "../../components/common/ErrorState";
 import { fetchAllStudents } from "../../features/students/api/studentsApi";
+import { fetchAllBatches } from "../../features/batches/api/batchesApi";
+import { fetchAllDepartments } from "../../features/departments/api/departmentsApi";
 import { getErrorMessage } from "../../utils/errorHelpers";
 
 const breadcrumbs = [{ label: "Student Affairs" }, { label: "Students" }];
@@ -26,9 +21,42 @@ function StudentsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
+
     try {
-      const data = await fetchAllStudents();
-      setStudents(data.map((s) => ({ ...s, id: s.id ?? s.universityId ?? s.email })));
+      const [studentResponse, batches, departments] = await Promise.all([
+        fetchAllStudents({ size: 100 }),
+        fetchAllBatches(),
+        fetchAllDepartments(),
+      ]);
+
+      const departmentMap = new Map(
+        departments.map((department) => [String(department.id), department])
+      );
+      const batchMap = new Map(
+        batches.map((batch) => [String(batch.id), batch])
+      );
+
+      const nextStudents = studentResponse.items.map((student) => {
+        const batch = batchMap.get(String(student.batchId));
+        const department = batch
+          ? departmentMap.get(String(batch.departmentId))
+          : null;
+
+        return {
+          ...student,
+          id:
+            student.id ??
+            student.code ??
+            student.universityEmail ??
+            student.email,
+          email: student.universityEmail || student.email || "",
+          universityId: student.universityStudentId || "",
+          batchName: batch?.name || "—",
+          departmentName: department?.name || "—",
+        };
+      });
+
+      setStudents(nextStudents);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -42,13 +70,18 @@ function StudentsPage() {
 
   const filtered = useMemo(() => {
     if (!search.trim()) return students;
-    const q = search.toLowerCase();
-    return students.filter(
-      (s) =>
-        s.name?.toLowerCase().includes(q) ||
-        s.fullName?.toLowerCase().includes(q) ||
-        s.email?.toLowerCase().includes(q) ||
-        s.universityId?.toLowerCase().includes(q)
+
+    const query = search.toLowerCase();
+    return students.filter((student) =>
+      [
+        student.name,
+        student.fullName,
+        student.email,
+        student.universityId,
+        student.code,
+      ].some((value) =>
+        String(value || "").toLowerCase().includes(query)
+      )
     );
   }, [students, search]);
 
@@ -71,30 +104,35 @@ function StudentsPage() {
         headerName: "Name",
         flex: 1,
         minWidth: 200,
-        valueGetter: (value, row) => row.fullName || row.name || "",
+        valueGetter: (params) => params.row.fullName || params.row.name || "",
       },
-      { field: "email", headerName: "Email", flex: 1, minWidth: 200 },
-      { field: "universityId", headerName: "University ID", flex: 1, minWidth: 160 },
+      { field: "email", headerName: "Email", flex: 1, minWidth: 220 },
       {
-        field: "groupName",
-        headerName: "Group",
+        field: "universityId",
+        headerName: "University ID",
         flex: 1,
-        minWidth: 140,
-        valueGetter: (value, row) => row.groupName || row.group?.name || "—",
+        minWidth: 160,
       },
-      {
-        field: "batchName",
-        headerName: "Batch",
-        flex: 1,
-        minWidth: 140,
-        valueGetter: (value, row) => row.batchName || row.batch?.name || "—",
-      },
+      { field: "batchName", headerName: "Batch", flex: 1, minWidth: 140 },
       {
         field: "departmentName",
         headerName: "Department",
         flex: 1,
         minWidth: 160,
-        valueGetter: (value, row) => row.departmentName || row.department?.name || "—",
+      },
+      {
+        field: "isActive",
+        headerName: "Status",
+        width: 120,
+        sortable: false,
+        renderCell: (params) => (
+          <Chip
+            size="small"
+            label={params.row.isActive ? "Active" : "Inactive"}
+            color={params.row.isActive ? "success" : "default"}
+            variant={params.row.isActive ? "filled" : "outlined"}
+          />
+        ),
       },
     ],
     []
@@ -107,7 +145,7 @@ function StudentsPage() {
       <div className="flex gap-4">
         <TextField
           size="small"
-          placeholder="Search by name, email or university ID…"
+          placeholder="Search by name, email, code, or university ID..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           InputProps={{
@@ -123,7 +161,7 @@ function StudentsPage() {
 
       {error && !loading ? <ErrorState message={error} onRetry={load} /> : null}
       {loading && students.length === 0 ? (
-        <Loading label="Loading students…" />
+        <Loading label="Loading students..." />
       ) : (
         <div className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 overflow-hidden">
           <DataGrid

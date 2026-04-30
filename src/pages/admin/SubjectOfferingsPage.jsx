@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Alert, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
+  Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle,
   TextField, InputAdornment, MenuItem, CircularProgress,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
@@ -11,7 +11,7 @@ import ErrorState from "../../components/common/ErrorState";
 import { fetchOfferingsBySemester, createOffering } from "../../features/subjectOfferings/api/subjectOfferingsApi";
 import { searchSubjects } from "../../features/subjects/api/subjectsApi";
 import { searchDoctors } from "../../features/doctors/api/doctorsApi";
-import { fetchDepartmentsByCollege } from "../../features/departments/api/departmentsApi";
+import { fetchAllDepartments } from "../../features/departments/api/departmentsApi";
 import { fetchBatchesByDepartment } from "../../features/batches/api/batchesApi";
 import { fetchGroupsByBatch } from "../../features/groups/api/groupsApi";
 import { getErrorMessage } from "../../utils/errorHelpers";
@@ -40,8 +40,6 @@ function OfferingFormDialog({ open, semesterId, onClose, onSubmit, error }) {
   const [doctorResults, setDoctorResults] = useState([]);
   const [doctorLoading, setDoctorLoading] = useState(false);
 
-  // Department / Batch / Group dropdowns
-  const [departments, setDepartments] = useState([]);
   const [batches, setBatches] = useState([]);
   const [groups, setGroups] = useState([]);
 
@@ -51,9 +49,7 @@ function OfferingFormDialog({ open, semesterId, onClose, onSubmit, error }) {
     setErrors({});
     setSubjectQuery(""); setSubjectResults([]);
     setDoctorQuery(""); setDoctorResults([]);
-    setDepartments([]); setBatches([]); setGroups([]);
-    // Load all departments
-    fetchDepartmentsByCollege("").catch(() => {});
+    setBatches([]); setGroups([]);
   }, [open]);
 
   const searchForSubject = useCallback(async () => {
@@ -228,21 +224,22 @@ function OfferingFormDialog({ open, semesterId, onClose, onSubmit, error }) {
 // Small component to load and display all departments
 function DepartmentSelector({ value, onChange, error }) {
   const [departments, setDepartments] = useState([]);
-  useEffect(() => {
-    apiClient_import_departments();
-  }, []);
 
-  async function apiClient_import_departments() {
-    try {
-      // Load all departments via paginated endpoint
-      const res = await import("../../api/apiClient").then(m =>
-        m.default.get("/departments", { params: { page: 1, pageSize: 100 } })
-      );
-      const payload = res.data?.data ?? res.data;
-      const list = Array.isArray(payload) ? payload : (payload?.data ?? []);
-      setDepartments(list);
-    } catch { /* ignore */ }
-  }
+  useEffect(() => {
+    let active = true;
+
+    const loadDepartments = async () => {
+      try {
+        const list = await fetchAllDepartments();
+        if (active) setDepartments(list);
+      } catch {}
+    };
+
+    loadDepartments();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <TextField select label="Department" value={value}

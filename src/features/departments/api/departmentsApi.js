@@ -1,15 +1,36 @@
-
 import apiClient from "../../../api/apiClient";
 
-export const getDepartmentById = async (departmentId) => {
-  const res = await apiClient.get(`/Departments/${departmentId}`);
-  return res.data?.data ?? res.data;
+const normalizeCollection = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  return payload?.data ?? payload?.items ?? [];
+};
+
+export const fetchAllDepartments = async ({ page = 1, pageSize = 100 } = {}) => {
+  const res = await apiClient.get("/Departments", { params: { page, pageSize } });
+  const payload = res.data?.data ?? res.data;
+  return normalizeCollection(payload);
+};
+
+export const getDepartmentById = async (...args) => {
+  const departmentId = args[args.length - 1];
+  if (!departmentId) return null;
+
+  const departments = await fetchAllDepartments();
+  return (
+    departments.find(
+      (department) =>
+        String(department.id) === String(departmentId) ||
+        String(department.code) === String(departmentId)
+    ) || null
+  );
 };
 
 export const fetchDepartmentsByCollege = async (collegeId) => {
+  if (!collegeId) return fetchAllDepartments();
+
   const res = await apiClient.get(`/Departments/by-college/${collegeId}`);
-  const payload = res.data?.data;
-  return Array.isArray(payload) ? payload : (payload?.data ?? payload?.items ?? []);
+  const payload = res.data?.data ?? res.data;
+  return normalizeCollection(payload);
 };
 
 export const createDepartment = async ({ name, code, collegeCode }) => {
@@ -17,8 +38,15 @@ export const createDepartment = async ({ name, code, collegeCode }) => {
   return res.data?.data ?? res.data;
 };
 
-export const updateDepartment = async (departmentCode, { name, code, collegeCode }) => {
-  const res = await apiClient.put(`/Departments/${departmentCode}`, { name, code, collegeCode });
+export const updateDepartment = async (
+  departmentCode,
+  { name, code, collegeCode }
+) => {
+  const res = await apiClient.put(`/Departments/${departmentCode}`, {
+    name,
+    code,
+    collegeCode,
+  });
   return res.data?.data ?? res.data;
 };
 

@@ -1,7 +1,8 @@
 import { useCallback, useMemo } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { signOut } from "firebase/auth";
-import { HiBookOpen, HiHome, HiLogout, HiPencilAlt } from "react-icons/hi";
+import { HiBookOpen, HiChat, HiHome, HiLogout, HiPencilAlt } from "react-icons/hi";
+import { clearStoredSession } from "../../auth/session";
 import { auth } from "../../firebase/firebaseConfig";
 import logo from "../../assets/university-logo.png";
 import fallbackAvatar from "../../assets/imgs/profile.png";
@@ -25,6 +26,7 @@ function ProfessorSidebar({ open = false, onClose, onNavigate, profile, user }) 
       { label: "Home", to: "/prof", icon: HiHome, end: true },
       { label: "Courses", to: "/prof/courses", icon: HiBookOpen },
       { label: "Quizzes", to: "/prof/quizzes", icon: HiPencilAlt },
+      { label: "AI Assistant", to: "/prof/chat", icon: HiChat },
     ],
     []
   );
@@ -38,9 +40,12 @@ function ProfessorSidebar({ open = false, onClose, onNavigate, profile, user }) 
   }, [onClose, onNavigate]);
 
   const handleLogout = useCallback(async () => {
-    await signOut(auth);
+    try {
+      await signOut(auth);
+    } catch {}
+    clearStoredSession();
     if (onClose) onClose();
-    navigate("/signin");
+    navigate("/signin", { replace: true });
   }, [navigate, onClose]);
 
   const displayName = useMemo(() => resolveName(profile, user), [profile, user]);

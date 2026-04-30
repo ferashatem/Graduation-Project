@@ -35,6 +35,8 @@ function SemesterFormDialog({ open, initialValues, onClose, onSubmit, submitting
     if (!values.name.trim()) next.name = "Semester name is required.";
     if (!values.startDate) next.startDate = "Start date is required.";
     if (!values.endDate) next.endDate = "End date is required.";
+    if (values.startDate && values.endDate && values.endDate <= values.startDate)
+      next.endDate = "End date must be after start date.";
     return next;
   }, [values]);
 

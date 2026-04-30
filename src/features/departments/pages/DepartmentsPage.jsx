@@ -1,5 +1,4 @@
-
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Alert } from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
 import PageHeader from "../../../components/common/PageHeader";
@@ -9,11 +8,19 @@ import ErrorState from "../../../components/common/ErrorState";
 import DepartmentsTable from "../components/DepartmentsTable";
 import DepartmentFormDialog from "../components/DepartmentFormDialog";
 import { useDepartments } from "../hooks/useDepartments";
+import { getCollegeById } from "../../colleges/api/collegesApi";
+import { getErrorMessage } from "../../../utils/errorHelpers";
 
 function DepartmentsPage() {
   const navigate = useNavigate();
-  // collegeId = ULID (for fetching), collegeCode = code (for POST/PUT)
   const { collegeId, collegeCode } = useParams();
+  const [collegeMeta, setCollegeMeta] = useState({ name: "", code: "" });
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [confirmState, setConfirmState] = useState({ open: false, row: null });
+  const [actionError, setActionError] = useState("");
+
+  const resolvedCollegeCode = collegeCode || collegeMeta.code;
 
   const {
     departments,
@@ -23,21 +30,44 @@ function DepartmentsPage() {
     addDepartment,
     updateDepartment,
     deleteDepartment,
-  } = useDepartments(collegeId, collegeCode);
+  } = useDepartments(collegeId, resolvedCollegeCode);
 
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState(null);
-  const [confirmState, setConfirmState] = useState({ open: false, row: null });
-  const [actionError, setActionError] = useState("");
+  useEffect(() => {
+    let active = true;
+
+    const loadCollegeMeta = async () => {
+      if (!collegeId) return;
+
+      try {
+        const college = await getCollegeById(collegeId);
+        if (!active) return;
+
+        setCollegeMeta({
+          name: college?.name || "College",
+          code: college?.code || "",
+        });
+      } catch (err) {
+        if (!active) return;
+        setCollegeMeta({ name: "College", code: "" });
+        setActionError(getErrorMessage(err));
+      }
+    };
+
+    loadCollegeMeta();
+    return () => {
+      active = false;
+    };
+  }, [collegeId]);
 
   const rows = useMemo(() => departments, [departments]);
 
   const breadcrumbs = useMemo(
     () => [
       { label: "Colleges", to: "/admin/colleges" },
+      { label: collegeMeta.name || "College" },
       { label: "Departments" },
     ],
-    []
+    [collegeMeta.name]
   );
 
   const handleAdd = useCallback(() => {
@@ -66,6 +96,7 @@ function DepartmentsPage() {
     const target = confirmState.row;
     handleCloseConfirm();
     if (!target) return;
+
     const result = await deleteDepartment(target.code);
     if (result.ok) {
       reload();
@@ -76,6 +107,11 @@ function DepartmentsPage() {
 
   const handleSubmit = useCallback(
     async (values) => {
+      if (!resolvedCollegeCode) {
+        setActionError("College code is still loading. Try again.");
+        return;
+      }
+
       setActionError("");
       const result = editing
         ? await updateDepartment(editing.code, values)
@@ -89,12 +125,11 @@ function DepartmentsPage() {
         setActionError(result.error);
       }
     },
-    [addDepartment, editing, updateDepartment, reload]
+    [addDepartment, editing, reload, resolvedCollegeCode, updateDepartment]
   );
 
   const handleManageBatches = useCallback(
     (row) => {
-      // pass both ULID (for GET by-department) and code (for POST/PUT)
       navigate(`/admin/departments/${row.id}/${row.code}/batches`);
     },
     [navigate]
@@ -106,7 +141,11 @@ function DepartmentsPage() {
         title="Departments"
         breadcrumbs={breadcrumbs}
         action={
-          <Button variant="contained" onClick={handleAdd}>
+          <Button
+            variant="contained"
+            onClick={handleAdd}
+            disabled={!resolvedCollegeCode}
+          >
             Add Department
           </Button>
         }

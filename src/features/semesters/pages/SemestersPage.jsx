@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button, Alert } from "@mui/material";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import PageHeader from "../../../components/common/PageHeader";
 import ConfirmDialog from "../../../components/common/ConfirmDialog";
 import Loading from "../../../components/common/Loading";
@@ -11,6 +11,7 @@ import { useSemesters } from "../hooks/useSemesters";
 import { getYearById } from "../../years/api/yearsApi";
 
 function SemestersPage() {
+  const navigate = useNavigate();
   const { yearId } = useParams();
   const { semesters, loading, error, reload, addSemester, updateSemester, deleteSemester } =
     useSemesters(yearId);
@@ -42,6 +43,10 @@ function SemestersPage() {
     setActionError("");
     setDialogOpen(true);
   }, []);
+
+  const handleManageOfferings = useCallback((row) => {
+    navigate(`/admin/semesters/${row.id}/offerings`);
+  }, [navigate]);
 
   const handleEdit = useCallback((row) => {
     setEditing(row);
@@ -103,6 +108,7 @@ function SemestersPage() {
           loading={loading}
           onEdit={handleEdit}
           onDelete={handleDeletePrompt}
+          onManageOfferings={handleManageOfferings}
         />
       )}
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert, Button, Card, CardContent, Chip, Dialog, DialogActions,
   DialogContent, DialogTitle, IconButton, MenuItem, TextField, Typography,
@@ -6,6 +6,7 @@ import {
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import AttachFileIcon from "@mui/icons-material/AttachFile";
 import PageHeader from "../../components/common/PageHeader";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import Loading from "../../components/common/Loading";
@@ -21,19 +22,24 @@ const TYPES = ["Academic", "Conduct", "Exam", "General"];
 
 const emptyForm = { title: "", content: "", type: "Academic", isActive: true };
 
+const ALLOWED_TYPES = ".pdf,.doc,.docx,.xls,.xlsx";
+
 function RegulationFormDialog({ open, initialValues, onClose, onSubmit, submitting, error }) {
-  const [values, setValues] = useState(emptyForm);
-  const [errors, setErrors] = useState({});
+  const [values, setValues]   = useState(emptyForm);
+  const [file, setFile]       = useState(null);
+  const [errors, setErrors]   = useState({});
+  const fileInputRef          = useRef(null);
   const isEdit = useMemo(() => Boolean(initialValues?.code), [initialValues]);
 
   useEffect(() => {
     if (open) {
       setValues({
-        title: initialValues?.title || "",
-        content: initialValues?.content || "",
-        type: initialValues?.type || "Academic",
+        title:    initialValues?.title    || "",
+        content:  initialValues?.content  || "",
+        type:     initialValues?.type     || "Academic",
         isActive: initialValues?.isActive ?? true,
       });
+      setFile(null);
       setErrors({});
     }
   }, [open, initialValues]);
@@ -43,10 +49,20 @@ function RegulationFormDialog({ open, initialValues, onClose, onSubmit, submitti
     setValues((p) => ({ ...p, [name]: value }));
   };
 
+  const handleFileChange = (e) => {
+    setFile(e.target.files?.[0] ?? null);
+  };
+
+  const clearFile = () => {
+    setFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  // Validation: title required; at least one of content or file must be present.
   const validate = () => {
     const next = {};
     if (!values.title.trim()) next.title = "Title is required.";
-    if (!values.content.trim()) next.content = "Content is required (or upload a file).";
+    if (!values.content.trim() && !file) next.content = "Provide text content, attach a file, or both.";
     return next;
   };
 
@@ -55,28 +71,85 @@ function RegulationFormDialog({ open, initialValues, onClose, onSubmit, submitti
     const next = validate();
     setErrors(next);
     if (Object.keys(next).length > 0) return;
-    await onSubmit(values);
+    await onSubmit({ ...values, file });
   };
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <form onSubmit={handleSubmit}>
         <DialogTitle>{isEdit ? "Edit Regulation" : "Add Regulation"}</DialogTitle>
+
         <DialogContent className="space-y-4 pt-2">
           {error ? <Alert severity="error">{error}</Alert> : null}
-          <TextField label="Title" name="title" value={values.title} onChange={handleChange}
-            error={Boolean(errors.title)} helperText={errors.title} fullWidth required />
+
+          <TextField
+            label="Title" name="title" value={values.title} onChange={handleChange}
+            error={Boolean(errors.title)} helperText={errors.title} fullWidth required
+          />
+
           <TextField select label="Type" name="type" value={values.type} onChange={handleChange} fullWidth>
             {TYPES.map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
           </TextField>
-          <TextField label="Content" name="content" value={values.content} onChange={handleChange}
+
+          <TextField
+            label="Content (optional if file attached)"
+            name="content" value={values.content} onChange={handleChange}
             error={Boolean(errors.content)} helperText={errors.content}
-            multiline rows={5} fullWidth required />
+            multiline rows={4} fullWidth
+          />
+
+          {/* File attachment */}
+          <div>
+            <input
+              ref={fileInputRef}
+              id="reg-file-input"
+              type="file"
+              accept={ALLOWED_TYPES}
+              style={{ display: "none" }}
+              onChange={handleFileChange}
+            />
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<AttachFileIcon />}
+                onClick={() => fileInputRef.current?.click()}
+                disabled={submitting}
+              >
+                {file ? "Change File" : "Attach File"}
+              </Button>
+              {file && (
+                <span className="text-sm text-slate-600 flex items-center gap-1">
+                  {file.name}
+                  <button
+                    type="button"
+                    onClick={clearFile}
+                    className="ml-1 text-red-500 hover:text-red-700 font-bold leading-none"
+                    aria-label="Remove file"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+              {!file && initialValues?.fileUrl && (
+                <a
+                  href={initialValues.fileUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-blue-600 hover:underline flex items-center gap-1"
+                >
+                  <OpenInNewIcon fontSize="inherit" /> Current file
+                </a>
+              )}
+            </div>
+            <p className="text-xs text-slate-400 mt-1">PDF, Word, or Excel — max 50 MB</p>
+          </div>
         </DialogContent>
+
         <DialogActions>
           <Button onClick={onClose} disabled={submitting}>Cancel</Button>
           <Button type="submit" variant="contained" disabled={submitting}>
-            {isEdit ? "Save Changes" : "Create Regulation"}
+            {submitting ? "Saving…" : isEdit ? "Save Changes" : "Create Regulation"}
           </Button>
         </DialogActions>
       </form>

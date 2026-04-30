@@ -72,6 +72,9 @@ import StudentQuizzesPage from "../pages/student/StudentQuizzesPage";
 import StudentQuizTakePage from "../pages/student/StudentQuizTakePage";
 import StudentQuizResultPage from "../pages/student/StudentQuizResultPage";
 
+// Chat
+import ChatPage from "../features/chat/pages/ChatPage";
+
 function AppRoutes() {
   return (
     <Router>
@@ -143,6 +146,9 @@ function AppRoutes() {
             path="campus-buildings/:buildingId/floors/:floorId/rooms/:roomId"
             element={<RoomSchedulePage />}
           />
+
+          {/* ── AI Assistant ── */}
+          <Route path="chat" element={<ChatPage />} />
         </Route>
 
         {/* Legacy buildings routes */}
@@ -196,6 +202,7 @@ function AppRoutes() {
           <Route path="quizzes" element={<ProfessorQuizzesPage />} />
           <Route path="quizzes/:quizId/results" element={<ProfessorQuizResultsPage />} />
           <Route path="materials" element={<Navigate to="/prof/courses" replace />} />
+          <Route path="chat" element={<ChatPage />} />
         </Route>
 
         <Route
@@ -224,6 +231,7 @@ function AppRoutes() {
         >
           <Route index element={<AssistantHome />} />
           <Route path="courses" element={<AssistantCoursesPage />} />
+          <Route path="chat" element={<ChatPage />} />
         </Route>
 
         {/* Student Routes */}
@@ -240,6 +248,7 @@ function AppRoutes() {
           <Route path="quizzes" element={<StudentQuizzesPage />} />
           <Route path="quizzes/:quizId" element={<StudentQuizTakePage />} />
           <Route path="quizzes/:quizId/result" element={<StudentQuizResultPage />} />
+          <Route path="chat" element={<ChatPage />} />
         </Route>
       </Routes>
     </Router>

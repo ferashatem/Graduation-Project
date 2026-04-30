@@ -2,16 +2,24 @@ import { useMemo } from "react";
 import { HiMenu } from "react-icons/hi";
 import fallbackAvatar from "../../assets/imgs/profile.png";
 
+const getStoredName = () => localStorage.getItem("userName") || "";
+const getStoredEmail = () => localStorage.getItem("userEmail") || "";
+
 const resolveName = (profile, user) =>
   profile?.fullName ||
   profile?.Full_Name ||
   profile?.name ||
   profile?.displayName ||
   user?.displayName ||
+  getStoredName() ||
   "Admin";
 
 const resolveEmail = (profile, user) =>
-  profile?.email || profile?.Email || user?.email || "";
+  profile?.email ||
+  profile?.Email ||
+  user?.email ||
+  getStoredEmail() ||
+  "";
 
 function AdminTopbar({ title, profile, user, onMenuClick, role = "admin" }) {
   const viewModel = useMemo(() => {
@@ -20,6 +28,7 @@ function AdminTopbar({ title, profile, user, onMenuClick, role = "admin" }) {
     const photoURL =
       profile?.photoURL || profile?.PhotoURL || user?.photoURL || fallbackAvatar;
     const roleLabel = role === "super_admin" ? "Super Admin" : "Admin";
+
     return {
       name,
       email,
@@ -27,7 +36,7 @@ function AdminTopbar({ title, profile, user, onMenuClick, role = "admin" }) {
       greeting: name ? `Welcome back, ${name}` : "Welcome back",
       roleLabel,
     };
-  }, [profile, user, role]);
+  }, [profile, role, user]);
 
   return (
     <header className="sticky top-0 z-20 flex items-center justify-between gap-4 border-b border-slate-200 bg-white/90 px-4 py-3 shadow-sm backdrop-blur ipad-portrait:px-6">
@@ -49,7 +58,9 @@ function AdminTopbar({ title, profile, user, onMenuClick, role = "admin" }) {
       <div className="flex items-center gap-3">
         <div className="hidden text-right sm:block">
           <p className="text-sm font-semibold text-slate-700">{viewModel.name}</p>
-          <p className="text-xs text-slate-500">{viewModel.roleLabel}</p>
+          <p className="text-xs text-slate-500">
+            {viewModel.email || viewModel.roleLabel}
+          </p>
         </div>
         <img
           src={viewModel.photoURL}

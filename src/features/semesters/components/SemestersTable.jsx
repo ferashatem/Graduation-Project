@@ -1,15 +1,21 @@
 import { useCallback, useMemo } from "react";
 import { DataGrid } from "@mui/x-data-grid";
-import { Chip, IconButton } from "@mui/material";
+import { Button, Chip, IconButton } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import ListAltIcon from "@mui/icons-material/ListAlt";
 
-function SemesterRowActions({ row, onEdit, onDelete }) {
+function SemesterRowActions({ row, onEdit, onDelete, onManageOfferings }) {
   const handleEdit = useCallback(() => onEdit(row), [onEdit, row]);
   const handleDelete = useCallback(() => onDelete(row), [onDelete, row]);
+  const handleOfferings = useCallback(() => onManageOfferings(row), [onManageOfferings, row]);
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1">
+      <Button size="small" variant="outlined" startIcon={<ListAltIcon fontSize="inherit" />}
+        onClick={handleOfferings} sx={{ fontSize: 11 }}>
+        Offerings
+      </Button>
       <IconButton size="small" color="primary" onClick={handleEdit}>
         <EditIcon fontSize="inherit" />
       </IconButton>
@@ -20,7 +26,7 @@ function SemesterRowActions({ row, onEdit, onDelete }) {
   );
 }
 
-function SemestersTable({ rows, loading, onEdit, onDelete }) {
+function SemestersTable({ rows, loading, onEdit, onDelete, onManageOfferings }) {
   const gridRows = useMemo(() => rows || [], [rows]);
 
   const columns = useMemo(
@@ -43,15 +49,16 @@ function SemestersTable({ rows, loading, onEdit, onDelete }) {
       {
         field: "actions",
         headerName: "Actions",
-        width: 120,
+        width: 220,
         sortable: false,
         filterable: false,
         renderCell: (params) => (
-          <SemesterRowActions row={params.row} onEdit={onEdit} onDelete={onDelete} />
+          <SemesterRowActions row={params.row} onEdit={onEdit} onDelete={onDelete}
+            onManageOfferings={onManageOfferings} />
         ),
       },
     ],
-    [onDelete, onEdit]
+    [onDelete, onEdit, onManageOfferings]
   );
 
   return (

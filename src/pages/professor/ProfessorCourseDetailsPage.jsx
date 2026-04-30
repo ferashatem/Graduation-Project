@@ -1,32 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  useLocation,
-  useNavigate,
-  useOutletContext,
-  useParams,
-} from "react-router-dom";
+import { useLocation, useNavigate, useOutletContext, useParams } from "react-router-dom";
 import { Button } from "@mui/material";
 import PageHeader from "../../components/common/PageHeader";
 import Loading from "../../components/common/Loading";
 import ErrorState from "../../components/common/ErrorState";
 import CourseMaterialsSection from "../../components/professor/CourseMaterialsSection";
 import AIChat from "../../components/professor/course-ai/AIChat";
-import { useAuthUser } from "../../auth/useAuthUser";
-import { getProfessorCourseById } from "../../firebase/profCoursesApi";
-import { getErrorMessage } from "../../utils/errorHelpers";
-
-const resolveCourseName = (course) =>
-  course?.courseName ||
-  course?.CourseName ||
-  course?.courseLabel ||
-  "Untitled course";
+import { fetchOffering } from "../../features/professor/api/professorBackendApi";
 
 function ProfessorCourseDetailsPage() {
   const { courseDocId } = useParams();
-  const outletContext = useOutletContext() || {};
-  const { user: outletUser } = outletContext;
-  const { user: authUser, authLoading } = useAuthUser();
-  const user = outletUser || authUser;
+  const { user, profile, profileLoading } = useOutletContext() || {};
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -41,17 +25,11 @@ function ProfessorCourseDetailsPage() {
     [location.pathname]
   );
 
+  const professorUid = user?.uid ?? user?.id ?? "";
+
   const loadCourse = useCallback(async () => {
-    if (!user?.uid) {
-      setCourse(null);
-      setNotFound(false);
-      setLoading(false);
-      return;
-    }
     if (!courseDocId) {
-      setCourse(null);
-      setNotFound(false);
-      setError("Course id is missing.");
+      setError("Course ID is missing.");
       setLoading(false);
       return;
     }
@@ -61,35 +39,34 @@ function ProfessorCourseDetailsPage() {
     setNotFound(false);
 
     try {
-      const data = await getProfessorCourseById(user.uid, courseDocId);
-      if (!data) {
-        setCourse(null);
-        setNotFound(true);
-        return;
-      }
+      const data = await fetchOffering(courseDocId);
+      if (!data) { setNotFound(true); return; }
       setCourse(data);
-    } catch (err) {
-      setError(getErrorMessage(err, "Failed to load course details."));
+    } catch (e) {
+      if (e?.response?.status === 404) {
+        setNotFound(true);
+      } else {
+        setError(e?.response?.data?.message ?? e?.message ?? "Failed to load course details.");
+      }
     } finally {
       setLoading(false);
     }
-  }, [courseDocId, user?.uid]);
+  }, [courseDocId]);
 
   useEffect(() => {
-    if (authLoading) return;
+    if (profileLoading) return;
     loadCourse();
-  }, [authLoading, loadCourse, refreshKey]);
+  }, [profileLoading, loadCourse, refreshKey]);
 
   const courseSummary = useMemo(() => {
     if (!course) return null;
     return {
-      name: resolveCourseName(course),
-      courseId: course.courseId || "-",
-      collegeName: course.collegeName || "-",
-      assistantCount: Array.isArray(course.assistantIds)
-        ? course.assistantIds.length
-        : 0,
-      termId: course.termId || "-",
+      name: course.subjectName ?? course.courseName ?? course.name ?? "Untitled",
+      courseId: course.id ?? course.code ?? "-",
+      collegeName: course.collegeName ?? course.college ?? "-",
+      departmentName: course.departmentName ?? course.department ?? "-",
+      semesterName: course.semesterName ?? course.term ?? course.termName ?? "-",
+      creditHours: course.creditHours ?? course.credits ?? null,
     };
   }, [course]);
 
@@ -101,29 +78,25 @@ function ProfessorCourseDetailsPage() {
     [basePath, courseSummary?.name]
   );
 
-  const handleRetry = useCallback(() => {
-    setRefreshKey((prev) => prev + 1);
-  }, []);
+  const courseForMaterials = useMemo(
+    () => course ? { id: courseDocId, courseName: courseSummary?.name, termId: courseSummary?.semesterName } : null,
+    [course, courseDocId, courseSummary]
+  );
 
-  const handleBack = useCallback(() => {
-    navigate(`${basePath}/courses`);
-  }, [basePath, navigate]);
+  const handleRetry = useCallback(() => setRefreshKey((k) => k + 1), []);
+  const handleBack = useCallback(() => navigate(`${basePath}/courses`), [basePath, navigate]);
 
   return (
     <div className="space-y-6">
       <PageHeader
         title={courseSummary?.name || "Course Details"}
         breadcrumbs={breadcrumbs}
-        action={
-          <Button variant="outlined" onClick={handleBack}>
-            Back to Courses
-          </Button>
-        }
+        action={<Button variant="outlined" onClick={handleBack}>Back to Courses</Button>}
       />
 
       {error ? <ErrorState message={error} onRetry={handleRetry} /> : null}
 
-      {authLoading || loading ? (
+      {profileLoading || loading ? (
         <Loading label="Loading course..." />
       ) : error ? null : notFound || !course ? (
         <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
@@ -133,43 +106,39 @@ function ProfessorCourseDetailsPage() {
         <>
           <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
             <div className="space-y-1">
-              <h2 className="text-lg font-semibold text-slate-800">
-                {courseSummary?.name}
-              </h2>
-              <p className="text-sm text-slate-500">
-                {courseSummary?.collegeName}
-              </p>
+              <h2 className="text-lg font-semibold text-slate-800">{courseSummary?.name}</h2>
+              <p className="text-sm text-slate-500">{courseSummary?.collegeName}</p>
             </div>
-
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <div className="flex items-center justify-between text-sm text-slate-600">
-                <span className="font-medium text-slate-700">Course ID</span>
-                <span className="text-slate-500">{courseSummary?.courseId}</span>
-              </div>
-              <div className="flex items-center justify-between text-sm text-slate-600">
-                <span className="font-medium text-slate-700">Assistants</span>
-                <span className="text-slate-500">
-                  {courseSummary?.assistantCount}
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-sm text-slate-600">
-                <span className="font-medium text-slate-700">Term</span>
-                <span className="text-slate-500">{courseSummary?.termId}</span>
-              </div>
+              <InfoRow label="Course ID" value={courseSummary?.courseId} />
+              <InfoRow label="Department" value={courseSummary?.departmentName} />
+              <InfoRow label="Semester" value={courseSummary?.semesterName} />
+              {courseSummary?.creditHours && <InfoRow label="Credit Hours" value={courseSummary.creditHours} />}
             </div>
           </div>
 
-          <CourseMaterialsSection professorId={user?.uid} course={course} />
+          {courseForMaterials && (
+            <CourseMaterialsSection professorId={professorUid} course={courseForMaterials} />
+          )}
 
           <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
             <AIChat
-              professorId={user?.uid}
-              courseDocId={course?.id}
+              professorId={professorUid}
+              courseDocId={courseDocId}
               courseName={courseSummary?.name}
             />
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+function InfoRow({ label, value }) {
+  return (
+    <div className="flex items-center justify-between text-sm text-slate-600">
+      <span className="font-medium text-slate-700">{label}</span>
+      <span className="text-slate-500">{value || "-"}</span>
     </div>
   );
 }

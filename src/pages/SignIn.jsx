@@ -3,17 +3,18 @@
 import { useCallback, useState } from "react";
 import "../assets/styles/styles.css";
 import { useNavigate } from "react-router-dom";
+import {
+  clearStoredSession,
+  getRoleHomePath,
+  persistAuthSession,
+} from "../auth/session";
 
 import BigLogo from "../assets/university-logo.png";
 
 const API_BASE = "";
 
 function redirectByRole(role, navigate) {
-  if (role === "SuperAdmin") navigate("/super_admin/home", { replace: true });
-  else if (role === "Admin") navigate("/admin/home", { replace: true });
-  else if (role === "Professor") navigate("/prof", { replace: true });
-  else if (role === "Assistant") navigate("/asst", { replace: true });
-  else navigate("/student", { replace: true });
+  navigate(getRoleHomePath(role), { replace: true });
 }
 
 function SignIn() {
@@ -42,22 +43,26 @@ function SignIn() {
         const json = await res.json();
         console.log("Login response:", json);
 
-        if (!res.ok || !json.success) {
-          throw new Error(json.message || "Invalid email or password.");
+        const authPayload = json?.data ?? json;
+
+        if (!res.ok || !authPayload?.token) {
+          throw new Error(
+            json?.message ||
+              authPayload?.message ||
+              "Invalid email or password.",
+          );
         }
 
-        const { token, role, fullName, userId, refreshToken, email: userEmail } = json.data;
+        clearStoredSession();
+        const session = persistAuthSession(json, {
+          email,
+          fullName: email.split("@")[0],
+        });
 
-        localStorage.setItem("token", token);
-        localStorage.setItem("role", role);
-        localStorage.setItem("userName", fullName || email.split("@")[0]);
-        localStorage.setItem("userEmail", userEmail || email);
-        localStorage.setItem("userId", userId);
-        localStorage.setItem("refreshToken", refreshToken);
-
-        redirectByRole(role, navigate);
+        redirectByRole(session?.role, navigate);
       } catch (err) {
         setLoginError(err.message || "Login failed. Please try again.");
+      } finally {
         setLoading(false);
       }
     },
