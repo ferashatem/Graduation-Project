@@ -82,10 +82,10 @@ export function useChat() {
     try {
       const result = await sendMessage(convId, trimmed);
       const aiMessage = {
-        id: `a-${Date.now()}`,
-        role: "assistant",
-        content: result?.content ?? result?.message ?? result?.response ?? "No response.",
-        createdAt: new Date().toISOString(),
+        id: result?.id ?? `a-${Date.now()}`,
+        role: result?.sender ?? "assistant",
+        content: result?.content ?? "No response.",
+        createdAt: result?.sentAt ?? new Date().toISOString(),
       };
       setMessages((prev) => [...prev, aiMessage]);
     } catch (e) {
