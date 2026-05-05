@@ -81,11 +81,19 @@ export function useChat() {
 
     try {
       const result = await sendMessage(convId, trimmed);
+      // FastAPI returns `response`, .NET may wrap it as `content` or `aiResponse`
+      const responseText =
+        result?.content ??
+        result?.response ??
+        result?.aiResponse ??
+        result?.message ??
+        "No response.";
       const aiMessage = {
         id: result?.id ?? `a-${Date.now()}`,
         role: result?.sender ?? "assistant",
-        content: result?.content ?? "No response.",
-        createdAt: result?.sentAt ?? new Date().toISOString(),
+        content: responseText,
+        suggestions: result?.suggestions ?? [],
+        createdAt: result?.sentAt ?? result?.createdAt ?? new Date().toISOString(),
       };
       setMessages((prev) => [...prev, aiMessage]);
     } catch (e) {

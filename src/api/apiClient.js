@@ -8,11 +8,11 @@ import {
 } from "../auth/session";
 
 const apiClient = axios.create({
-  baseURL: "/api",
+  baseURL: "https://universitymanagementsystem-production-e58e.up.railway.app/api",
 });
 
 const refreshClient = axios.create({
-  baseURL: "/api",
+  baseURL: "https://universitymanagementsystem-production-e58e.up.railway.app/api",
 });
 
 let refreshRequest = null;

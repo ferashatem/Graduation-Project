@@ -1985,10 +1985,8 @@ exports.syncRoleClaimOnUserWrite = onDocumentWritten(
 );
 
 // ─── generateQuiz ─────────────────────────────────────────────────────────────
-// Requires GEMINI_API_KEY in Firebase Functions secrets.
-// Set with: firebase functions:secrets:set GEMINI_API_KEY
 exports.generateQuiz = onRequest(
-  { cors: true, secrets: ["GEMINI_API_KEY"] },
+  { cors: true },
   async (req, res) => {
     if (req.method !== "POST") {
       return res.status(405).json({ error: "Method not allowed" });
@@ -2031,11 +2029,8 @@ exports.generateQuiz = onRequest(
 
       const base64Pdf = fileParts[0].toString("base64");
 
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) return res.status(500).json({ error: "GEMINI_API_KEY not configured" });
-
       const geminiRes = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

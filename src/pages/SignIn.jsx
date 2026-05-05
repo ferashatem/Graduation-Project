@@ -11,7 +11,7 @@ import {
 
 import BigLogo from "../assets/university-logo.png";
 
-const API_BASE = "";
+const API_BASE = "https://universitymanagementsystem-production-e58e.up.railway.app";
 
 function redirectByRole(role, navigate) {
   navigate(getRoleHomePath(role), { replace: true });

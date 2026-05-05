@@ -22,12 +22,13 @@ function ConversationItem({ conv, active, onClick }) {
   );
 }
 
-function ChatBubble({ msg }) {
+function ChatBubble({ msg, onSuggestionClick }) {
   const isUser = msg.role === "user";
   const text = msg.content ?? msg.message ?? "";
+  const suggestions = !isUser && Array.isArray(msg.suggestions) ? msg.suggestions : [];
 
   return (
-    <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
+    <div className={`flex flex-col ${isUser ? "items-end" : "items-start"}`}>
       <div
         className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm ${
           isUser
@@ -37,6 +38,20 @@ function ChatBubble({ msg }) {
       >
         {text}
       </div>
+      {suggestions.length > 0 && (
+        <div className="flex flex-wrap gap-2 mt-2 max-w-[75%]">
+          {suggestions.map((s, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => onSuggestionClick?.(s)}
+              className="text-xs px-3 py-1.5 rounded-full bg-white/80 text-[#1d5fa3] ring-1 ring-[#1d5fa3]/30 hover:bg-[#1d5fa3] hover:text-white transition shadow-sm"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -80,9 +95,9 @@ export default function ChatPage() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, sending]);
 
-  const handleSend = async () => {
-    if (!input.trim() || sending) return;
-    const text = input;
+  const handleSend = async (overrideText) => {
+    const text = overrideText ?? input;
+    if (!text.trim() || sending) return;
     setInput("");
     await send(text);
   };
@@ -176,7 +191,9 @@ export default function ChatPage() {
               </div>
             </div>
           ) : (
-            messages.map((msg) => <ChatBubble key={msg.id} msg={msg} />)
+            messages.map((msg) => (
+              <ChatBubble key={msg.id} msg={msg} onSuggestionClick={handleSend} />
+            ))
           )}
 
           {sending && <TypingDots />}
