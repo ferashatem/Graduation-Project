@@ -1,42 +1,87 @@
 import { useEffect, useRef, useState } from "react";
-import { HiChat, HiPaperAirplane, HiPencilAlt, HiPlus } from "react-icons/hi";
+import { HiChat, HiPaperAirplane, HiPencilAlt, HiPlus, HiTrash } from "react-icons/hi";
 import { useChat } from "../hooks/useChat";
 
-function ConversationItem({ conv, active, onClick }) {
+function ConversationItem({ conv, active, onClick, onDelete }) {
   const title = conv?.title || "Conversation";
+  const [hovered, setHovered] = useState(false);
+
   return (
-    <button
-      type="button"
-      onClick={() => onClick(conv.id)}
-      className={`w-full text-left px-4 py-3 rounded-xl text-sm font-medium transition truncate ${
-        active
-          ? "bg-white/90 text-slate-900 shadow-sm ring-1 ring-white/70"
-          : "text-slate-700 hover:bg-white/60"
+    <div
+      className={`group flex items-center gap-1 rounded-xl transition ${
+        active ? "bg-white/90 shadow-sm ring-1 ring-white/70" : "hover:bg-white/60"
       }`}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
     >
-      <span className="flex items-center gap-2">
-        <HiChat className="h-4 w-4 shrink-0 opacity-60" />
-        <span className="truncate">{title}</span>
-      </span>
-    </button>
+      <button
+        type="button"
+        onClick={() => onClick(conv.id)}
+        className={`flex-1 text-left px-3 py-3 text-sm font-medium truncate ${
+          active ? "text-slate-900" : "text-slate-700"
+        }`}
+      >
+        <span className="flex items-center gap-2">
+          <HiChat className="h-4 w-4 shrink-0 opacity-60" />
+          <span className="truncate">{title}</span>
+        </span>
+      </button>
+      {hovered && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onDelete(conv.id); }}
+          className="shrink-0 p-1.5 mr-1 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition"
+          title="Delete conversation"
+        >
+          <HiTrash className="h-3.5 w-3.5" />
+        </button>
+      )}
+    </div>
   );
 }
 
-function ChatBubble({ msg, onSuggestionClick }) {
+function ChatBubble({ msg, onSuggestionClick, onDelete }) {
   const isUser = msg.role === "user";
   const text = msg.content ?? msg.message ?? "";
   const suggestions = !isUser && Array.isArray(msg.suggestions) ? msg.suggestions : [];
+  const [hovered, setHovered] = useState(false);
 
   return (
-    <div className={`flex flex-col ${isUser ? "items-end" : "items-start"}`}>
-      <div
-        className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm ${
-          isUser
-            ? "bg-[#1d5fa3] text-white rounded-br-sm"
-            : "bg-white/90 text-slate-800 rounded-bl-sm ring-1 ring-slate-200/60"
-        }`}
-      >
-        {text}
+    <div
+      className={`flex flex-col ${isUser ? "items-end" : "items-start"}`}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <div className="flex items-end gap-1">
+        {isUser && hovered && (
+          <button
+            type="button"
+            onClick={() => onDelete?.(msg.id)}
+            className="p-1 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition mb-1"
+            title="Delete message"
+          >
+            <HiTrash className="h-3.5 w-3.5" />
+          </button>
+        )}
+        <div
+          className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm ${
+            isUser
+              ? "bg-[#1d5fa3] text-white rounded-br-sm"
+              : "bg-white/90 text-slate-800 rounded-bl-sm ring-1 ring-slate-200/60"
+          }`}
+        >
+          {text}
+        </div>
+        {!isUser && hovered && (
+          <button
+            type="button"
+            onClick={() => onDelete?.(msg.id)}
+            className="p-1 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition mb-1"
+            title="Delete message"
+          >
+            <HiTrash className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
       {suggestions.length > 0 && (
         <div className="flex flex-wrap gap-2 mt-2 max-w-[75%]">
@@ -84,6 +129,8 @@ export default function ChatPage() {
     selectConversation,
     startNewConversation,
     send,
+    deleteMsg,
+    deleteConv,
   } = useChat();
 
   const [input, setInput] = useState("");
@@ -143,6 +190,7 @@ export default function ChatPage() {
                 conv={conv}
                 active={conv.id === activeConversationId}
                 onClick={selectConversation}
+                onDelete={deleteConv}
               />
             ))
           )}
@@ -192,7 +240,7 @@ export default function ChatPage() {
             </div>
           ) : (
             messages.map((msg) => (
-              <ChatBubble key={msg.id} msg={msg} onSuggestionClick={handleSend} />
+              <ChatBubble key={msg.id} msg={msg} onSuggestionClick={handleSend} onDelete={deleteMsg} />
             ))
           )}
 

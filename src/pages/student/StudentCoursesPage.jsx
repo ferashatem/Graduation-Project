@@ -16,6 +16,7 @@ import Loading from "../../components/common/Loading";
 import ErrorState from "../../components/common/ErrorState";
 import { listenAssignmentMaterials } from "../../firebase/assignmentMaterialsApi";
 import { getErrorMessage } from "../../utils/errorHelpers";
+import { fetchMyEnrollments } from "../../features/subjectOfferings/api/subjectOfferingsApi";
 
 // ─── Section Materials Panel ──────────────────────────────────────────────────
 
@@ -148,6 +149,41 @@ function Row({ label, value }) {
   );
 }
 
+// ─── Enrolled Subject Card (Backend) ─────────────────────────────────────────
+
+function EnrolledSubjectCard({ enrollment }) {
+  const name    = enrollment.subjectName  ?? enrollment.name           ?? "Untitled";
+  const code    = enrollment.subjectCode  ?? enrollment.code           ?? "-";
+  const doctor  = enrollment.doctorName   ?? enrollment.instructorName ?? "-";
+  const sem     = enrollment.semesterName ?? enrollment.termName       ?? "-";
+  const dept    = enrollment.departmentName                            ?? "-";
+  const credits = enrollment.creditHours  ?? enrollment.credits        ?? null;
+
+  return (
+    <article className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-blue-200">
+      <div className="p-5">
+        <div className="space-y-1">
+          <h3 className="text-base font-semibold text-slate-800">{name}</h3>
+          {code !== "-" && (
+            <p className="text-xs font-semibold tracking-wide text-blue-600">{code}</p>
+          )}
+        </div>
+        <div className="mt-4 space-y-2 text-sm">
+          <Row label="Semester" value={sem} />
+          <Row label="Doctor"   value={doctor} />
+          <Row label="Department" value={dept} />
+          {credits && <Row label="Credit Hours" value={credits} />}
+        </div>
+        <div className="mt-4">
+          <span className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700">
+            Enrolled
+          </span>
+        </div>
+      </div>
+    </article>
+  );
+}
+
 // ─── PDF Export ───────────────────────────────────────────────────────────────
 
 const exportPdf = (courses, studentName) => {
@@ -217,6 +253,18 @@ function StudentCoursesPage() {
   const [rawCourses, setRawCourses] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Backend enrolled subjects
+  const [enrollments, setEnrollments] = useState([]);
+  const [enrollmentsLoading, setEnrollmentsLoading] = useState(true);
+
+  useEffect(() => {
+    setEnrollmentsLoading(true);
+    fetchMyEnrollments()
+      .then((data) => setEnrollments(data))
+      .catch(() => setEnrollments([]))
+      .finally(() => setEnrollmentsLoading(false));
+  }, []);
 
   // Resolved labels for college / year / department
   const [collegeName, setCollegeName] = useState("");
@@ -402,6 +450,26 @@ function StudentCoursesPage() {
 
   return (
     <div className="space-y-6">
+      {/* ── Enrolled Subjects from Backend ── */}
+      <div>
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-slate-500 mb-3">
+          Registered Subjects
+        </h2>
+        {enrollmentsLoading ? (
+          <Loading label="Loading enrolled subjects…" />
+        ) : enrollments.length === 0 ? (
+          <div className="rounded-2xl bg-white p-4 text-sm text-slate-400 ring-1 ring-slate-200">
+            No enrolled subjects yet.
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {enrollments.map((e, i) => (
+              <EnrolledSubjectCard key={e.id ?? e.subjectOfferingId ?? i} enrollment={e} />
+            ))}
+          </div>
+        )}
+      </div>
+
       <div className="flex items-center justify-between">
         <PageHeader title="My Courses" />
         <button

@@ -11,7 +11,7 @@ import apiClient from "../../api/apiClient";
 const breadcrumbs = [{ label: "Student Affairs" }, { label: "Register Student" }];
 
 const emptyForm = {
-  fullName: "", nationalId: "", phone: "",
+  fullName: "", email: "", nationalId: "", phone: "",
   collegeCode: "", departmentCode: "", batchCode: "", groupCode: "",
   universityStudentId: "",
 };
@@ -85,6 +85,8 @@ function RegisterStudentPage() {
   const validate = useCallback(() => {
     const next = {};
     if (!values.fullName.trim()) next.fullName = "Full name is required.";
+    if (!values.email.trim()) next.email = "Email is required.";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)) next.email = "Enter a valid email address.";
     if (!values.nationalId.trim()) next.nationalId = "National ID is required.";
     if (!values.phone.trim()) next.phone = "Phone is required.";
     if (!values.collegeCode) next.collegeCode = "College is required.";
@@ -138,6 +140,10 @@ function RegisterStudentPage() {
             <TextField label="Full Name" name="fullName" value={values.fullName}
               onChange={handleChange} error={Boolean(errors.fullName)}
               helperText={errors.fullName} fullWidth required />
+
+            <TextField label="Email" name="email" type="email" value={values.email}
+              onChange={handleChange} error={Boolean(errors.email)}
+              helperText={errors.email} fullWidth required />
 
             <div className="grid grid-cols-2 gap-4">
               <TextField label="National ID" name="nationalId" value={values.nationalId}

@@ -13,14 +13,14 @@ import Loading from "../../components/common/Loading";
 import ErrorState from "../../components/common/ErrorState";
 import {
   fetchAllRegulations, createRegulation, updateRegulation, deleteRegulation,
+  REGULATION_TYPE_OPTIONS,
 } from "../../features/regulations/api/regulationsApi";
 import { getErrorMessage } from "../../utils/errorHelpers";
+import apiClient from "../../api/apiClient";
 
 const breadcrumbs = [{ label: "Settings & Reports" }, { label: "Regulations" }];
 
-const TYPES = ["Academic", "Conduct", "Exam", "General"];
-
-const emptyForm = { title: "", content: "", type: "Academic", isActive: true };
+const emptyForm = { title: "", content: "", type: 0, isActive: true, departmentId: "", subjectsJson: "" };
 
 const ALLOWED_TYPES = ".pdf,.doc,.docx,.xls,.xlsx";
 
@@ -28,16 +28,28 @@ function RegulationFormDialog({ open, initialValues, onClose, onSubmit, submitti
   const [values, setValues]   = useState(emptyForm);
   const [file, setFile]       = useState(null);
   const [errors, setErrors]   = useState({});
+  const [departments, setDepartments] = useState([]);
   const fileInputRef          = useRef(null);
   const isEdit = useMemo(() => Boolean(initialValues?.code), [initialValues]);
 
   useEffect(() => {
+    apiClient.get("/departments", { params: { page: 1, pageSize: 200 } })
+      .then((r) => {
+        const p = r.data?.data ?? r.data;
+        setDepartments(Array.isArray(p) ? p : (p?.data ?? []));
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
     if (open) {
       setValues({
-        title:    initialValues?.title    || "",
-        content:  initialValues?.content  || "",
-        type:     initialValues?.type     || "Academic",
-        isActive: initialValues?.isActive ?? true,
+        title:        initialValues?.title        || "",
+        content:      initialValues?.content      || "",
+        type:         initialValues?.type         ?? 0,
+        isActive:     initialValues?.isActive     ?? true,
+        departmentId: initialValues?.departmentId || "",
+        subjectsJson: initialValues?.subjectsJson || "",
       });
       setFile(null);
       setErrors({});
@@ -58,11 +70,18 @@ function RegulationFormDialog({ open, initialValues, onClose, onSubmit, submitti
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  // Validation: title required; at least one of content or file must be present.
   const validate = () => {
     const next = {};
     if (!values.title.trim()) next.title = "Title is required.";
     if (!values.content.trim() && !file) next.content = "Provide text content, attach a file, or both.";
+    if (values.subjectsJson.trim()) {
+      try {
+        const parsed = JSON.parse(values.subjectsJson);
+        if (!Array.isArray(parsed)) next.subjectsJson = 'Must be a JSON array, e.g. ["Math","Physics"]';
+      } catch {
+        next.subjectsJson = 'Invalid JSON — use format: ["Math","Physics"]';
+      }
+    }
     return next;
   };
 
@@ -88,7 +107,17 @@ function RegulationFormDialog({ open, initialValues, onClose, onSubmit, submitti
           />
 
           <TextField select label="Type" name="type" value={values.type} onChange={handleChange} fullWidth>
-            {TYPES.map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
+            {REGULATION_TYPE_OPTIONS.map((t) => (
+              <MenuItem key={t.value} value={t.value}>{t.label}</MenuItem>
+            ))}
+          </TextField>
+
+          <TextField select label="Department (optional)" name="departmentId"
+            value={values.departmentId} onChange={handleChange} fullWidth>
+            <MenuItem value="">— All Departments —</MenuItem>
+            {departments.map((d) => (
+              <MenuItem key={d.id} value={d.id}>{d.name}</MenuItem>
+            ))}
           </TextField>
 
           <TextField
@@ -96,6 +125,14 @@ function RegulationFormDialog({ open, initialValues, onClose, onSubmit, submitti
             name="content" value={values.content} onChange={handleChange}
             error={Boolean(errors.content)} helperText={errors.content}
             multiline rows={4} fullWidth
+          />
+
+          <TextField
+            label="Subjects (JSON, optional)"
+            name="subjectsJson" value={values.subjectsJson} onChange={handleChange}
+            error={Boolean(errors.subjectsJson)}
+            helperText={errors.subjectsJson || 'e.g. ["Math","Physics"]'}
+            multiline rows={2} fullWidth
           />
 
           {/* File attachment */}
@@ -158,6 +195,7 @@ function RegulationFormDialog({ open, initialValues, onClose, onSubmit, submitti
 }
 
 function RegulationCard({ regulation, onEdit, onDelete }) {
+  const typeLabel = REGULATION_TYPE_OPTIONS.find((t) => t.value === regulation.type)?.label ?? regulation.type;
   return (
     <Card variant="outlined" className="hover:shadow-md transition-shadow">
       <CardContent>
@@ -167,7 +205,7 @@ function RegulationCard({ regulation, onEdit, onDelete }) {
               <Typography variant="subtitle1" className="font-semibold truncate">
                 {regulation.title}
               </Typography>
-              <Chip label={regulation.type} size="small" variant="outlined" />
+              <Chip label={typeLabel} size="small" variant="outlined" />
               {regulation.isActive
                 ? <Chip label="Active" size="small" color="success" />
                 : <Chip label="Inactive" size="small" />}
@@ -234,8 +272,8 @@ function RegulationsPage() {
     handleCloseConfirm();
     if (!target) return;
     try {
-      await deleteRegulation(target.code);
-      setRegulations((prev) => prev.filter((r) => r.code !== target.code));
+      await deleteRegulation(target.id);
+      setRegulations((prev) => prev.filter((r) => r.id !== target.id));
     } catch (err) {
       setActionError(getErrorMessage(err));
     }

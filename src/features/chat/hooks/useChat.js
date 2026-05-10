@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   createConversation,
+  deleteConversation,
+  deleteMessage,
   fetchConversations,
   fetchMessages,
   sendMessage,
@@ -104,6 +106,28 @@ export function useChat() {
     }
   }, [sending, startNewConversation]);
 
+  const deleteConv = useCallback(async (conversationId) => {
+    setConversations((prev) => prev.filter((c) => c.id !== conversationId));
+    if (activeRef.current === conversationId) {
+      setActiveConversationId(null);
+      setMessages([]);
+    }
+    try {
+      await deleteConversation(conversationId);
+    } catch (e) {
+      setError(e?.response?.data?.message ?? e?.message ?? "Failed to delete conversation.");
+    }
+  }, []);
+
+  const deleteMsg = useCallback(async (messageId) => {
+    setMessages((prev) => prev.filter((m) => m.id !== messageId));
+    try {
+      await deleteMessage(messageId);
+    } catch (e) {
+      setError(e?.response?.data?.message ?? e?.message ?? "Failed to delete message.");
+    }
+  }, []);
+
   return {
     conversations,
     activeConversationId,
@@ -115,5 +139,7 @@ export function useChat() {
     selectConversation,
     startNewConversation,
     send,
+    deleteMsg,
+    deleteConv,
   };
 }

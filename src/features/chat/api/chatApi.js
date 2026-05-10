@@ -25,3 +25,11 @@ export const sendMessage = async (conversationId, content) => {
   const res = await apiClient.post("/Chat/messages", { conversationId, content, role });
   return res.data?.data ?? res.data;
 };
+
+export const deleteMessage = async (messageId) => {
+  await apiClient.delete(`/Chat/messages/${messageId}`);
+};
+
+export const deleteConversation = async (conversationId) => {
+  await apiClient.delete(`/Chat/conversations/${conversationId}`);
+};

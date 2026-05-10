@@ -2,11 +2,12 @@ import apiClient from "./apiClient";
 
 // POST /api/auth/register/student
 export const registerStudent = async ({
-  fullName, collegeCode, departmentCode, nationalId,
+  fullName, email, collegeCode, departmentCode, nationalId,
   batchCode, groupCode, phone, universityStudentId,
 }) => {
   const res = await apiClient.post("/auth/register/student", {
     fullName,
+    email,
     collegeCode,
     departmentCode,
     nationalId,

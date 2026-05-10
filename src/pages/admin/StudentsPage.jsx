@@ -37,20 +37,21 @@ function StudentsPage() {
       );
 
       const nextStudents = studentResponse.items.map((student) => {
-        const batch = batchMap.get(String(student.batchId));
+        const batchId = student.BatchId ?? student.batchId;
+        const batch = batchMap.get(String(batchId));
         const department = batch
-          ? departmentMap.get(String(batch.departmentId))
+          ? departmentMap.get(String(batch.departmentId ?? batch.DepartmentId))
           : null;
 
+        const code = student.Code ?? student.code;
+        const fullName = student.FullName ?? student.fullName ?? student.name;
         return {
           ...student,
-          id:
-            student.id ??
-            student.code ??
-            student.universityEmail ??
-            student.email,
-          email: student.universityEmail || student.email || "",
-          universityId: student.universityStudentId || "",
+          id: code ?? student.UniversityStudentId ?? student.universityStudentId ?? student.UniversityEmail ?? student.universityEmail,
+          code,
+          fullName,
+          email: student.UniversityEmail || student.universityEmail || student.Email || student.email || "",
+          universityId: student.UniversityStudentId || student.universityStudentId || "",
           batchName: batch?.name || "—",
           departmentName: department?.name || "—",
         };
@@ -74,7 +75,6 @@ function StudentsPage() {
     const query = search.toLowerCase();
     return students.filter((student) =>
       [
-        student.name,
         student.fullName,
         student.email,
         student.universityId,
