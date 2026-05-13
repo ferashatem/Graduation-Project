@@ -27,6 +27,12 @@ export const fetchOfferingByCode = async (code) => {
   return res.data?.data ?? res.data;
 };
 
+// GET /api/enrollments/by-offering/{offeringId}  (Doctor/Admin)
+export const fetchEnrollmentsByOffering = async (offeringId) => {
+  const res = await apiClient.get(`/enrollments/by-offering/${offeringId}`);
+  return normalize(res.data?.data ?? res.data);
+};
+
 // POST /api/subjectofferings
 // { subjectCode, semesterId, doctorCode, departmentCode, batchCode, groupCode?, maxCapacity }
 export const createOffering = async (dto) => {

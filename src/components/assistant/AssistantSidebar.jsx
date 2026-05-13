@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { HiBookOpen, HiChat, HiHome, HiLogout } from "react-icons/hi";
+import { HiBookOpen, HiChat, HiHome, HiKey, HiLogout } from "react-icons/hi";
 import { clearStoredSession } from "../../auth/session";
 import logo from "../../assets/university-logo.png";
 import fallbackAvatar from "../../assets/imgs/profile.png";
@@ -24,6 +24,7 @@ function AssistantSidebar({ open = false, onClose, onNavigate, profile, user }) 
       { label: "Home", to: "/asst", icon: HiHome, end: true },
       { label: "Courses", to: "/asst/courses", icon: HiBookOpen },
       { label: "AI Assistant", to: "/asst/chat", icon: HiChat },
+      { label: "Change Password", to: "/asst/change-password", icon: HiKey },
     ],
     []
   );

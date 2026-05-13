@@ -1,5 +1,18 @@
 import apiClient from "./apiClient";
 
+// POST /api/grades/import/{offeringId}  — Doctor imports grades via Excel file
+export const importGrades = async (offeringId, file, onProgress) => {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await apiClient.post(`/grades/import/${offeringId}`, form, {
+    headers: { "Content-Type": "multipart/form-data" },
+    onUploadProgress: (e) => {
+      if (onProgress && e.total) onProgress(Math.round((e.loaded * 100) / e.total));
+    },
+  });
+  return res.data?.data ?? res.data;
+};
+
 // POST /api/grades/calculate/{offeringId}  — Doctor triggers weighted grade calculation
 export const calculateGrades = async (offeringId) => {
   const res = await apiClient.post(`/grades/calculate/${offeringId}`);

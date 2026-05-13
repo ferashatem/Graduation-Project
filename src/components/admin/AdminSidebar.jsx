@@ -104,6 +104,14 @@ const ADMIN_SECTIONS = [
     ],
   },
   {
+    id: "schedule",
+    label: "Timetable",
+    icon: HiCalendar,
+    items: [
+      { label: "Schedule Manager", to: "/admin/schedule", icon: HiCalendar },
+    ],
+  },
+  {
     id: "settings",
     label: "Settings & Reports",
     icon: HiCog,
@@ -112,6 +120,11 @@ const ADMIN_SECTIONS = [
         label: "Campus Buildings",
         to: "/admin/campus-buildings",
         icon: HiOfficeBuilding,
+      },
+      {
+        label: "Change Password",
+        to: "/admin/change-password",
+        icon: HiCog,
       },
     ],
   },

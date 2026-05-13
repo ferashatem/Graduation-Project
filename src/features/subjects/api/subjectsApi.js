@@ -7,6 +7,13 @@ export const searchSubjects = async (name) => {
   return Array.isArray(payload) ? payload : [];
 };
 
+// GET /api/subjects/by-department/{departmentId}
+export const fetchSubjectsByDepartment = async (departmentId) => {
+  const res = await apiClient.get(`/subjects/by-department/${departmentId}`);
+  const payload = res.data?.data ?? res.data;
+  return Array.isArray(payload) ? payload : [];
+};
+
 // GET /api/subjects/by-batch/{batchId}
 export const fetchSubjectsByBatch = async (batchId) => {
   const res = await apiClient.get(`/subjects/by-batch/${batchId}`);
@@ -47,8 +54,6 @@ export const deleteSubject = async (subjectCode) => {
 
 // PUT /api/subjects/assign-doctor?subjectCode=&doctorCode=
 export const assignDoctorToSubject = async (subjectCode, doctorCode) => {
-  const res = await apiClient.put("/subjects/assign-doctor", null, {
-    params: { subjectCode, doctorCode },
-  });
+  const res = await apiClient.put("/subjects/assign-doctor", null, { params: { subjectCode, doctorCode } });
   return res.data?.data ?? res.data;
 };

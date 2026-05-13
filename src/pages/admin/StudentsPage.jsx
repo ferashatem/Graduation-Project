@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Avatar, Chip, InputAdornment, MenuItem, TextField } from "@mui/material";
+import { Avatar, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, InputAdornment, MenuItem, TextField } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import SearchIcon from "@mui/icons-material/Search";
+import LockResetIcon from "@mui/icons-material/LockReset";
 import PageHeader from "../../components/common/PageHeader";
 import Loading from "../../components/common/Loading";
 import ErrorState from "../../components/common/ErrorState";
@@ -9,6 +10,7 @@ import { filterStudents } from "../../features/students/api/studentsApi";
 import { fetchAllDepartments } from "../../features/departments/api/departmentsApi";
 import { fetchBatchesByDepartment } from "../../features/batches/api/batchesApi";
 import { getErrorMessage } from "../../utils/errorHelpers";
+import { adminResetPassword } from "../../api/authApi";
 
 const breadcrumbs = [{ label: "Student Affairs" }, { label: "Students" }];
 const PAGE_SIZE = 25;
@@ -17,6 +19,33 @@ function StudentsPage() {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // Reset password dialog state
+  const [resetTarget, setResetTarget] = useState(null); // { id, name }
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetError, setResetError] = useState("");
+  const [resetResult, setResetResult] = useState(""); // new password from server
+
+  const handleResetPassword = useCallback(async () => {
+    if (!resetTarget) return;
+    setResetLoading(true);
+    setResetError("");
+    try {
+      const res = await adminResetPassword(resetTarget.id);
+      const newPassword = res?.temporaryPassword ?? res?.newPassword ?? "";
+      setResetResult(newPassword);
+    } catch (err) {
+      setResetError(getErrorMessage(err));
+    } finally {
+      setResetLoading(false);
+    }
+  }, [resetTarget]);
+
+  const closeResetDialog = useCallback(() => {
+    setResetTarget(null);
+    setResetError("");
+    setResetResult("");
+  }, []);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0); // DataGrid is 0-based
   const [rowCount, setRowCount] = useState(0);
@@ -55,6 +84,7 @@ function StudentsPage() {
       setStudents(result.items.map((s) => ({
         ...s,
         id: s.id ?? s.code,
+        systemUserId: s.userId ?? s.systemUserId ?? s.id ?? s.code,
         fullName: s.fullName ?? s.FullName ?? s.name ?? "",
         email: s.universityEmail ?? s.email ?? "",
         universityId: s.universityStudentId ?? s.universityId ?? "",
@@ -115,6 +145,21 @@ function StudentsPage() {
           />
         ),
       },
+      {
+        field: "actions", headerName: "", width: 160, sortable: false, filterable: false,
+        renderCell: (params) => (
+          <Button
+            size="small"
+            variant="outlined"
+            color="warning"
+            startIcon={<LockResetIcon fontSize="small" />}
+            onClick={() => setResetTarget({ id: params.row.systemUserId, name: params.row.fullName })}
+            sx={{ textTransform: "none", fontSize: 12 }}
+          >
+            Reset Password
+          </Button>
+        ),
+      },
     ],
     []
   );
@@ -160,6 +205,52 @@ function StudentsPage() {
           </TextField>
         )}
       </div>
+
+      {/* Reset Password Dialog */}
+      <Dialog open={Boolean(resetTarget)} onClose={resetResult ? closeResetDialog : undefined} maxWidth="xs" fullWidth>
+        <DialogTitle>Reset Password</DialogTitle>
+        <DialogContent>
+          {resetResult ? (
+            <div className="space-y-3 py-2">
+              <p className="text-sm text-slate-700">
+                Password for <strong>{resetTarget?.name}</strong> has been reset successfully.
+              </p>
+              <p className="text-xs text-slate-500">Copy this temporary password and share it with the student:</p>
+              <div className="flex items-center gap-2 rounded-xl bg-slate-100 px-4 py-3 font-mono text-base font-semibold text-slate-900 ring-1 ring-slate-200">
+                {resetResult}
+                <button
+                  onClick={() => navigator.clipboard.writeText(resetResult)}
+                  className="ml-auto text-xs text-[#1d5fa3] hover:underline"
+                >
+                  Copy
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3 py-2">
+              <p className="text-sm text-slate-700">
+                Are you sure you want to reset the password for <strong>{resetTarget?.name}</strong>?
+                A new temporary password will be generated.
+              </p>
+              {resetError ? (
+                <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-red-200">{resetError}</p>
+              ) : null}
+            </div>
+          )}
+        </DialogContent>
+        <DialogActions>
+          {resetResult ? (
+            <Button onClick={closeResetDialog}>Close</Button>
+          ) : (
+            <>
+              <Button onClick={closeResetDialog} disabled={resetLoading}>Cancel</Button>
+              <Button onClick={handleResetPassword} disabled={resetLoading} color="warning" variant="contained">
+                {resetLoading ? "Resetting…" : "Reset Password"}
+              </Button>
+            </>
+          )}
+        </DialogActions>
+      </Dialog>
 
       {error && !loading ? <ErrorState message={error} onRetry={() => load({ departmentId, batchId, search, page: page + 1, size: PAGE_SIZE })} /> : null}
       {loading && students.length === 0 ? (

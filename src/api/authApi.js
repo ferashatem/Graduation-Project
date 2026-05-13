@@ -38,3 +38,15 @@ export const registerAdmin = async ({ fullName, phone, nationalId }) => {
   const res = await apiClient.post("/auth/register/admin", { fullName, phone, nationalId });
   return res.data?.data ?? res.data;
 };
+
+// POST /api/auth/change-password
+export const changePassword = async ({ currentPassword, newPassword }) => {
+  const res = await apiClient.post("/auth/change-password", { currentPassword, newPassword });
+  return res.data?.data ?? res.data;
+};
+
+// POST /api/auth/admin/reset-password/{userId}  (Admin only)
+export const adminResetPassword = async (userId) => {
+  const res = await apiClient.post(`/auth/admin/reset-password/${userId}`);
+  return res.data?.data ?? res.data;
+};

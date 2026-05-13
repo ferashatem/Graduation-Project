@@ -5,6 +5,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import SignIn from "../pages/SignIn";
 import SignUp from "../pages/SignUp";
 import Home from "../pages/Home";
+import ForceChangePassword from "../pages/ForceChangePassword";
 
 // Layouts
 import MainLayoutAdmin from "../layouts/Admin/MainLayoutAdmin";
@@ -72,6 +73,11 @@ import StudentQuizzesPage from "../pages/student/StudentQuizzesPage";
 import StudentQuizTakePage from "../pages/student/StudentQuizTakePage";
 import StudentQuizResultPage from "../pages/student/StudentQuizResultPage";
 
+// Schedule
+import StudentSchedulePage from "../pages/student/StudentSchedulePage";
+import ProfessorSchedulePage from "../pages/professor/ProfessorSchedulePage";
+import AdminSchedulePage from "../pages/admin/AdminSchedulePage";
+
 // Chat
 import ChatPage from "../features/chat/pages/ChatPage";
 
@@ -83,6 +89,7 @@ function AppRoutes() {
         <Route path="/" element={<SignIn />} />
         <Route path="/signin" element={<SignIn />} />
         <Route path="/signup" element={<SignUp />} />
+        <Route path="/change-password" element={<ForceChangePassword />} />
 
         {/* Admin Routes */}
         <Route
@@ -147,8 +154,12 @@ function AppRoutes() {
             element={<RoomSchedulePage />}
           />
 
+          {/* ── Schedule ── */}
+          <Route path="schedule" element={<AdminSchedulePage />} />
+
           {/* ── AI Assistant ── */}
           <Route path="chat" element={<ChatPage />} />
+          <Route path="change-password" element={<ForceChangePassword />} />
         </Route>
 
         {/* Legacy buildings routes */}
@@ -199,10 +210,12 @@ function AppRoutes() {
           <Route path="dashboard" element={<ProfessorDashboard />} />
           <Route path="courses" element={<ProfessorCoursesPage />} />
           <Route path="courses/:courseDocId" element={<ProfessorCourseDetailsPage />} />
+          <Route path="schedule" element={<ProfessorSchedulePage />} />
           <Route path="quizzes" element={<ProfessorQuizzesPage />} />
           <Route path="quizzes/:quizId/results" element={<ProfessorQuizResultsPage />} />
           <Route path="materials" element={<Navigate to="/prof/courses" replace />} />
           <Route path="chat" element={<ChatPage />} />
+          <Route path="change-password" element={<ForceChangePassword />} />
         </Route>
 
         <Route
@@ -232,6 +245,7 @@ function AppRoutes() {
           <Route index element={<AssistantHome />} />
           <Route path="courses" element={<AssistantCoursesPage />} />
           <Route path="chat" element={<ChatPage />} />
+          <Route path="change-password" element={<ForceChangePassword />} />
         </Route>
 
         {/* Student Routes */}
@@ -245,10 +259,12 @@ function AppRoutes() {
         >
           <Route index element={<StudentHome />} />
           <Route path="courses" element={<StudentCoursesPage />} />
+          <Route path="schedule" element={<StudentSchedulePage />} />
           <Route path="quizzes" element={<StudentQuizzesPage />} />
           <Route path="quizzes/:quizId" element={<StudentQuizTakePage />} />
           <Route path="quizzes/:quizId/result" element={<StudentQuizResultPage />} />
           <Route path="chat" element={<ChatPage />} />
+          <Route path="change-password" element={<ForceChangePassword />} />
         </Route>
       </Routes>
     </Router>

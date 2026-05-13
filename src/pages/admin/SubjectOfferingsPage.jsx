@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle,
-  TextField, InputAdornment, MenuItem, CircularProgress,
+  TextField, MenuItem,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import { useParams } from "react-router-dom";
@@ -9,8 +9,8 @@ import PageHeader from "../../components/common/PageHeader";
 import Loading from "../../components/common/Loading";
 import ErrorState from "../../components/common/ErrorState";
 import { fetchOfferingsBySemester, createOffering } from "../../features/subjectOfferings/api/subjectOfferingsApi";
-import { searchSubjects } from "../../features/subjects/api/subjectsApi";
-import { searchDoctors } from "../../features/doctors/api/doctorsApi";
+import { fetchSubjectsByDepartment } from "../../features/subjects/api/subjectsApi";
+import { filterDoctors } from "../../features/doctors/api/doctorsApi";
 import { fetchAllDepartments } from "../../features/departments/api/departmentsApi";
 import { fetchBatchesByDepartment } from "../../features/batches/api/batchesApi";
 import { fetchGroupsByBatch } from "../../features/groups/api/groupsApi";
@@ -19,8 +19,8 @@ import { getErrorMessage } from "../../utils/errorHelpers";
 const breadcrumbs = [{ label: "Subjects & Registration" }, { label: "Subject Offerings" }];
 
 const emptyForm = {
-  subjectCode: "", subjectName: "",
-  doctorCode: "", doctorName: "",
+  subjectCode: "",
+  doctorCode: "",
   departmentCode: "", batchCode: "", groupCode: "",
   maxCapacity: 50,
 };
@@ -30,74 +30,50 @@ function OfferingFormDialog({ open, semesterId, onClose, onSubmit, error }) {
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
-  // Subject search
-  const [subjectQuery, setSubjectQuery] = useState("");
-  const [subjectResults, setSubjectResults] = useState([]);
-  const [subjectLoading, setSubjectLoading] = useState(false);
-
-  // Doctor search
-  const [doctorQuery, setDoctorQuery] = useState("");
-  const [doctorResults, setDoctorResults] = useState([]);
-  const [doctorLoading, setDoctorLoading] = useState(false);
+  const [subjects, setSubjects] = useState([]);
+  const [doctors, setDoctors] = useState([]);
+  const [loadingSubjects, setLoadingSubjects] = useState(false);
+  const [loadingDoctors, setLoadingDoctors] = useState(false);
 
   const [batches, setBatches] = useState([]);
   const [groups, setGroups] = useState([]);
-
-  // departments list for dept selector
-  const [departments, setDepartments] = useState([]);
 
   useEffect(() => {
     if (!open) return;
     setValues(emptyForm);
     setErrors({});
-    setSubjectQuery(""); setSubjectResults([]);
-    setDoctorQuery(""); setDoctorResults([]);
+    setSubjects([]); setDoctors([]);
     setBatches([]); setGroups([]);
   }, [open]);
 
-  const searchForSubject = useCallback(async () => {
-    if (!subjectQuery.trim()) return;
-    setSubjectLoading(true);
-    try {
-      const data = await searchSubjects(subjectQuery);
-      setSubjectResults(data);
-    } finally {
-      setSubjectLoading(false);
-    }
-  }, [subjectQuery]);
-
-  const searchForDoctor = useCallback(async () => {
-    if (!doctorQuery.trim()) return;
-    setDoctorLoading(true);
-    try {
-      const data = await searchDoctors(doctorQuery);
-      setDoctorResults(data);
-    } finally {
-      setDoctorLoading(false);
-    }
-  }, [doctorQuery]);
-
   const handleDeptChange = useCallback(async (dept) => {
-    // dept = { id, code, name }
-    setValues((p) => ({ ...p, departmentCode: dept?.code ?? "", batchCode: "", groupCode: "" }));
+    setValues((p) => ({ ...p, departmentCode: dept?.code ?? "", subjectCode: "", doctorCode: "", batchCode: "", groupCode: "" }));
+    setSubjects([]); setDoctors([]);
     setBatches([]); setGroups([]);
     if (!dept?.id) return;
-    try {
-      const data = await fetchBatchesByDepartment(dept.id);
-      setBatches(data);
-    } catch { /* ignore */ }
+
+    setLoadingSubjects(true);
+    fetchSubjectsByDepartment(dept.id)
+      .then(setSubjects)
+      .catch(() => {})
+      .finally(() => setLoadingSubjects(false));
+
+    setLoadingDoctors(true);
+    filterDoctors({ departmentId: dept.id, size: 200 })
+      .then((res) => setDoctors(res.items ?? []))
+      .catch(() => {})
+      .finally(() => setLoadingDoctors(false));
+
+    fetchBatchesByDepartment(dept.id).then(setBatches).catch(() => {});
   }, []);
 
   const handleBatchChange = useCallback(async (batchCode) => {
     setValues((p) => ({ ...p, batchCode, groupCode: "" }));
     setGroups([]);
     if (!batchCode) return;
-    // find batch id from batches list to fetch groups
     setBatches((prev) => {
       const batch = prev.find((b) => b.code === batchCode);
-      if (batch?.id) {
-        fetchGroupsByBatch(batch.id).then(setGroups).catch(() => {});
-      }
+      if (batch?.id) fetchGroupsByBatch(batch.id).then(setGroups).catch(() => {});
       return prev;
     });
   }, []);
@@ -141,72 +117,61 @@ function OfferingFormDialog({ open, semesterId, onClose, onSubmit, error }) {
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <form onSubmit={handleSubmit}>
         <DialogTitle>Add Subject Offering</DialogTitle>
-        <DialogContent className="space-y-4 pt-2">
+        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: "16px !important" }}>
           {error ? <Alert severity="error">{error}</Alert> : null}
 
-          {/* Subject search */}
-          <div className="flex gap-2">
-            <TextField label="Search Subject" value={subjectQuery}
-              onChange={(e) => setSubjectQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && searchForSubject()}
-              size="small" sx={{ flex: 1 }} error={Boolean(errors.subjectCode)}
-              helperText={errors.subjectCode} />
-            <Button size="small" variant="outlined" onClick={searchForSubject}
-              disabled={subjectLoading || !subjectQuery.trim()}>
-              {subjectLoading ? <CircularProgress size={16} /> : "Find"}
-            </Button>
-          </div>
-          {subjectResults.length > 0 && (
-            <TextField select label="Select Subject" name="subjectCode"
-              value={values.subjectCode} onChange={handleChange} fullWidth size="small">
-              {subjectResults.map((s) => (
-                <MenuItem key={s.code} value={s.code}>{s.name} ({s.code})</MenuItem>
-              ))}
-            </TextField>
-          )}
-
-          {/* Doctor search */}
-          <div className="flex gap-2">
-            <TextField label="Search Doctor" value={doctorQuery}
-              onChange={(e) => setDoctorQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && searchForDoctor()}
-              size="small" sx={{ flex: 1 }} error={Boolean(errors.doctorCode)}
-              helperText={errors.doctorCode} />
-            <Button size="small" variant="outlined" onClick={searchForDoctor}
-              disabled={doctorLoading || !doctorQuery.trim()}>
-              {doctorLoading ? <CircularProgress size={16} /> : "Find"}
-            </Button>
-          </div>
-          {doctorResults.length > 0 && (
-            <TextField select label="Select Doctor" name="doctorCode"
-              value={values.doctorCode} onChange={handleChange} fullWidth size="small">
-              {doctorResults.map((d) => (
-                <MenuItem key={d.code} value={d.code}>{d.fullName} ({d.code})</MenuItem>
-              ))}
-            </TextField>
-          )}
-
-          {/* Department selector — fetch all */}
+          {/* Step 1: Department */}
           <DepartmentSelector
             value={values.departmentCode}
             onChange={handleDeptChange}
             error={errors.departmentCode}
           />
 
-          {/* Batch */}
+          {/* Step 2: Subject — filtered by department */}
+          <TextField select label="Subject" name="subjectCode"
+            value={values.subjectCode} onChange={handleChange}
+            fullWidth size="small"
+            disabled={!values.departmentCode || loadingSubjects}
+            error={Boolean(errors.subjectCode)}
+            helperText={errors.subjectCode || (!values.departmentCode ? "Select a department first" : "")}>
+            <MenuItem value="">
+              {loadingSubjects ? "Loading subjects…" : subjects.length === 0 && values.departmentCode ? "No subjects found" : "— Select subject —"}
+            </MenuItem>
+            {subjects.map((s) => (
+              <MenuItem key={s.code} value={s.code}>{s.name} ({s.code})</MenuItem>
+            ))}
+          </TextField>
+
+          {/* Step 3: Doctor — filtered by department */}
+          <TextField select label="Doctor" name="doctorCode"
+            value={values.doctorCode} onChange={handleChange}
+            fullWidth size="small"
+            disabled={!values.departmentCode || loadingDoctors}
+            error={Boolean(errors.doctorCode)}
+            helperText={errors.doctorCode || (!values.departmentCode ? "Select a department first" : "")}>
+            <MenuItem value="">
+              {loadingDoctors ? "Loading doctors…" : doctors.length === 0 && values.departmentCode ? "No doctors found" : "— Select doctor —"}
+            </MenuItem>
+            {doctors.map((d) => (
+              <MenuItem key={d.id} value={d.id}>{d.fullName} ({d.code || d.universityStaffId || "—"})</MenuItem>
+            ))}
+          </TextField>
+
+          {/* Step 4: Batch */}
           {batches.length > 0 && (
             <TextField select label="Batch" name="batchCode"
               value={values.batchCode}
               onChange={(e) => handleBatchChange(e.target.value)}
               fullWidth size="small" error={Boolean(errors.batchCode)}
               helperText={errors.batchCode}>
+              <MenuItem value="">— Select batch —</MenuItem>
               {batches.map((b) => (
                 <MenuItem key={b.code} value={b.code}>{b.name} ({b.code})</MenuItem>
               ))}
             </TextField>
           )}
 
-          {/* Group (optional) */}
+          {/* Step 5: Group (optional) */}
           {groups.length > 0 && (
             <TextField select label="Group (optional)" name="groupCode"
               value={values.groupCode} onChange={handleChange} fullWidth size="small">
@@ -222,7 +187,9 @@ function OfferingFormDialog({ open, semesterId, onClose, onSubmit, error }) {
         </DialogContent>
         <DialogActions>
           <Button onClick={onClose} disabled={submitting}>Cancel</Button>
-          <Button type="submit" variant="contained" disabled={submitting}>Create Offering</Button>
+          <Button type="submit" variant="contained" disabled={submitting}>
+            {submitting ? "Creating…" : "Create Offering"}
+          </Button>
         </DialogActions>
       </form>
     </Dialog>

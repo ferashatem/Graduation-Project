@@ -51,3 +51,9 @@ export const getDoctorByCode = async (code) => {
   const res = await apiClient.get(`/doctors/${code}`);
   return res.data?.data ?? res.data;
 };
+
+// DELETE /api/doctors/{code}
+export const deleteDoctor = async (code) => {
+  await apiClient.delete(`/doctors/${code}`);
+  return code;
+};

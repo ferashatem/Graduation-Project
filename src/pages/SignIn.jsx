@@ -63,6 +63,11 @@ function SignIn() {
           fullName: email.split("@")[0],
         });
 
+        if (authPayload.requiresPasswordChange) {
+          navigate("/change-password", { replace: true });
+          return;
+        }
+
         redirectByRole(session?.role, navigate);
       } catch (err) {
         setLoginError(err.message || "Login failed. Please try again.");

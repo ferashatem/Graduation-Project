@@ -30,9 +30,7 @@ function AddMaterialTrigger({ professorUid, course }) {
       </button>
       <AddMaterialModal
         open={open}
-        professorId={professorUid}
-        courses={course ? [course] : []}
-        initialCourseDocId={course?.id}
+        course={course}
         onClose={() => setOpen(false)}
         onCreated={() => setOpen(false)}
       />

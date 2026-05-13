@@ -18,13 +18,24 @@ export const uploadMaterial = async (offeringId, file, onProgress) => {
 
 export const getMaterialDownloadUrl = async (materialId) => {
   const res = await apiClient.get(`/materials/download/${materialId}`);
-  return res.data?.data ?? res.data;
+  const payload = res.data?.data ?? res.data;
+  // API returns { signedUrl, expiresInMinutes }
+  return { url: payload?.fileUrl ?? payload?.signedUrl ?? payload?.url ?? payload, ...payload };
 };
 
-export const getMaterialsByOffering = async (offeringId) => {
-  const res = await apiClient.get(`/materials`, { params: { offeringId } });
+// GET /api/materials/by-offering/{offeringId}
+// Response shape: { totalCount, pageNumber, pageSize, items: [...] }
+export const getMaterialsByOffering = async (offeringId, { page = 1, pageSize = 50, search } = {}) => {
+  const params = { page, pageSize };
+  if (search?.trim()) params.search = search.trim();
+  const res = await apiClient.get(`/materials/by-offering/${offeringId}`, { params });
   const payload = res.data?.data ?? res.data;
-  return Array.isArray(payload) ? payload : payload?.items ?? [];
+  return Array.isArray(payload) ? payload : payload?.items ?? payload?.data ?? [];
+};
+
+export const getMaterialMetadata = async (materialId) => {
+  const res = await apiClient.get(`/materials/${materialId}/metadata`);
+  return res.data?.data ?? res.data;
 };
 
 export const deleteMaterial = async (materialId) => {
