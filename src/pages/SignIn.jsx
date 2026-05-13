@@ -46,11 +46,15 @@ function SignIn() {
         const authPayload = json?.data ?? json;
 
         if (!res.ok || !authPayload?.token) {
-          throw new Error(
+          // On 401 the backend puts the real error in data (not message)
+          const errMsg =
+            (res.status === 401
+              ? typeof json?.data === "string" ? json.data : null
+              : null) ||
+            json?.errors?.[0] ||
             json?.message ||
-              authPayload?.message ||
-              "Invalid email or password.",
-          );
+            "Invalid email or password.";
+          throw new Error(errMsg);
         }
 
         clearStoredSession();

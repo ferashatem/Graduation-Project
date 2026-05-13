@@ -20,11 +20,12 @@ export const getSubjectByCode = async (code) => {
   return res.data?.data ?? res.data;
 };
 
-// POST /api/subjects  { name, code, departmentCode, collegeCode?, batchCode? }
-export const createSubject = async ({ name, code, departmentCode, collegeCode, batchCode }) => {
+// POST /api/subjects  { name, code, creditHours, departmentCode, collegeCode?, batchCode? }
+export const createSubject = async ({ name, code, creditHours, departmentCode, collegeCode, batchCode }) => {
   const res = await apiClient.post("/subjects", {
     name,
     code,
+    creditHours: Number(creditHours) || 3,
     departmentCode,
     ...(collegeCode ? { collegeCode } : {}),
     ...(batchCode ? { batchCode } : {}),

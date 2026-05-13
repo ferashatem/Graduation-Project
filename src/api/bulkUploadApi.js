@@ -1,7 +1,7 @@
 import apiClient from "./apiClient";
 
 // Bulk student upload — Excel (.xlsx only)
-// Required columns: FullName, Email, UniversityStudentId, BatchCode, GroupCode
+// Required columns: StudentName, NationalId, Email, DepartmentCode, BatchCode, GroupCode
 // May return 207 Multi-Status (partial success) — always check result.errors[]
 export const bulkUploadStudents = async (file, onProgress) => {
   const form = new FormData();
@@ -25,6 +25,8 @@ export const bulkUploadStudents = async (file, onProgress) => {
 };
 
 // Bulk grades import — Excel (.xlsx)
+// Required columns: StudentId (UniversityStudentId), Midterm (≤20), Coursework (≤20), Final (≤50)
+// Column headers are case-insensitive; "id"/"student" accepted for StudentId, "work"/"coursework" for Coursework
 export const bulkUploadGrades = async (offeringId, file, onProgress) => {
   const form = new FormData();
   form.append("file", file);

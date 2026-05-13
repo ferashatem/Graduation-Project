@@ -25,7 +25,7 @@ import { getErrorMessage } from "../../utils/errorHelpers";
 
 const breadcrumbs = [{ label: "Subjects & Registration" }, { label: "Subjects" }];
 
-const emptyForm = { name: "", code: "" };
+const emptyForm = { name: "", code: "", creditHours: 3 };
 
 // ─── Subject Form Dialog ──────────────────────────────────────────────────────
 function SubjectFormDialog({ open, initialValues, onClose, onSubmit, submitting, error, colleges }) {
@@ -43,7 +43,7 @@ function SubjectFormDialog({ open, initialValues, onClose, onSubmit, submitting,
 
   useEffect(() => {
     if (!open) return;
-    setValues({ name: initialValues?.name || "", code: initialValues?.code || "" });
+    setValues({ name: initialValues?.name || "", code: initialValues?.code || "", creditHours: initialValues?.creditHours ?? 3 });
     setErrors({});
     setCollegeCode(""); setDepartmentCode(""); setBatchCode("");
     setDepartments([]); setBatches([]);
@@ -80,6 +80,7 @@ function SubjectFormDialog({ open, initialValues, onClose, onSubmit, submitting,
     const next = {};
     if (!values.name.trim()) next.name = "Name is required.";
     if (!values.code.trim()) next.code = "Code is required.";
+    if (!isEdit && Number(values.creditHours) < 1) next.creditHours = "Credit hours must be at least 1.";
     if (!isEdit && !collegeCode) next.collegeCode = "College is required.";
     if (!isEdit && !departmentCode) next.departmentCode = "Department is required.";
     return next;
@@ -93,6 +94,7 @@ function SubjectFormDialog({ open, initialValues, onClose, onSubmit, submitting,
     await onSubmit({
       name: values.name.trim(),
       code: values.code.trim(),
+      creditHours: Number(values.creditHours) || 3,
       collegeCode,
       departmentCode,
       batchCode: batchCode || undefined,
@@ -117,6 +119,14 @@ function SubjectFormDialog({ open, initialValues, onClose, onSubmit, submitting,
             onChange={(e) => setValues((p) => ({ ...p, code: e.target.value }))}
             error={Boolean(errors.code)} helperText={errors.code}
             fullWidth required disabled={isEdit}
+          />
+          <TextField
+            label="Credit Hours" name="creditHours" type="number"
+            value={values.creditHours}
+            onChange={(e) => setValues((p) => ({ ...p, creditHours: e.target.value }))}
+            error={Boolean(errors.creditHours)} helperText={errors.creditHours}
+            fullWidth required inputProps={{ min: 1, max: 6 }}
+            disabled={isEdit}
           />
 
           {!isEdit && (

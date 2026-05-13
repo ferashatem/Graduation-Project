@@ -13,14 +13,14 @@ export const fetchMyProfile = async () => {
 // ── Subjects / Courses ────────────────────────────────────────────────────────
 
 export const fetchMySubjects = async (doctorCode) => {
-  // Try subject-offerings (linked via semester) first
+  // Subject offerings assigned to this doctor (token-based)
   try {
-    const res = await apiClient.get("/subject-offerings/my-offerings");
+    const res = await apiClient.get("/subjectofferings/my-offerings");
     const data = normalize(res.data?.data ?? res.data);
     if (data.length > 0) return data;
   } catch { /* fall through */ }
 
-  // Try direct subject assignment (via assign-doctor)
+  // Direct subject assignment (via assign-doctor)
   try {
     const res = await apiClient.get("/subjects/my-subjects");
     const data = normalize(res.data?.data ?? res.data);
@@ -28,18 +28,13 @@ export const fetchMySubjects = async (doctorCode) => {
   } catch { /* fall through */ }
 
   if (!doctorCode) return [];
-  const res = await apiClient.get(`/Doctors/${doctorCode}/subjects`);
+  const res = await apiClient.get(`/doctors/${doctorCode}/subjects`);
   return normalize(res.data?.data ?? res.data);
 };
 
-export const fetchOffering = async (offeringId) => {
-  const res = await apiClient.get(`/Offerings/${offeringId}`);
+export const fetchOffering = async (offeringCode) => {
+  const res = await apiClient.get(`/subjectofferings/by-code/${offeringCode}`);
   return res.data?.data ?? res.data;
-};
-
-export const fetchAllOfferings = async () => {
-  const res = await apiClient.get("/Offerings");
-  return normalize(res.data?.data ?? res.data);
 };
 
 // ── Exams (Quizzes) ───────────────────────────────────────────────────────────

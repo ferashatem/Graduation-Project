@@ -19,9 +19,9 @@ import { getErrorMessage } from "../../utils/errorHelpers";
 const breadcrumbs = [{ label: "Subjects & Registration" }, { label: "Subject Offerings" }];
 
 const emptyForm = {
-  subjectId: "", subjectName: "",
-  doctorId: "", doctorName: "",
-  departmentId: "", batchId: "", groupId: "",
+  subjectCode: "", subjectName: "",
+  doctorCode: "", doctorName: "",
+  departmentCode: "", batchCode: "", groupCode: "",
   maxCapacity: 50,
 };
 
@@ -42,6 +42,9 @@ function OfferingFormDialog({ open, semesterId, onClose, onSubmit, error }) {
 
   const [batches, setBatches] = useState([]);
   const [groups, setGroups] = useState([]);
+
+  // departments list for dept selector
+  const [departments, setDepartments] = useState([]);
 
   useEffect(() => {
     if (!open) return;
@@ -74,24 +77,29 @@ function OfferingFormDialog({ open, semesterId, onClose, onSubmit, error }) {
     }
   }, [doctorQuery]);
 
-  const handleDeptChange = useCallback(async (deptId) => {
-    setValues((p) => ({ ...p, departmentId: deptId, batchId: "", groupId: "" }));
+  const handleDeptChange = useCallback(async (dept) => {
+    // dept = { id, code, name }
+    setValues((p) => ({ ...p, departmentCode: dept?.code ?? "", batchCode: "", groupCode: "" }));
     setBatches([]); setGroups([]);
-    if (!deptId) return;
+    if (!dept?.id) return;
     try {
-      const data = await fetchBatchesByDepartment(deptId);
+      const data = await fetchBatchesByDepartment(dept.id);
       setBatches(data);
     } catch { /* ignore */ }
   }, []);
 
-  const handleBatchChange = useCallback(async (batchId) => {
-    setValues((p) => ({ ...p, batchId, groupId: "" }));
+  const handleBatchChange = useCallback(async (batchCode) => {
+    setValues((p) => ({ ...p, batchCode, groupCode: "" }));
     setGroups([]);
-    if (!batchId) return;
-    try {
-      const data = await fetchGroupsByBatch(batchId);
-      setGroups(data);
-    } catch { /* ignore */ }
+    if (!batchCode) return;
+    // find batch id from batches list to fetch groups
+    setBatches((prev) => {
+      const batch = prev.find((b) => b.code === batchCode);
+      if (batch?.id) {
+        fetchGroupsByBatch(batch.id).then(setGroups).catch(() => {});
+      }
+      return prev;
+    });
   }, []);
 
   const handleChange = (e) => {
@@ -101,10 +109,10 @@ function OfferingFormDialog({ open, semesterId, onClose, onSubmit, error }) {
 
   const validate = () => {
     const next = {};
-    if (!values.subjectId) next.subjectId = "Select a subject.";
-    if (!values.doctorId) next.doctorId = "Select a doctor.";
-    if (!values.departmentId) next.departmentId = "Select a department.";
-    if (!values.batchId) next.batchId = "Select a batch.";
+    if (!values.subjectCode) next.subjectCode = "Select a subject.";
+    if (!values.doctorCode) next.doctorCode = "Select a doctor.";
+    if (!values.departmentCode) next.departmentCode = "Select a department.";
+    if (!values.batchCode) next.batchCode = "Select a batch.";
     return next;
   };
 
@@ -116,12 +124,12 @@ function OfferingFormDialog({ open, semesterId, onClose, onSubmit, error }) {
     setSubmitting(true);
     try {
       await onSubmit({
-        subjectId: values.subjectId,
+        subjectCode: values.subjectCode,
         semesterId,
-        doctorId: values.doctorId,
-        departmentId: values.departmentId,
-        batchId: values.batchId,
-        groupId: values.groupId || null,
+        doctorCode: values.doctorCode,
+        departmentCode: values.departmentCode,
+        batchCode: values.batchCode,
+        groupCode: values.groupCode || null,
         maxCapacity: Number(values.maxCapacity) || 50,
       });
     } finally {
@@ -141,18 +149,18 @@ function OfferingFormDialog({ open, semesterId, onClose, onSubmit, error }) {
             <TextField label="Search Subject" value={subjectQuery}
               onChange={(e) => setSubjectQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && searchForSubject()}
-              size="small" sx={{ flex: 1 }} error={Boolean(errors.subjectId)}
-              helperText={errors.subjectId} />
+              size="small" sx={{ flex: 1 }} error={Boolean(errors.subjectCode)}
+              helperText={errors.subjectCode} />
             <Button size="small" variant="outlined" onClick={searchForSubject}
               disabled={subjectLoading || !subjectQuery.trim()}>
               {subjectLoading ? <CircularProgress size={16} /> : "Find"}
             </Button>
           </div>
           {subjectResults.length > 0 && (
-            <TextField select label="Select Subject" name="subjectId"
-              value={values.subjectId} onChange={handleChange} fullWidth size="small">
+            <TextField select label="Select Subject" name="subjectCode"
+              value={values.subjectCode} onChange={handleChange} fullWidth size="small">
               {subjectResults.map((s) => (
-                <MenuItem key={s.id} value={s.id}>{s.name} ({s.code})</MenuItem>
+                <MenuItem key={s.code} value={s.code}>{s.name} ({s.code})</MenuItem>
               ))}
             </TextField>
           )}
@@ -162,49 +170,49 @@ function OfferingFormDialog({ open, semesterId, onClose, onSubmit, error }) {
             <TextField label="Search Doctor" value={doctorQuery}
               onChange={(e) => setDoctorQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && searchForDoctor()}
-              size="small" sx={{ flex: 1 }} error={Boolean(errors.doctorId)}
-              helperText={errors.doctorId} />
+              size="small" sx={{ flex: 1 }} error={Boolean(errors.doctorCode)}
+              helperText={errors.doctorCode} />
             <Button size="small" variant="outlined" onClick={searchForDoctor}
               disabled={doctorLoading || !doctorQuery.trim()}>
               {doctorLoading ? <CircularProgress size={16} /> : "Find"}
             </Button>
           </div>
           {doctorResults.length > 0 && (
-            <TextField select label="Select Doctor" name="doctorId"
-              value={values.doctorId} onChange={handleChange} fullWidth size="small">
+            <TextField select label="Select Doctor" name="doctorCode"
+              value={values.doctorCode} onChange={handleChange} fullWidth size="small">
               {doctorResults.map((d) => (
-                <MenuItem key={d.id} value={d.id}>{d.fullName} ({d.code})</MenuItem>
+                <MenuItem key={d.code} value={d.code}>{d.fullName} ({d.code})</MenuItem>
               ))}
             </TextField>
           )}
 
           {/* Department selector — fetch all */}
           <DepartmentSelector
-            value={values.departmentId}
+            value={values.departmentCode}
             onChange={handleDeptChange}
-            error={errors.departmentId}
+            error={errors.departmentCode}
           />
 
           {/* Batch */}
           {batches.length > 0 && (
-            <TextField select label="Batch" name="batchId"
-              value={values.batchId}
+            <TextField select label="Batch" name="batchCode"
+              value={values.batchCode}
               onChange={(e) => handleBatchChange(e.target.value)}
-              fullWidth size="small" error={Boolean(errors.batchId)}
-              helperText={errors.batchId}>
+              fullWidth size="small" error={Boolean(errors.batchCode)}
+              helperText={errors.batchCode}>
               {batches.map((b) => (
-                <MenuItem key={b.id} value={b.id}>{b.name} ({b.code})</MenuItem>
+                <MenuItem key={b.code} value={b.code}>{b.name} ({b.code})</MenuItem>
               ))}
             </TextField>
           )}
 
           {/* Group (optional) */}
           {groups.length > 0 && (
-            <TextField select label="Group (optional)" name="groupId"
-              value={values.groupId} onChange={handleChange} fullWidth size="small">
+            <TextField select label="Group (optional)" name="groupCode"
+              value={values.groupCode} onChange={handleChange} fullWidth size="small">
               <MenuItem value="">— All groups —</MenuItem>
               {groups.map((g) => (
-                <MenuItem key={g.id} value={g.id}>{g.name} ({g.code})</MenuItem>
+                <MenuItem key={g.code} value={g.code}>{g.name} ({g.code})</MenuItem>
               ))}
             </TextField>
           )}
@@ -222,32 +230,31 @@ function OfferingFormDialog({ open, semesterId, onClose, onSubmit, error }) {
 }
 
 // Small component to load and display all departments
+// value = department code (string); onChange = (deptObject) => void
 function DepartmentSelector({ value, onChange, error }) {
   const [departments, setDepartments] = useState([]);
 
   useEffect(() => {
     let active = true;
-
-    const loadDepartments = async () => {
-      try {
-        const list = await fetchAllDepartments();
-        if (active) setDepartments(list);
-      } catch {}
-    };
-
-    loadDepartments();
-    return () => {
-      active = false;
-    };
+    fetchAllDepartments()
+      .then((list) => { if (active) setDepartments(list); })
+      .catch(() => {});
+    return () => { active = false; };
   }, []);
+
+  const handleChange = (e) => {
+    const code = e.target.value;
+    const dept = departments.find((d) => d.code === code) ?? null;
+    onChange(dept);
+  };
 
   return (
     <TextField select label="Department" value={value}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={handleChange}
       fullWidth size="small" error={Boolean(error)} helperText={error}>
       <MenuItem value="">— Select department —</MenuItem>
       {departments.map((d) => (
-        <MenuItem key={d.id} value={d.id}>{d.name} ({d.code})</MenuItem>
+        <MenuItem key={d.code} value={d.code}>{d.name} ({d.code})</MenuItem>
       ))}
     </TextField>
   );
