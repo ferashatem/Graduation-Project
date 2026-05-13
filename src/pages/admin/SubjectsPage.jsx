@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
-  IconButton, MenuItem, TextField, Typography, CircularProgress,
+  IconButton, MenuItem, TextField, Typography, CircularProgress, Autocomplete,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import SchoolIcon from "@mui/icons-material/School";
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import LayersIcon from "@mui/icons-material/Layers";
@@ -13,8 +14,9 @@ import PageHeader from "../../components/common/PageHeader";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import Loading from "../../components/common/Loading";
 import ErrorState from "../../components/common/ErrorState";
+import apiClient from "../../api/apiClient";
 import {
-  createSubject, deleteSubject, fetchSubjectsByBatch, updateSubject,
+  createSubject, deleteSubject, fetchSubjectsByBatch, updateSubject, assignDoctorToSubject,
 } from "../../features/subjects/api/subjectsApi";
 import { fetchColleges } from "../../features/colleges/api/collegesApi";
 import { fetchDepartmentsByCollege } from "../../features/departments/api/departmentsApi";
@@ -175,6 +177,154 @@ function SubjectFormDialog({ open, initialValues, onClose, onSubmit, submitting,
   );
 }
 
+// ─── Assign Doctor Dialog ─────────────────────────────────────────────────────
+function AssignDoctorDialog({ open, subject, colleges, onClose, onAssigned }) {
+  const [selectedCollegeId, setSelectedCollegeId] = useState("");
+  const [deptIds, setDeptIds] = useState(new Set());
+  const [deptLoading, setDeptLoading] = useState(false);
+
+  const [allDoctors, setAllDoctors] = useState([]);
+  const [doctorsLoading, setDoctorsLoading] = useState(false);
+
+  const [selectedDoctor, setSelectedDoctor] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!open) {
+      setSelectedCollegeId(""); setDeptIds(new Set());
+      setAllDoctors([]); setSelectedDoctor(null); setError("");
+    }
+  }, [open]);
+
+  // When college changes: fetch departments → get their IDs → fetch all doctors
+  const handleCollegeChange = useCallback(async (collegeId) => {
+    setSelectedCollegeId(collegeId);
+    setDeptIds(new Set()); setAllDoctors([]); setSelectedDoctor(null);
+    if (!collegeId) return;
+
+    setDeptLoading(true);
+    try {
+      const { fetchDepartmentsByCollege: fetchDepts } = await import("../../features/departments/api/departmentsApi");
+      const { fetchAllDoctors: fetchDocs } = await import("../../features/doctors/api/doctorsApi");
+
+      const [depts, doctorRes] = await Promise.all([
+        fetchDepts(collegeId),
+        fetchDocs({ size: 200 }),
+      ]);
+
+      const ids = new Set(depts.map((d) => String(d.id)));
+      setDeptIds(ids);
+      const filtered = doctorRes.items.filter((doc) => ids.has(String(doc.departmentId)));
+      setAllDoctors(filtered);
+    } catch { setAllDoctors([]); }
+    finally { setDeptLoading(false); setDoctorsLoading(false); }
+  }, []);
+
+  const handleAssign = useCallback(async () => {
+    if (!selectedDoctor) return;
+    setSubmitting(true);
+    setError("");
+    try {
+      const doctorCode = selectedDoctor.Code ?? selectedDoctor.code ?? "";
+      const doctorId   = selectedDoctor.Id   ?? selectedDoctor.id   ?? "";
+      const subjectId  = subject.id ?? "";
+
+      if (doctorCode) {
+        await assignDoctorToSubject(subject.code, doctorCode);
+      } else if (doctorId && subjectId) {
+        // fallback: assign by ULID when code is missing
+        await apiClient.put("/subjects/assign-doctor-by-id", null, {
+          params: { subjectId, doctorId },
+        });
+      } else {
+        throw new Error("Doctor has no code or ID — cannot assign.");
+      }
+
+      onAssigned(subject.code, {
+        ...selectedDoctor,
+        code:     doctorCode || doctorId,
+        fullName: selectedDoctor.fullName ?? selectedDoctor.FullName ?? selectedDoctor.name ?? "",
+      });
+      onClose();
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
+  }, [selectedDoctor, subject, onAssigned, onClose]);
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>Assign Doctor — {subject?.name}</DialogTitle>
+      <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 2 }}>
+        {error ? <Alert severity="error">{error}</Alert> : null}
+
+        {/* College selector */}
+        <TextField
+          select label="College" value={selectedCollegeId} size="small" fullWidth autoFocus
+          onChange={(e) => handleCollegeChange(e.target.value)}
+          helperText="Select college first to filter doctors"
+        >
+          <MenuItem value="">— Select college —</MenuItem>
+          {colleges.map((c) => (
+            <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
+          ))}
+        </TextField>
+
+        {/* Doctor selector (filtered by college) */}
+        <Autocomplete
+          disabled={!selectedCollegeId || deptLoading}
+          options={allDoctors}
+          getOptionLabel={(o) => `${o.fullName ?? o.FullName ?? o.name ?? ""} (${o.Code ?? o.code ?? ""})`}
+          isOptionEqualToValue={(o, v) => (o.Code ?? o.code) === (v.Code ?? v.code)}
+          value={selectedDoctor}
+          onChange={(_, val) => setSelectedDoctor(val)}
+          loading={deptLoading}
+          noOptionsText={
+            !selectedCollegeId ? "Select a college first" :
+            deptLoading ? "Loading doctors…" :
+            "No doctors in this college"
+          }
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              label="Select Doctor"
+              size="small"
+              fullWidth
+              InputProps={{
+                ...params.InputProps,
+                endAdornment: (
+                  <>
+                    {deptLoading ? <CircularProgress size={16} /> : null}
+                    {params.InputProps.endAdornment}
+                  </>
+                ),
+              }}
+            />
+          )}
+        />
+
+        {subject?.doctorName && (
+          <p className="text-xs text-slate-500">
+            Currently assigned: <span className="font-semibold">{subject.doctorName}</span>
+          </p>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} disabled={submitting}>Cancel</Button>
+        <Button
+          variant="contained"
+          onClick={handleAssign}
+          disabled={!selectedDoctor || submitting}
+        >
+          {submitting ? <CircularProgress size={18} /> : "Assign"}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
 // ─── Filter Bar ───────────────────────────────────────────────────────────────
 function FilterBar({ colleges, onBatchSelect }) {
   const [collegeId, setCollegeId] = useState("");
@@ -312,6 +462,7 @@ function SubjectsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [actionError, setActionError] = useState("");
   const [confirmState, setConfirmState] = useState({ open: false, row: null });
+  const [assignState, setAssignState] = useState({ open: false, subject: null });
 
   // Load colleges on mount
   useEffect(() => {
@@ -330,7 +481,9 @@ function SubjectsPage() {
       const data = await fetchSubjectsByBatch(batchId);
       setSubjects(data.map((s) => ({
         ...s,
-        id: s.id ?? s.code,
+        id: s.id ?? s.Id ?? s.code ?? s.Code,
+        code: s.code ?? s.Code ?? "",
+        name: s.name ?? s.Name ?? "",
       })));
     } catch (err) {
       setLoadError(getErrorMessage(err));
@@ -366,9 +519,11 @@ function SubjectsPage() {
     const target = confirmState.row;
     handleCloseConfirm();
     if (!target) return;
+    const code = target.code ?? target.Code;
+    if (!code) { setActionError("Cannot delete: subject code is missing."); return; }
     try {
-      await deleteSubject(target.code);
-      setSubjects((prev) => prev.filter((s) => s.code !== target.code));
+      await deleteSubject(code);
+      setSubjects((prev) => prev.filter((s) => (s.code ?? s.Code) !== code));
     } catch (err) {
       setActionError(getErrorMessage(err));
     }
@@ -396,6 +551,20 @@ function SubjectsPage() {
     }
   }, [editing]);
 
+  const handleAssignDoctor = useCallback((row) => {
+    setAssignState({ open: true, subject: row });
+  }, []);
+
+  const handleDoctorAssigned = useCallback((subjectCode, doctor) => {
+    setSubjects((prev) =>
+      prev.map((s) =>
+        s.code === subjectCode
+          ? { ...s, doctorName: doctor.fullName ?? doctor.FullName ?? doctor.name ?? "", doctorCode: doctor.code ?? doctor.Code }
+          : s
+      )
+    );
+  }, []);
+
   const columns = useMemo(() => [
     {
       field: "name", headerName: "Subject Name", flex: 1, minWidth: 200,
@@ -418,20 +587,31 @@ function SubjectsPage() {
       ),
     },
     {
-      field: "actions", headerName: "Actions", width: 100,
+      field: "doctorName", headerName: "Assigned Doctor", flex: 1, minWidth: 160,
+      renderCell: (params) => (
+        params.row.doctorName
+          ? <span className="text-sm text-slate-700">{params.row.doctorName}</span>
+          : <span className="text-xs text-slate-400 italic">Not assigned</span>
+      ),
+    },
+    {
+      field: "actions", headerName: "Actions", width: 140,
       sortable: false, filterable: false,
       renderCell: (params) => (
         <div className="flex items-center gap-1">
-          <IconButton size="small" color="primary" onClick={() => handleEdit(params.row)}>
+          <IconButton size="small" color="primary" onClick={() => handleEdit(params.row)} title="Edit">
             <EditIcon fontSize="inherit" />
           </IconButton>
-          <IconButton size="small" color="error" onClick={() => handleDeletePrompt(params.row)}>
+          <IconButton size="small" color="success" onClick={() => handleAssignDoctor(params.row)} title="Assign Doctor">
+            <PersonAddIcon fontSize="inherit" />
+          </IconButton>
+          <IconButton size="small" color="error" onClick={() => handleDeletePrompt(params.row)} title="Delete">
             <DeleteIcon fontSize="inherit" />
           </IconButton>
         </div>
       ),
     },
-  ], [handleEdit, handleDeletePrompt]);
+  ], [handleEdit, handleDeletePrompt, handleAssignDoctor]);
 
   return (
     <div className="space-y-5">
@@ -514,6 +694,16 @@ function SubjectsPage() {
         onConfirm={handleConfirmDelete}
         onClose={handleCloseConfirm}
       />
+
+      {assignState.subject && (
+        <AssignDoctorDialog
+          open={assignState.open}
+          subject={assignState.subject}
+          colleges={colleges}
+          onClose={() => setAssignState({ open: false, subject: null })}
+          onAssigned={handleDoctorAssigned}
+        />
+      )}
     </div>
   );
 }

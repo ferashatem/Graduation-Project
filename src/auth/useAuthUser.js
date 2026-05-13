@@ -1,22 +1,18 @@
-import { useEffect, useState } from "react";
-import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "../firebase/firebaseConfig";
+import { useMemo } from "react";
+import { getStoredAccessToken, getStoredRole } from "./session";
 
 export function useAuthUser() {
-  const [user, setUser] = useState(null);
-  const [authLoading, setAuthLoading] = useState(true);
-
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (u) => {
-      if (u) {
-        // Force-refresh the token so custom claims (role) are always current.
-        try { await u.getIdToken(true); } catch (_) {}
-      }
-      setUser(u || null);
-      setAuthLoading(false);
-    });
-    return () => unsub();
+  const user = useMemo(() => {
+    const token = getStoredAccessToken();
+    if (!token) return null;
+    return {
+      uid:         localStorage.getItem("userId")    || "",
+      id:          localStorage.getItem("userId")    || "",
+      email:       localStorage.getItem("userEmail") || "",
+      displayName: localStorage.getItem("userName")  || "",
+      role:        getStoredRole(),
+    };
   }, []);
 
-  return { user, authLoading };
+  return { user, authLoading: false };
 }

@@ -13,12 +13,20 @@ export const fetchMyProfile = async () => {
 // ── Subjects / Courses ────────────────────────────────────────────────────────
 
 export const fetchMySubjects = async (doctorCode) => {
-  // Try token-based endpoint first (no code needed), fall back to code-based
+  // Try subject-offerings (linked via semester) first
   try {
     const res = await apiClient.get("/subject-offerings/my-offerings");
     const data = normalize(res.data?.data ?? res.data);
     if (data.length > 0) return data;
   } catch { /* fall through */ }
+
+  // Try direct subject assignment (via assign-doctor)
+  try {
+    const res = await apiClient.get("/subjects/my-subjects");
+    const data = normalize(res.data?.data ?? res.data);
+    if (data.length > 0) return data;
+  } catch { /* fall through */ }
+
   if (!doctorCode) return [];
   const res = await apiClient.get(`/Doctors/${doctorCode}/subjects`);
   return normalize(res.data?.data ?? res.data);

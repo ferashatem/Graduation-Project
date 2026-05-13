@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { signOut } from "firebase/auth";
 import {
   HiHome,
   HiAcademicCap,
@@ -21,7 +20,6 @@ import {
 } from "react-icons/hi";
 import apiClient from "../../api/apiClient";
 import { clearStoredSession } from "../../auth/session";
-import { auth } from "../../firebase/firebaseConfig";
 import logo from "../../assets/university-logo.png";
 import fallbackAvatar from "../../assets/imgs/profile.png";
 
@@ -216,10 +214,6 @@ function AdminSidebar({
       if (refreshToken) {
         await apiClient.post("/auth/logout", { refreshToken });
       }
-    } catch {}
-
-    try {
-      await signOut(auth);
     } catch {}
 
     clearStoredSession();

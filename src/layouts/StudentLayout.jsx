@@ -1,41 +1,23 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
-import { doc, getDoc } from "firebase/firestore";
 import { useAuthUser } from "../auth/useAuthUser";
-import { db } from "../firebase/firebaseConfig";
 import StudentSidebar from "../components/student/StudentSidebar";
 import StudentTopbar from "../components/student/StudentTopbar";
 
 function StudentLayout() {
   const { user, authLoading } = useAuthUser();
   const location = useLocation();
-
-  const [profile, setProfile] = useState(null);
-  const [profileLoading, setProfileLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  useEffect(() => {
-    let isActive = true;
-
-    const loadProfile = async () => {
-      if (!user?.uid) {
-        if (isActive) { setProfile(null); setProfileLoading(false); }
-        return;
-      }
-      setProfileLoading(true);
-      try {
-        const snap = await getDoc(doc(db, "users", user.uid));
-        if (isActive) setProfile(snap.exists() ? { id: snap.id, ...snap.data() } : null);
-      } catch {
-        if (isActive) setProfile(null);
-      } finally {
-        if (isActive) setProfileLoading(false);
-      }
+  // Profile built from localStorage — no Firestore needed
+  const profile = useMemo(() => {
+    if (!user) return null;
+    return {
+      fullName: user.displayName || "",
+      email:    user.email       || "",
+      id:       user.uid         || "",
     };
-
-    if (!authLoading) loadProfile();
-    return () => { isActive = false; };
-  }, [authLoading, user?.uid]);
+  }, [user]);
 
   const pageTitle = useMemo(() => {
     const path = location.pathname;
@@ -47,7 +29,7 @@ function StudentLayout() {
     return "Student";
   }, [location.pathname]);
 
-  const handleMenuClick = useCallback(() => setSidebarOpen((prev) => !prev), []);
+  const handleMenuClick   = useCallback(() => setSidebarOpen((p) => !p), []);
   const handleCloseSidebar = useCallback(() => setSidebarOpen(false), []);
 
   return (
@@ -67,7 +49,7 @@ function StudentLayout() {
           onMenuClick={handleMenuClick}
         />
         <main className="flex-1 overflow-y-auto p-4 ipad-portrait:p-6 ipad-pro-portrait:p-8">
-          <Outlet context={{ user, profile, profileLoading }} />
+          <Outlet context={{ user, profile, profileLoading: authLoading }} />
         </main>
       </div>
     </div>

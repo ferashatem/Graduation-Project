@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  Alert, Button, Card, CardContent, Divider, MenuItem, TextField, Typography,
+  Alert, Button, Card, CardContent, CircularProgress, Divider, MenuItem, TextField, Typography,
 } from "@mui/material";
 import PageHeader from "../../components/common/PageHeader";
 import { registerDoctor } from "../../api/authApi";
 import { getErrorMessage } from "../../utils/errorHelpers";
 import apiClient from "../../api/apiClient";
+import { fetchDepartmentsByCollege } from "../../features/departments/api/departmentsApi";
 
 const breadcrumbs = [{ label: "Staff Affairs" }, { label: "Register Doctor" }];
 const emptyForm = {
@@ -19,15 +20,32 @@ function RegisterDoctorPage() {
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
   const [apiError, setApiError] = useState("");
+
+  const [colleges, setColleges] = useState([]);
+  const [selectedCollegeId, setSelectedCollegeId] = useState("");
   const [departments, setDepartments] = useState([]);
+  const [deptLoading, setDeptLoading] = useState(false);
 
   useEffect(() => {
-    apiClient.get("/departments", { params: { page: 1, pageSize: 100 } })
+    apiClient.get("/colleges", { params: { page: 1, pageSize: 100 } })
       .then((r) => {
         const p = r.data?.data ?? r.data;
-        setDepartments(Array.isArray(p) ? p : (p?.data ?? []));
+        setColleges(Array.isArray(p) ? p : (p?.data ?? p?.items ?? []));
       })
       .catch(() => {});
+  }, []);
+
+  const handleCollegeChange = useCallback(async (collegeId) => {
+    setSelectedCollegeId(collegeId);
+    setDepartments([]);
+    setValues((prev) => ({ ...prev, departmentCode: "" }));
+    if (!collegeId) return;
+    setDeptLoading(true);
+    try {
+      const data = await fetchDepartmentsByCollege(collegeId);
+      setDepartments(data);
+    } catch { /* ignore */ }
+    finally { setDeptLoading(false); }
   }, []);
 
   const handleChange = useCallback((e) => {
@@ -103,13 +121,31 @@ function RegisterDoctorPage() {
             <Divider />
             <Typography variant="h6" className="font-semibold">Academic Placement</Typography>
 
+            <TextField select label="College" value={selectedCollegeId}
+              onChange={(e) => handleCollegeChange(e.target.value)}
+              fullWidth required helperText="Select college to filter departments">
+              <MenuItem value="">— Select college —</MenuItem>
+              {colleges.map((c) => (
+                <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
+              ))}
+            </TextField>
+
             <TextField select label="Department" name="departmentCode"
               value={values.departmentCode} onChange={handleChange}
-              error={Boolean(errors.departmentCode)} helperText={errors.departmentCode}
-              fullWidth required>
+              error={Boolean(errors.departmentCode)}
+              helperText={
+                deptLoading ? "Loading departments…" :
+                errors.departmentCode ||
+                (!selectedCollegeId ? "Select a college first" : "")
+              }
+              fullWidth required disabled={!selectedCollegeId || deptLoading}>
               <MenuItem value="">— Select department —</MenuItem>
               {departments.map((d) => (
-                <MenuItem key={d.code} value={d.code}>{d.name} ({d.code})</MenuItem>
+                <MenuItem key={d.code} value={d.code}>
+                  {deptLoading
+                    ? <CircularProgress size={14} />
+                    : `${d.name} (${d.code})`}
+                </MenuItem>
               ))}
             </TextField>
 

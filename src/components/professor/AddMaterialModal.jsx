@@ -1,247 +1,106 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Alert,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-} from "@mui/material";
-import { createMaterialDoc } from "../../firebase/materialsApi";
+import { useCallback, useEffect, useState } from "react";
+import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, LinearProgress } from "@mui/material";
+import { uploadMaterial } from "../../api/materialsApi";
 import { getErrorMessage } from "../../utils/errorHelpers";
 
-const resolveCourseName = (course) =>
-  course?.courseName ||
-  course?.CourseName ||
-  course?.courseLabel ||
-  "Untitled course";
+function AddMaterialModal({ open, course, onClose, onCreated }) {
+  const offeringId = course?.id || "";
 
-function AddMaterialModal({
-  open,
-  professorId,
-  courses = [],
-  initialCourseDocId = "",
-  onClose,
-  onCreated,
-}) {
-  const [courseDocId, setCourseDocId] = useState("");
-  const [lectureTitle, setLectureTitle] = useState("");
-  const [lectureNumber, setLectureNumber] = useState("");
-  const [notes, setNotes] = useState("");
-  const [file, setFile] = useState(null);
-  const [localError, setLocalError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [title,    setTitle]    = useState("");
+  const [desc,     setDesc]     = useState("");
+  const [file,     setFile]     = useState(null);
+  const [progress, setProgress] = useState(0);
+  const [loading,  setLoading]  = useState(false);
+  const [error,    setError]    = useState("");
 
   useEffect(() => {
     if (!open) return;
-    setCourseDocId(initialCourseDocId || "");
-    setLectureTitle("");
-    setLectureNumber("");
-    setNotes("");
-    setFile(null);
-    setLocalError("");
-  }, [initialCourseDocId, open]);
+    setTitle(""); setDesc(""); setFile(null); setProgress(0); setError("");
+  }, [open]);
 
-  const courseOptions = useMemo(
-    () => (Array.isArray(courses) ? courses : []),
-    [courses]
-  );
-
-  const coursePlaceholder = useMemo(() => {
-    if (courseOptions.length === 0) return "No courses available";
-    return "Select a course";
-  }, [courseOptions.length]);
-
-  const handleClose = useCallback(() => {
-    if (loading) return;
-    if (onClose) onClose();
-  }, [loading, onClose]);
-
-  const handleFileChange = useCallback((event) => {
-    const nextFile = event.target.files?.[0] || null;
-    setLocalError("");
-    if (!nextFile) {
-      setFile(null);
-      return;
-    }
-
-    const isPdf =
-      nextFile.type === "application/pdf" ||
-      nextFile.name.toLowerCase().endsWith(".pdf");
-    if (!isPdf) {
-      setLocalError("Please upload a PDF file.");
-      setFile(null);
-      return;
-    }
-
-    setFile(nextFile);
+  const handleFileChange = useCallback((e) => {
+    setError("");
+    const f = e.target.files?.[0] || null;
+    setFile(f);
   }, []);
 
   const handleSubmit = useCallback(async () => {
-    if (!professorId) {
-      setLocalError("Professor session is missing.");
-      return;
-    }
-
-    const trimmedTitle = lectureTitle.trim();
-    if (!courseDocId) {
-      setLocalError("Course is required.");
-      return;
-    }
-    if (!trimmedTitle) {
-      setLocalError("Lecture title is required.");
-      return;
-    }
-    if (!file) {
-      setLocalError("PDF file is required.");
-      return;
-    }
-
-    const selectedCourse = courseOptions.find((course) => course.id === courseDocId);
-    if (!selectedCourse) {
-      setLocalError("Selected course is unavailable.");
-      return;
-    }
-
-    let numericLecture = null;
-    if (lectureNumber !== "") {
-      const parsed = Number(lectureNumber);
-      if (!Number.isFinite(parsed) || parsed <= 0) {
-        setLocalError("Lecture number must be a positive number.");
-        return;
-      }
-      numericLecture = parsed;
-    }
+    if (!offeringId) { setError("No offering linked to this course."); return; }
+    if (!title.trim()) { setError("Title is required."); return; }
+    if (!file)         { setError("File is required."); return; }
 
     setLoading(true);
-    setLocalError("");
-
+    setError("");
     try {
-      const created = await createMaterialDoc({
-        professorId,
-        courseDocId,
-        courseId: selectedCourse.courseId || selectedCourse.id,
-        courseName: resolveCourseName(selectedCourse),
-        lectureTitle: trimmedTitle,
-        lectureNumber: numericLecture,
-        notes: notes.trim(),
-        file,
-      });
+      const form = new FormData();
+      form.append("subjectOfferingId", offeringId);
+      form.append("title",             title.trim());
+      if (desc.trim()) form.append("description", desc.trim());
+      form.append("file", file);
 
-      const optimisticMaterial = {
-        ...created,
-        lectureTitle: trimmedTitle,
-        lectureNumber: numericLecture,
-        notes: notes.trim(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      if (onCreated) onCreated(optimisticMaterial);
-      if (onClose) onClose();
+      const created = await uploadMaterial(offeringId, file, setProgress);
+      if (onCreated) onCreated(created);
+      if (onClose)   onClose();
     } catch (err) {
-      setLocalError(getErrorMessage(err, "Failed to add material."));
+      setError(getErrorMessage(err, "Failed to upload material."));
     } finally {
       setLoading(false);
+      setProgress(0);
     }
-  }, [
-    courseDocId,
-    courseOptions,
-    file,
-    lectureNumber,
-    lectureTitle,
-    notes,
-    onClose,
-    onCreated,
-    professorId,
-  ]);
+  }, [offeringId, title, desc, file, onCreated, onClose]);
 
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Add Material</DialogTitle>
+    <Dialog open={open} onClose={() => { if (!loading) onClose?.(); }} maxWidth="sm" fullWidth>
+      <DialogTitle>Upload Material</DialogTitle>
       <DialogContent className="space-y-4">
-        {localError ? <Alert severity="error">{localError}</Alert> : null}
+        {error ? <Alert severity="error">{error}</Alert> : null}
 
         <label className="flex flex-col gap-2 text-sm font-medium text-slate-700">
-          Course
-          <select
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm"
-            value={courseDocId}
-            onChange={(event) => setCourseDocId(event.target.value)}
-            disabled={loading || courseOptions.length === 0}
-            required
-          >
-            <option value="" disabled>
-              {coursePlaceholder}
-            </option>
-            {courseOptions.map((course) => (
-              <option key={course.id} value={course.id}>
-                {resolveCourseName(course)}
-                {course?.termId ? ` - ${course.termId}` : ""}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="flex flex-col gap-2 text-sm font-medium text-slate-700">
-          Lecture title
+          Title *
           <input
             className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm"
             type="text"
-            value={lectureTitle}
-            onChange={(event) => setLectureTitle(event.target.value)}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
             placeholder="Lecture 1: Introduction"
+            disabled={loading}
             required
+          />
+        </label>
+
+        <label className="flex flex-col gap-2 text-sm font-medium text-slate-700">
+          Description (optional)
+          <textarea
+            className="min-h-[80px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm"
+            value={desc}
+            onChange={(e) => setDesc(e.target.value)}
+            placeholder="Brief description…"
             disabled={loading}
           />
         </label>
 
         <label className="flex flex-col gap-2 text-sm font-medium text-slate-700">
-          Lecture number (optional)
-          <input
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm"
-            type="number"
-            min="1"
-            value={lectureNumber}
-            onChange={(event) => setLectureNumber(event.target.value)}
-            placeholder="1"
-            disabled={loading}
-          />
-        </label>
-
-        <label className="flex flex-col gap-2 text-sm font-medium text-slate-700">
-          PDF file
+          File *
           <input
             className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm"
             type="file"
-            accept="application/pdf"
             onChange={handleFileChange}
             disabled={loading}
             required
           />
         </label>
 
-        <label className="flex flex-col gap-2 text-sm font-medium text-slate-700">
-          Notes (optional)
-          <textarea
-            className="min-h-[96px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm"
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-            placeholder="Key topics, reading hints, or quick notes."
-            disabled={loading}
-          />
-        </label>
+        {loading && progress > 0 && (
+          <div className="space-y-1">
+            <LinearProgress variant="determinate" value={progress} />
+            <p className="text-xs text-slate-500 text-right">{progress}%</p>
+          </div>
+        )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={handleClose} disabled={loading}>
-          Cancel
-        </Button>
-        <Button
-          variant="contained"
-          onClick={handleSubmit}
-          disabled={loading || courseOptions.length === 0}
-        >
-          {loading ? "Uploading..." : "Add Material"}
+        <Button onClick={() => onClose?.()} disabled={loading}>Cancel</Button>
+        <Button variant="contained" onClick={handleSubmit} disabled={loading || !offeringId}>
+          {loading ? "Uploading…" : "Upload"}
         </Button>
       </DialogActions>
     </Dialog>
