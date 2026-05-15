@@ -14,3 +14,10 @@ export const uploadStudentFile = async (file, onProgress) => {
   });
   return res.data?.data ?? res.data;
 };
+
+// GET /api/StudentFiles/my — list student's own uploaded files
+export const fetchMyStudentFiles = async () => {
+  const res = await apiClient.get("/studentfiles/my");
+  const payload = res.data?.data ?? res.data;
+  return Array.isArray(payload) ? payload : payload?.items ?? [];
+};

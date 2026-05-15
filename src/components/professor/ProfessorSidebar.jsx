@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { HiBookOpen, HiCalendar, HiChat, HiHome, HiKey, HiLogout, HiPencilAlt } from "react-icons/hi";
+import { HiBookOpen, HiCalendar, HiChat, HiClipboardList, HiDocumentText, HiHome, HiKey, HiLogout, HiPencilAlt } from "react-icons/hi";
 import { clearStoredSession } from "../../auth/session";
 import logo from "../../assets/university-logo.png";
 import fallbackAvatar from "../../assets/imgs/profile.png";
@@ -25,6 +25,8 @@ function ProfessorSidebar({ open = false, onClose, onNavigate, profile, user }) 
       { label: "Courses", to: "/prof/courses", icon: HiBookOpen },
       { label: "My Schedule", to: "/prof/schedule", icon: HiCalendar },
       { label: "Quizzes", to: "/prof/quizzes", icon: HiPencilAlt },
+      { label: "Upload Exam PDF", to: "/prof/exam-upload", icon: HiDocumentText },
+      { label: "Complaint Reports", to: "/prof/complaints", icon: HiClipboardList },
       { label: "AI Assistant", to: "/prof/chat", icon: HiChat },
       { label: "Change Password", to: "/prof/change-password", icon: HiKey },
     ],

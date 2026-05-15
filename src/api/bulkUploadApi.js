@@ -46,3 +46,49 @@ export const bulkUploadGrades = async (offeringId, file, onProgress) => {
     data: res.data?.data ?? res.data,
   };
 };
+
+// POST /api/Students/import-excel — sync import (returns results immediately)
+export const importStudentsExcel = async (file, onProgress) => {
+  const form = new FormData();
+  form.append("file", file);
+
+  const res = await apiClient.post("/students/import-excel", form, {
+    headers: { "Content-Type": "multipart/form-data" },
+    validateStatus: (status) => status === 200 || status === 207,
+    onUploadProgress: (e) => {
+      if (onProgress && e.total) onProgress(Math.round((e.loaded * 100) / e.total));
+    },
+  });
+
+  return { status: res.status, data: res.data?.data ?? res.data };
+};
+
+// POST /api/Students/bulk-upload-ai — async AI-powered student import (202)
+export const bulkUploadStudentsAI = async (file, onProgress) => {
+  const form = new FormData();
+  form.append("file", file);
+
+  const res = await apiClient.post("/students/bulk-upload-ai", form, {
+    headers: { "Content-Type": "multipart/form-data" },
+    onUploadProgress: (e) => {
+      if (onProgress && e.total) onProgress(Math.round((e.loaded * 100) / e.total));
+    },
+  });
+
+  return res.data?.data ?? res.data;
+};
+
+// POST /api/Doctors/bulk-upload — async doctor import (202)
+export const bulkUploadDoctors = async (file, onProgress) => {
+  const form = new FormData();
+  form.append("file", file);
+
+  const res = await apiClient.post("/doctors/bulk-upload", form, {
+    headers: { "Content-Type": "multipart/form-data" },
+    onUploadProgress: (e) => {
+      if (onProgress && e.total) onProgress(Math.round((e.loaded * 100) / e.total));
+    },
+  });
+
+  return res.data?.data ?? res.data;
+};

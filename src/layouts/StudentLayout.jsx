@@ -25,6 +25,7 @@ function StudentLayout() {
     if (path.includes("/student/quizzes/") && path.endsWith("/result")) return "Quiz Result";
     if (path.includes("/student/quizzes/")) return "Take Quiz";
     if (path.startsWith("/student/quizzes")) return "Quizzes";
+    if (path.startsWith("/student/complaints")) return "My Complaints";
     if (path === "/student" || path === "/student/") return "Home";
     return "Student";
   }, [location.pathname]);

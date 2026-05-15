@@ -81,6 +81,15 @@ import AdminSchedulePage from "../pages/admin/AdminSchedulePage";
 // Chat
 import ChatPage from "../features/chat/pages/ChatPage";
 
+// Complaints
+import StudentComplaintsPage from "../features/complaints/pages/StudentComplaintsPage";
+import DoctorReportsPage from "../features/complaints/pages/DoctorReportsPage";
+import AdminComplaintsPage from "../features/complaints/pages/AdminComplaintsPage";
+
+// Academic Bulk Import & Exam Upload
+import AcademicBulkImportPage from "../pages/admin/AcademicBulkImportPage";
+import ExamUploadPage from "../pages/professor/ExamUploadPage";
+
 function AppRoutes() {
   return (
     <Router>
@@ -157,6 +166,12 @@ function AppRoutes() {
           {/* ── Schedule ── */}
           <Route path="schedule" element={<AdminSchedulePage />} />
 
+          {/* ── Complaints ── */}
+          <Route path="complaints" element={<AdminComplaintsPage />} />
+
+          {/* ── Academic Bulk Import ── */}
+          <Route path="academic-import" element={<AcademicBulkImportPage />} />
+
           {/* ── AI Assistant ── */}
           <Route path="chat" element={<ChatPage />} />
           <Route path="change-password" element={<ForceChangePassword />} />
@@ -214,6 +229,9 @@ function AppRoutes() {
           <Route path="quizzes" element={<ProfessorQuizzesPage />} />
           <Route path="quizzes/:quizId/results" element={<ProfessorQuizResultsPage />} />
           <Route path="materials" element={<Navigate to="/prof/courses" replace />} />
+          <Route path="complaints" element={<DoctorReportsPage />} />
+          <Route path="exam-upload" element={<ExamUploadPage />} />
+          <Route path="exam-upload/:offeringId" element={<ExamUploadPage />} />
           <Route path="chat" element={<ChatPage />} />
           <Route path="change-password" element={<ForceChangePassword />} />
         </Route>
@@ -263,6 +281,7 @@ function AppRoutes() {
           <Route path="quizzes" element={<StudentQuizzesPage />} />
           <Route path="quizzes/:quizId" element={<StudentQuizTakePage />} />
           <Route path="quizzes/:quizId/result" element={<StudentQuizResultPage />} />
+          <Route path="complaints" element={<StudentComplaintsPage />} />
           <Route path="chat" element={<ChatPage />} />
           <Route path="change-password" element={<ForceChangePassword />} />
         </Route>

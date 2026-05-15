@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { HiBookOpen, HiCalendar, HiChat, HiHome, HiKey, HiLogout, HiPencilAlt } from "react-icons/hi";
+import { HiBookOpen, HiCalendar, HiChat, HiClipboardList, HiHome, HiKey, HiLogout, HiPencilAlt } from "react-icons/hi";
 import { clearStoredSession } from "../../auth/session";
 import logo from "../../assets/university-logo.png";
 import fallbackAvatar from "../../assets/imgs/profile.png";
@@ -20,6 +20,7 @@ function StudentSidebar({ open = false, onClose, onNavigate, profile, user }) {
       { label: "My Courses", to: "/student/courses", icon: HiBookOpen },
       { label: "My Schedule", to: "/student/schedule", icon: HiCalendar },
       { label: "Quizzes", to: "/student/quizzes", icon: HiPencilAlt },
+      { label: "My Complaints", to: "/student/complaints", icon: HiClipboardList },
       { label: "AI Assistant", to: "/student/chat", icon: HiChat },
       { label: "Change Password", to: "/student/change-password", icon: HiKey },
     ],

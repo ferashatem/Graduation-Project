@@ -22,3 +22,10 @@ export const uploadFile = async (file) => {
   if (!fileId) throw new Error("File upload succeeded but no fileId was returned.");
   return fileId;
 };
+
+// GET /api/File — list my uploaded files
+export const fetchMyFiles = async () => {
+  const res = await apiClient.get("/File");
+  const payload = res.data?.data ?? res.data;
+  return Array.isArray(payload) ? payload : payload?.items ?? [];
+};
