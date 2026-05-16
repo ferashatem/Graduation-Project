@@ -46,7 +46,7 @@ function ComplaintRow({ row, showStudent }) {
         {showStudent && (
           <TableCell>
             <Typography variant="body2" color="text.secondary" fontStyle="italic">
-              {row.studentId === "HIDDEN" ? "Anonymous" : row.studentId}
+              {row.student?.fullName ?? (row.studentId === "HIDDEN" ? "Anonymous" : row.studentId)}
             </Typography>
           </TableCell>
         )}

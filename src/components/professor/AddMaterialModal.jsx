@@ -32,13 +32,7 @@ function AddMaterialModal({ open, course, onClose, onCreated }) {
     setLoading(true);
     setError("");
     try {
-      const form = new FormData();
-      form.append("subjectOfferingId", offeringId);
-      form.append("title",             title.trim());
-      if (desc.trim()) form.append("description", desc.trim());
-      form.append("file", file);
-
-      const created = await uploadMaterial(offeringId, file, setProgress);
+      const created = await uploadMaterial(offeringId, file, setProgress, { title: title.trim(), description: desc.trim() || undefined });
       if (onCreated) onCreated(created);
       if (onClose)   onClose();
     } catch (err) {

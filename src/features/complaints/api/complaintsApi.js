@@ -32,6 +32,13 @@ export const fetchAllComplaints = async ({ page = 1, pageSize = 20, status, targ
   return unwrap(res);
 };
 
+// Student: list doctors they can target in a complaint
+export const fetchDoctorOptions = async () => {
+  const res = await apiClient.get("/complaints/doctor-options");
+  const payload = res.data?.data ?? res.data;
+  return Array.isArray(payload) ? payload : [];
+};
+
 // Admin/Doctor: get complaint clusters
 export const fetchClusters = async ({ targetType, targetId } = {}) => {
   const res = await apiClient.get("/Complaints/clusters", {

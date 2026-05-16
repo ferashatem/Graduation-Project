@@ -1,9 +1,11 @@
 import apiClient from "./apiClient";
 
-export const uploadMaterial = async (offeringId, file, onProgress) => {
+export const uploadMaterial = async (offeringId, file, onProgress, { title, description } = {}) => {
   const form = new FormData();
   form.append("OfferingId", offeringId);
   form.append("File", file);
+  form.append("Title", title ?? "");
+  form.append("Description", description ?? "");
 
   const res = await apiClient.post("/materials/upload", form, {
     headers: { "Content-Type": "multipart/form-data" },
