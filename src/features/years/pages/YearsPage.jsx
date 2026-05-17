@@ -146,6 +146,7 @@ function YearsPage() {
       <YearFormDialog
         open={dialogOpen}
         initialValues={editing}
+        existingYears={rows}
         onClose={handleCloseDialog}
         onSubmit={handleSubmit}
         error={actionError}

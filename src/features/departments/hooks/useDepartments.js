@@ -4,17 +4,18 @@ import {
   createDepartment,
   deleteDepartment,
   fetchDepartmentsByCollege,
+  fetchDepartmentsByYear,
   updateDepartment,
 } from "../api/departmentsApi";
 import { getErrorMessage } from "../../../utils/errorHelpers";
 
-export const useDepartments = (collegeId, collegeCode) => {
+export const useDepartments = (collegeId, collegeCode, yearId) => {
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const loadDepartments = useCallback(async () => {
-    if (!collegeId) {
+    if (!collegeId && !yearId) {
       setDepartments([]);
       setLoading(false);
       return;
@@ -22,7 +23,9 @@ export const useDepartments = (collegeId, collegeCode) => {
     setLoading(true);
     setError("");
     try {
-      const data = await fetchDepartmentsByCollege(collegeId);
+      const data = yearId
+        ? await fetchDepartmentsByYear(yearId)
+        : await fetchDepartmentsByCollege(collegeId);
       const normalised = data.map((d) => ({ ...d, id: d.id ?? d.code }));
       setDepartments(normalised);
     } catch (err) {
@@ -30,7 +33,7 @@ export const useDepartments = (collegeId, collegeCode) => {
     } finally {
       setLoading(false);
     }
-  }, [collegeId]);
+  }, [collegeId, yearId]);
 
   useEffect(() => {
     loadDepartments();
@@ -39,14 +42,14 @@ export const useDepartments = (collegeId, collegeCode) => {
   const addDepartment = useCallback(
     async (payload) => {
       try {
-        await createDepartment({ ...payload, collegeCode });
+        await createDepartment({ ...payload, collegeCode, academicYearId: yearId ?? undefined });
         return { ok: true };
       } catch (err) {
         const message = getErrorMessage(err);
         return { ok: false, error: message };
       }
     },
-    [collegeCode]
+    [collegeCode, yearId]
   );
 
   const editDepartment = useCallback(async (departmentCode, updates) => {

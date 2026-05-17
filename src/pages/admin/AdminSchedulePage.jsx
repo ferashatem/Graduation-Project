@@ -12,6 +12,7 @@ import {
   updateScheduleEntry,
   deleteScheduleEntry,
 } from "../../api/scheduleApi";
+import { fetchGroupsByBatch } from "../../features/groups/api/groupsApi";
 import { getErrorMessage } from "../../utils/errorHelpers";
 
 const DAYS = [
@@ -92,7 +93,7 @@ function SlotCard({ entry, onEdit, onDelete }) {
   );
 }
 
-function SlotFormModal({ open, onClose, onSave, initial }) {
+function SlotFormModal({ open, onClose, onSave, initial, batchId }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -101,13 +102,15 @@ function SlotFormModal({ open, onClose, onSave, initial }) {
   const [years, setYears] = useState([]);
   const [semesters, setSemesters] = useState([]);
   const [offerings, setOfferings] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [selectedYearId, setSelectedYearId] = useState("");
   const [selectedSemesterId, setSelectedSemesterId] = useState("");
   const [loadingYears, setLoadingYears] = useState(false);
   const [loadingSemesters, setLoadingSemesters] = useState(false);
   const [loadingOfferings, setLoadingOfferings] = useState(false);
+  const [loadingGroups, setLoadingGroups] = useState(false);
 
-  // Load years when modal opens
+  // Load years + groups when modal opens
   useEffect(() => {
     if (!open) return;
     setForm(
@@ -134,13 +137,22 @@ function SlotFormModal({ open, onClose, onSave, initial }) {
     setSelectedSemesterId("");
     setSemesters([]);
     setOfferings([]);
+    setGroups([]);
 
     setLoadingYears(true);
     fetchAllYears()
       .then(setYears)
       .catch(() => setYears([]))
       .finally(() => setLoadingYears(false));
-  }, [open, initial]);
+
+    if (batchId) {
+      setLoadingGroups(true);
+      fetchGroupsByBatch(batchId)
+        .then(setGroups)
+        .catch(() => setGroups([]))
+        .finally(() => setLoadingGroups(false));
+    }
+  }, [open, initial, batchId]);
 
   // Load semesters when year changes
   useEffect(() => {
@@ -374,13 +386,22 @@ function SlotFormModal({ open, onClose, onSave, initial }) {
           </div>
 
           <div>
-            <label className={labelCls}>Group ID (leave empty for whole batch)</label>
-            <input
+            <label className={labelCls}>Group (leave empty for whole batch)</label>
+            <select
               className={inputCls}
-              placeholder="Optional — group ID for sections"
               value={form.groupId}
               onChange={set("groupId")}
-            />
+              disabled={loadingGroups}
+            >
+              <option value="">
+                {loadingGroups ? "Loading groups…" : "— All students in batch —"}
+              </option>
+              {groups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name || g.code}
+                </option>
+              ))}
+            </select>
           </div>
 
           {saveError && (

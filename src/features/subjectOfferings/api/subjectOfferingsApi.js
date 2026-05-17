@@ -39,3 +39,15 @@ export const createOffering = async (dto) => {
   const res = await apiClient.post("/subjectofferings", dto);
   return res.data?.data ?? res.data;
 };
+
+// PUT /api/SubjectOfferings/{id}
+// { doctorId, maxCapacity, groupId }
+export const updateOffering = async (id, dto) => {
+  const res = await apiClient.put(`/SubjectOfferings/${id}`, dto);
+  return res.data?.data ?? res.data;
+};
+
+// DELETE /api/SubjectOfferings/{id}
+export const deleteOffering = async (id) => {
+  await apiClient.delete(`/SubjectOfferings/${id}`);
+};

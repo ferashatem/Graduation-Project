@@ -61,12 +61,6 @@ const ADMIN_SECTIONS = [
     label: "Academic Affairs",
     icon: HiCalendar,
     items: [
-      {
-        label: "Academic Years & Semesters",
-        to: "/admin/colleges",
-        icon: HiCalendar,
-        end: false,
-      },
       { label: "Regulations", to: "/admin/regulations", icon: HiDocumentText },
     ],
   },

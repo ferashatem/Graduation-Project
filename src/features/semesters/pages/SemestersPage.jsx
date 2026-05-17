@@ -21,11 +21,15 @@ function SemestersPage() {
   const [confirmState, setConfirmState] = useState({ open: false, row: null });
   const [actionError, setActionError] = useState("");
   const [yearName, setYearName] = useState("");
+  const [collegeId, setCollegeId] = useState(null);
 
   useEffect(() => {
     if (!yearId) return;
     getYearById(yearId)
-      .then((y) => setYearName(y?.name || "Academic Year"))
+      .then((y) => {
+        setYearName(y?.name || "Academic Year");
+        setCollegeId(y?.collegeId ?? null);
+      })
       .catch(() => setYearName("Academic Year"));
   }, [yearId]);
 
@@ -45,8 +49,8 @@ function SemestersPage() {
   }, []);
 
   const handleManageOfferings = useCallback((row) => {
-    navigate(`/admin/semesters/${row.id}/offerings`);
-  }, [navigate]);
+    navigate(`/admin/semesters/${row.id}/offerings`, { state: { collegeId } });
+  }, [navigate, collegeId]);
 
   const handleEdit = useCallback((row) => {
     setEditing(row);

@@ -33,8 +33,17 @@ export const fetchDepartmentsByCollege = async (collegeId) => {
   return normalizeCollection(payload);
 };
 
-export const createDepartment = async ({ name, code, collegeCode }) => {
-  const res = await apiClient.post("/Departments", { name, code, collegeCode });
+export const fetchDepartmentsByYear = async (yearId) => {
+  if (!yearId) return [];
+  const res = await apiClient.get(`/academic-years/${yearId}/departments`);
+  const payload = res.data?.data ?? res.data;
+  return normalizeCollection(payload);
+};
+
+export const createDepartment = async ({ name, code, collegeCode, academicYearId }) => {
+  const body = { name, code, collegeCode };
+  if (academicYearId) body.academicYearId = academicYearId;
+  const res = await apiClient.post("/Departments", body);
   return res.data?.data ?? res.data;
 };
 

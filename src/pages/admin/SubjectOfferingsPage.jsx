@@ -4,14 +4,14 @@ import {
   TextField, MenuItem,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
-import { useParams } from "react-router-dom";
+import { useParams, useLocation } from "react-router-dom";
 import PageHeader from "../../components/common/PageHeader";
 import Loading from "../../components/common/Loading";
 import ErrorState from "../../components/common/ErrorState";
-import { fetchOfferingsBySemester, createOffering } from "../../features/subjectOfferings/api/subjectOfferingsApi";
+import { fetchOfferingsBySemester, createOffering, updateOffering, deleteOffering } from "../../features/subjectOfferings/api/subjectOfferingsApi";
 import { fetchSubjectsByDepartment } from "../../features/subjects/api/subjectsApi";
 import { filterDoctors } from "../../features/doctors/api/doctorsApi";
-import { fetchAllDepartments } from "../../features/departments/api/departmentsApi";
+import { fetchDepartmentsByCollege } from "../../features/departments/api/departmentsApi";
 import { fetchBatchesByDepartment } from "../../features/batches/api/batchesApi";
 import { fetchGroupsByBatch } from "../../features/groups/api/groupsApi";
 import { getErrorMessage } from "../../utils/errorHelpers";
@@ -25,7 +25,7 @@ const emptyForm = {
   maxCapacity: 50,
 };
 
-function OfferingFormDialog({ open, semesterId, onClose, onSubmit, error }) {
+function OfferingFormDialog({ open, semesterId, onClose, onSubmit, error, collegeId }) {
   const [values, setValues] = useState(emptyForm);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -125,6 +125,7 @@ function OfferingFormDialog({ open, semesterId, onClose, onSubmit, error }) {
             value={values.departmentCode}
             onChange={handleDeptChange}
             error={errors.departmentCode}
+            collegeId={collegeId}
           />
 
           {/* Step 2: Subject — filtered by department */}
@@ -198,16 +199,16 @@ function OfferingFormDialog({ open, semesterId, onClose, onSubmit, error }) {
 
 // Small component to load and display all departments
 // value = department code (string); onChange = (deptObject) => void
-function DepartmentSelector({ value, onChange, error }) {
+function DepartmentSelector({ value, onChange, error, collegeId }) {
   const [departments, setDepartments] = useState([]);
 
   useEffect(() => {
     let active = true;
-    fetchAllDepartments()
+    fetchDepartmentsByCollege(collegeId)
       .then((list) => { if (active) setDepartments(list); })
       .catch(() => {});
     return () => { active = false; };
-  }, []);
+  }, [collegeId]);
 
   const handleChange = (e) => {
     const code = e.target.value;
@@ -227,12 +228,72 @@ function DepartmentSelector({ value, onChange, error }) {
   );
 }
 
+function EditOfferingDialog({ open, offering, onClose, onSubmit, error }) {
+  const [values, setValues] = useState({ doctorId: "", maxCapacity: 50, groupId: "" });
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (open && offering) {
+      setValues({
+        doctorId: offering.doctorId ?? "",
+        maxCapacity: offering.maxCapacity ?? 50,
+        groupId: offering.groupId ?? "",
+      });
+    }
+  }, [open, offering]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setValues((p) => ({ ...p, [name]: value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      await onSubmit(offering.id, {
+        doctorId: values.doctorId || null,
+        maxCapacity: Number(values.maxCapacity) || 50,
+        groupId: values.groupId || null,
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
+      <form onSubmit={handleSubmit}>
+        <DialogTitle>Edit Offering</DialogTitle>
+        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: "16px !important" }}>
+          {error ? <Alert severity="error">{error}</Alert> : null}
+          <TextField label="Doctor ID" name="doctorId" value={values.doctorId}
+            onChange={handleChange} fullWidth size="small" />
+          <TextField label="Max Capacity" name="maxCapacity" type="number"
+            value={values.maxCapacity} onChange={handleChange} fullWidth size="small" />
+          <TextField label="Group ID (optional)" name="groupId" value={values.groupId}
+            onChange={handleChange} fullWidth size="small" />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={onClose} disabled={submitting}>Cancel</Button>
+          <Button type="submit" variant="contained" disabled={submitting}>
+            {submitting ? "Saving…" : "Save Changes"}
+          </Button>
+        </DialogActions>
+      </form>
+    </Dialog>
+  );
+}
+
 function SubjectOfferingsPage() {
   const { semesterId } = useParams();
+  const { state } = useLocation();
+  const collegeId = state?.collegeId ?? null;
   const [offerings, setOfferings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState(null);
   const [actionError, setActionError] = useState("");
 
   const load = useCallback(async () => {
@@ -262,12 +323,43 @@ function SubjectOfferingsPage() {
     }
   }, []);
 
+  const handleEditSubmit = useCallback(async (id, dto) => {
+    setActionError("");
+    try {
+      const updated = await updateOffering(id, dto);
+      setOfferings((prev) => prev.map((o) => o.id === id ? { ...o, ...updated, id } : o));
+      setEditTarget(null);
+    } catch (err) {
+      setActionError(getErrorMessage(err));
+    }
+  }, []);
+
+  const handleDelete = useCallback(async (id) => {
+    if (!window.confirm("Delete this offering?")) return;
+    setActionError("");
+    try {
+      await deleteOffering(id);
+      setOfferings((prev) => prev.filter((o) => o.id !== id));
+    } catch (err) {
+      setActionError(getErrorMessage(err));
+    }
+  }, []);
+
   const columns = useMemo(() => [
     { field: "subjectName", headerName: "Subject", flex: 1, minWidth: 180 },
     { field: "doctorName", headerName: "Doctor", flex: 1, minWidth: 180 },
     { field: "semesterName", headerName: "Semester", flex: 1, minWidth: 140 },
     { field: "maxCapacity", headerName: "Capacity", width: 100 },
-  ], []);
+    {
+      field: "actions", headerName: "Actions", width: 160, sortable: false,
+      renderCell: ({ row }) => (
+        <div className="flex gap-2">
+          <Button size="small" variant="outlined" onClick={() => { setActionError(""); setEditTarget(row); }}>Edit</Button>
+          <Button size="small" variant="outlined" color="error" onClick={() => handleDelete(row.id)}>Delete</Button>
+        </div>
+      ),
+    },
+  ], [handleDelete]);
 
   return (
     <div className="space-y-5">
@@ -297,6 +389,15 @@ function SubjectOfferingsPage() {
         semesterId={semesterId}
         onClose={() => setDialogOpen(false)}
         onSubmit={handleSubmit}
+        error={actionError}
+        collegeId={collegeId}
+      />
+
+      <EditOfferingDialog
+        open={Boolean(editTarget)}
+        offering={editTarget}
+        onClose={() => setEditTarget(null)}
+        onSubmit={handleEditSubmit}
         error={actionError}
       />
     </div>

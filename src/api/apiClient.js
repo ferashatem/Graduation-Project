@@ -73,34 +73,12 @@ apiClient.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
-  console.groupCollapsed(`📤 ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
-  console.log("Headers:", config.headers);
-  if (config.params) console.log("Params:", config.params);
-  if (config.data)   console.log("Body:",   config.data);
-  console.groupEnd();
-
   return config;
 });
 
 apiClient.interceptors.response.use(
-  (response) => {
-    console.groupCollapsed(
-      `📥 ${response.status} ${response.config.method?.toUpperCase()} ${response.config.baseURL}${response.config.url}`
-    );
-    console.log("Data:", response.data);
-    console.groupEnd();
-    return response;
-  },
+  (response) => response,
   async (error) => {
-    if (error.response) {
-      console.groupCollapsed(
-        `❌ ${error.response.status} ${error.config?.method?.toUpperCase()} ${error.config?.baseURL}${error.config?.url}`
-      );
-      console.log("Error data:", error.response.data);
-      console.groupEnd();
-    } else {
-      console.error("❌ Network error:", error.message);
-    }
     const originalRequest = error.config;
 
     if (

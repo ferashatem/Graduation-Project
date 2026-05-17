@@ -32,16 +32,13 @@ function SignIn() {
       setLoading(true);
 
       try {
-        const requestBody = { email, password };
-        console.log("Login request payload:", requestBody);
         const res = await fetch(`${API_BASE}/api/Auth/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(requestBody),
+          body: JSON.stringify({ email, password }),
         });
 
         const json = await res.json();
-        console.log("Login response:", json);
 
         const authPayload = json?.data ?? json;
 

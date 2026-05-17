@@ -16,6 +16,7 @@ const emptyValues = { name: "", order: "", isActive: true };
 function YearFormDialog({
   open,
   initialValues,
+  existingYears = [],
   onClose,
   onSubmit,
   submitting,
@@ -34,6 +35,12 @@ function YearFormDialog({
     [isEdit]
   );
 
+  const suggestedOrder = useMemo(() => {
+    if (existingYears.length === 0) return 1;
+    const maxOrder = Math.max(...existingYears.map((y) => y.order || 0));
+    return maxOrder + 1;
+  }, [existingYears]);
+
   useEffect(() => {
     if (open) {
       setValues({
@@ -41,12 +48,12 @@ function YearFormDialog({
         order:
           typeof initialValues?.order === "number"
             ? String(initialValues.order)
-            : "",
+            : String(suggestedOrder),
         isActive: initialValues?.isActive ?? true,
       });
       setErrors({});
     }
-  }, [open, initialValues]);
+  }, [open, initialValues, suggestedOrder]);
 
   const handleChange = useCallback((event) => {
     const { name, value, type, checked } = event.target;
@@ -59,13 +66,20 @@ function YearFormDialog({
       nextErrors.name = "Year name is required.";
     }
     const orderNumber = Number(values.order);
-    if (!values.order.trim()) {
+    if (!values.order.toString().trim()) {
       nextErrors.order = "Order is required.";
-    } else if (!Number.isInteger(orderNumber)) {
-      nextErrors.order = "Order must be an integer.";
+    } else if (!Number.isInteger(orderNumber) || orderNumber < 1) {
+      nextErrors.order = "Order must be a positive integer.";
+    } else {
+      const duplicate = existingYears.find(
+        (y) => y.order === orderNumber && y.id !== initialValues?.id
+      );
+      if (duplicate) {
+        nextErrors.order = `Order ${orderNumber} is already used by "${duplicate.name}". Use a different order.`;
+      }
     }
     return nextErrors;
-  }, [values.name, values.order]);
+  }, [values.name, values.order, existingYears, initialValues?.id]);
 
   const handleSubmit = useCallback(
     async (event) => {
@@ -109,7 +123,7 @@ function YearFormDialog({
             value={values.order}
             onChange={handleChange}
             error={Boolean(errors.order)}
-            helperText={errors.order}
+            helperText={errors.order || (!isEdit ? `Suggested: ${suggestedOrder}` : "")}
             fullWidth
             required
             inputProps={{ min: 1, step: 1 }}

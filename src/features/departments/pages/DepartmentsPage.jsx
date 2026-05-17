@@ -13,7 +13,7 @@ import { getErrorMessage } from "../../../utils/errorHelpers";
 
 function DepartmentsPage() {
   const navigate = useNavigate();
-  const { collegeId, collegeCode } = useParams();
+  const { collegeId, collegeCode, yearId } = useParams();
   const [collegeMeta, setCollegeMeta] = useState({ name: "", code: "" });
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -30,7 +30,7 @@ function DepartmentsPage() {
     addDepartment,
     updateDepartment,
     deleteDepartment,
-  } = useDepartments(collegeId, resolvedCollegeCode);
+  } = useDepartments(collegeId, resolvedCollegeCode, yearId);
 
   useEffect(() => {
     let active = true;

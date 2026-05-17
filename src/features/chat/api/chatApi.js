@@ -1,5 +1,4 @@
 import apiClient from "../../../api/apiClient";
-import { getStoredRole } from "../../../auth/session";
 
 export const createConversation = async (title = "New Chat") => {
   const res = await apiClient.post("/Chat/conversations", { title });
@@ -21,8 +20,7 @@ export const fetchMessages = async (conversationId, page = 1, pageSize = 50) => 
 };
 
 export const sendMessage = async (conversationId, content) => {
-  const role = getStoredRole();
-  const res = await apiClient.post("/Chat/messages", { conversationId, content, role });
+  const res = await apiClient.post("/Chat/messages", { conversationId, content });
   return res.data?.data ?? res.data;
 };
 
