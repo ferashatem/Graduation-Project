@@ -3,24 +3,24 @@ import { Button, Alert } from "@mui/material";
 import { useParams } from "react-router-dom";
 import PageHeader from "../../../components/common/PageHeader";
 import ConfirmDialog from "../../../components/common/ConfirmDialog";
+import DeleteBlockedDialog from "../../../components/common/DeleteBlockedDialog";
 import Loading from "../../../components/common/Loading";
 import ErrorState from "../../../components/common/ErrorState";
 import GroupsTable from "../components/GroupsTable";
 import GroupFormDialog from "../components/GroupFormDialog";
 import { useGroups } from "../hooks/useGroups";
-import { fetchBatchesByDepartment } from "../../batches/api/batchesApi";
 
 function GroupsPage() {
-  // batchCode = batch's public code (needed for create/update API)
   const { batchId, batchCode } = useParams();
 
   const { groups, loading, error, reload, addGroup, updateGroup, deleteGroup } =
-    useGroups(batchId, batchCode);
+    useGroups(batchId);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [confirmState, setConfirmState] = useState({ open: false, row: null });
   const [actionError, setActionError] = useState("");
+  const [blockedDialog, setBlockedDialog] = useState({ open: false, message: "" });
 
   const breadcrumbs = useMemo(
     () => [
@@ -55,15 +55,20 @@ function GroupsPage() {
     const target = confirmState.row;
     handleCloseConfirm();
     if (!target) return;
-    // DELETE /api/groups/{code} — use the group's public code
-    const result = await deleteGroup(target.code);
-    if (!result.ok) setActionError(result.error);
-  }, [confirmState.row, deleteGroup, handleCloseConfirm]);
+    const result = await deleteGroup(target.id);
+    if (result.ok) {
+      reload();
+    } else if (result.error?.includes("Cannot delete")) {
+      setBlockedDialog({ open: true, message: result.error });
+    } else {
+      setActionError(result.error);
+    }
+  }, [confirmState.row, deleteGroup, handleCloseConfirm, reload]);
 
   const handleSubmit = useCallback(async (values) => {
     setActionError("");
     const result = editing
-      ? await updateGroup(editing.code, values)  // PUT /api/groups/{code}
+      ? await updateGroup(editing.id, values)
       : await addGroup(values);
     if (result.ok) {
       setDialogOpen(false);
@@ -105,10 +110,16 @@ function GroupsPage() {
       <ConfirmDialog
         open={confirmState.open}
         title="Delete group?"
-        message="This will permanently remove the group."
+        message="سيتم حذف المجموعة نهائياً وكل المواد والامتحانات والدرجات المرتبطة بها."
         confirmLabel="Delete"
         onConfirm={handleConfirmDelete}
         onClose={handleCloseConfirm}
+      />
+
+      <DeleteBlockedDialog
+        open={blockedDialog.open}
+        message={blockedDialog.message}
+        onClose={() => setBlockedDialog({ open: false, message: "" })}
       />
     </div>
   );

@@ -9,13 +9,13 @@ import {
 } from "../api/departmentsApi";
 import { getErrorMessage } from "../../../utils/errorHelpers";
 
-export const useDepartments = (collegeId, collegeCode, yearId) => {
+export const useDepartments = (collegeId, _collegeCode, yearId) => {
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const loadDepartments = useCallback(async () => {
-    if (!collegeId && !yearId) {
+    if (!collegeId) {
       setDepartments([]);
       setLoading(false);
       return;
@@ -26,7 +26,12 @@ export const useDepartments = (collegeId, collegeCode, yearId) => {
       const data = yearId
         ? await fetchDepartmentsByYear(yearId)
         : await fetchDepartmentsByCollege(collegeId);
-      const normalised = data.map((d) => ({ ...d, id: d.id ?? d.code }));
+      const normalised = data.map((d) => ({
+        ...d,
+        id: d.id ?? d.departmentId ?? d.mappingId ?? d.code,
+        name: d.name ?? d.departmentName ?? "",
+        code: d.code ?? d.departmentCode ?? "",
+      }));
       setDepartments(normalised);
     } catch (err) {
       setError(getErrorMessage(err));
@@ -42,29 +47,29 @@ export const useDepartments = (collegeId, collegeCode, yearId) => {
   const addDepartment = useCallback(
     async (payload) => {
       try {
-        await createDepartment({ ...payload, collegeCode, academicYearId: yearId ?? undefined });
+        await createDepartment({ ...payload, collegeId, academicYearId: yearId ?? undefined });
         return { ok: true };
       } catch (err) {
         const message = getErrorMessage(err);
         return { ok: false, error: message };
       }
     },
-    [collegeCode, yearId]
+    [collegeId, yearId]
   );
 
-  const editDepartment = useCallback(async (departmentCode, updates) => {
+  const editDepartment = useCallback(async (departmentId, updates) => {
     try {
-      await updateDepartment(departmentCode, { ...updates, collegeCode });
+      await updateDepartment(departmentId, { ...updates, collegeId });
       return { ok: true };
     } catch (err) {
       const message = getErrorMessage(err);
       return { ok: false, error: message };
     }
-  }, [collegeCode]);
+  }, [collegeId]);
 
-  const removeDepartment = useCallback(async (departmentCode) => {
+  const removeDepartment = useCallback(async (departmentId) => {
     try {
-      await deleteDepartment(departmentCode);
+      await deleteDepartment(departmentId);
       return { ok: true };
     } catch (err) {
       const message = getErrorMessage(err);

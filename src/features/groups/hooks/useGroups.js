@@ -7,8 +7,7 @@ import {
 } from "../api/groupsApi";
 import { getErrorMessage } from "../../../utils/errorHelpers";
 
-// batchId — ULID for fetching; batchCode — public code for create/update
-export const useGroups = (batchId, batchCode) => {
+export const useGroups = (batchId) => {
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -31,27 +30,27 @@ export const useGroups = (batchId, batchCode) => {
 
   const addGroup = useCallback(async ({ name, code }) => {
     try {
-      await createGroup({ name, code, batchCode });
+      await createGroup({ name, code, batchId });
       await load();
       return { ok: true };
     } catch (err) {
       return { ok: false, error: getErrorMessage(err) };
     }
-  }, [batchCode, load]);
+  }, [batchId, load]);
 
-  const editGroup = useCallback(async (groupCode, { name, code }) => {
+  const editGroup = useCallback(async (groupId, { name, code }) => {
     try {
-      await updateGroup(groupCode, { name, code, batchCode });
+      await updateGroup(groupId, { name, code, batchId });
       await load();
       return { ok: true };
     } catch (err) {
       return { ok: false, error: getErrorMessage(err) };
     }
-  }, [batchCode, load]);
+  }, [batchId, load]);
 
-  const removeGroup = useCallback(async (groupCode) => {
+  const removeGroup = useCallback(async (groupId) => {
     try {
-      await deleteGroup(groupCode);
+      await deleteGroup(groupId);
       await load();
       return { ok: true };
     } catch (err) {

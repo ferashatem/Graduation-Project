@@ -5,8 +5,15 @@ const normalizeCollection = (payload) => {
   return payload?.data ?? payload?.items ?? [];
 };
 
-export const fetchColleges = async ({ page = 1, pageSize = 100 } = {}) => {
-  const res = await apiClient.get("/Colleges", { params: { page, pageSize } });
+export const fetchUniversity = async () => {
+  const res = await apiClient.get("/University/structure");
+  const payload = res.data?.data ?? res.data;
+  const list = Array.isArray(payload) ? payload : [payload];
+  return list[0] ?? null;
+};
+
+export const fetchColleges = async () => {
+  const res = await apiClient.get("/Colleges");
   const payload = res.data?.data ?? res.data;
   return normalizeCollection(payload);
 };
@@ -25,24 +32,17 @@ export const getCollegeById = async (...args) => {
   );
 };
 
-export const createCollege = async ({ name, code, universityCode }) => {
-  const res = await apiClient.post("/Colleges", { name, code, universityCode });
+export const createCollege = async ({ name, code, universityId }) => {
+  const res = await apiClient.post("/Colleges", { name, code, universityId });
   return res.data?.data ?? res.data;
 };
 
-export const updateCollege = async (
-  collegeCode,
-  { name, code, universityCode }
-) => {
-  const res = await apiClient.put(`/Colleges/${collegeCode}`, {
-    name,
-    code,
-    universityCode,
-  });
+export const updateCollege = async (collegeId, { name, code, universityId }) => {
+  const res = await apiClient.put(`/Colleges/${collegeId}`, { name, code, universityId });
   return res.data?.data ?? res.data;
 };
 
-export const deleteCollege = async (collegeCode) => {
-  await apiClient.delete(`/Colleges/${collegeCode}`);
-  return collegeCode;
+export const deleteCollege = async (collegeId) => {
+  await apiClient.delete(`/Colleges/${collegeId}`);
+  return collegeId;
 };

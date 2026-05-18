@@ -25,24 +25,17 @@ export const getBatchById = async (...args) => {
   return batches.find((batch) => String(batch.id) === String(batchId)) || null;
 };
 
-export const createBatch = async ({ name, code, departmentCode }) => {
-  const res = await apiClient.post("/batches", { name, code, departmentCode });
+export const createBatch = async ({ name, code, departmentId }) => {
+  const res = await apiClient.post("/batches", { name, code, departmentId });
   return res.data?.data ?? res.data;
 };
 
-export const updateBatch = async (
-  batchCode,
-  { name, code, departmentCode }
-) => {
-  const res = await apiClient.put(`/batches/${batchCode}`, {
-    name,
-    code,
-    departmentCode,
-  });
+export const updateBatch = async (batchId, { name, code, departmentId }) => {
+  const res = await apiClient.put(`/batches/${batchId}`, { name, code, departmentId });
   return res.data?.data ?? res.data;
 };
 
-export const deleteBatch = async (batchCode) => {
-  await apiClient.delete(`/batches/${batchCode}`);
-  return batchCode;
+export const deleteBatch = async (batchId) => {
+  await apiClient.delete(`/batches/${batchId}`);
+  return batchId;
 };

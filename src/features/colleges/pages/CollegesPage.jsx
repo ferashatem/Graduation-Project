@@ -4,6 +4,7 @@ import { Button, Alert } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "../../../components/common/PageHeader";
 import ConfirmDialog from "../../../components/common/ConfirmDialog";
+import DeleteBlockedDialog from "../../../components/common/DeleteBlockedDialog";
 import Loading from "../../../components/common/Loading";
 import ErrorState from "../../../components/common/ErrorState";
 import CollegesTable from "../components/CollegesTable";
@@ -18,6 +19,7 @@ function CollegesPage() {
   const [editing, setEditing] = useState(null);
   const [confirmState, setConfirmState] = useState({ open: false, row: null });
   const [actionError, setActionError] = useState("");
+  const [blockedDialog, setBlockedDialog] = useState({ open: false, message: "" });
 
   const rows = useMemo(() => colleges, [colleges]);
   const breadcrumbs = useMemo(() => [{ label: "Colleges" }], []);
@@ -50,9 +52,11 @@ function CollegesPage() {
     const target = confirmState.row;
     handleCloseConfirm();
     if (!target) return;
-    const result = await deleteCollege(target.code);
+    const result = await deleteCollege(target.id);
     if (result.ok) {
       reload();
+    } else if (result.error?.includes("Cannot delete")) {
+      setBlockedDialog({ open: true, message: result.error });
     } else {
       setActionError(result.error);
     }
@@ -62,7 +66,7 @@ function CollegesPage() {
     async (values) => {
       setActionError("");
       const result = editing
-        ? await updateCollege(editing.code, values)
+        ? await updateCollege(editing.id, values)
         : await addCollege(values);
 
       if (result.ok) {
@@ -122,10 +126,16 @@ function CollegesPage() {
       <ConfirmDialog
         open={confirmState.open}
         title="Delete college?"
-        message="This will remove the college. Related years and departments are not deleted automatically."
+        message="سيتم حذف الكلية نهائياً مع كل أقسامها والبيانات الأكاديمية بالكامل."
         confirmLabel="Delete"
         onConfirm={handleConfirmDelete}
         onClose={handleCloseConfirm}
+      />
+
+      <DeleteBlockedDialog
+        open={blockedDialog.open}
+        message={blockedDialog.message}
+        onClose={() => setBlockedDialog({ open: false, message: "" })}
       />
     </div>
   );

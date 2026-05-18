@@ -3,6 +3,7 @@ import { Button, Alert } from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
 import PageHeader from "../../../components/common/PageHeader";
 import ConfirmDialog from "../../../components/common/ConfirmDialog";
+import DeleteBlockedDialog from "../../../components/common/DeleteBlockedDialog";
 import Loading from "../../../components/common/Loading";
 import ErrorState from "../../../components/common/ErrorState";
 import DepartmentsTable from "../components/DepartmentsTable";
@@ -19,8 +20,7 @@ function DepartmentsPage() {
   const [editing, setEditing] = useState(null);
   const [confirmState, setConfirmState] = useState({ open: false, row: null });
   const [actionError, setActionError] = useState("");
-
-  const resolvedCollegeCode = collegeCode || collegeMeta.code;
+  const [blockedDialog, setBlockedDialog] = useState({ open: false, message: "" });
 
   const {
     departments,
@@ -30,7 +30,7 @@ function DepartmentsPage() {
     addDepartment,
     updateDepartment,
     deleteDepartment,
-  } = useDepartments(collegeId, resolvedCollegeCode, yearId);
+  } = useDepartments(collegeId, null, yearId);
 
   useEffect(() => {
     let active = true;
@@ -97,9 +97,11 @@ function DepartmentsPage() {
     handleCloseConfirm();
     if (!target) return;
 
-    const result = await deleteDepartment(target.code);
+    const result = await deleteDepartment(target.id);
     if (result.ok) {
       reload();
+    } else if (result.error?.includes("Cannot delete")) {
+      setBlockedDialog({ open: true, message: result.error });
     } else {
       setActionError(result.error);
     }
@@ -107,14 +109,9 @@ function DepartmentsPage() {
 
   const handleSubmit = useCallback(
     async (values) => {
-      if (!resolvedCollegeCode) {
-        setActionError("College code is still loading. Try again.");
-        return;
-      }
-
       setActionError("");
       const result = editing
-        ? await updateDepartment(editing.code, values)
+        ? await updateDepartment(editing.id, values)
         : await addDepartment(values);
 
       if (result.ok) {
@@ -125,7 +122,7 @@ function DepartmentsPage() {
         setActionError(result.error);
       }
     },
-    [addDepartment, editing, reload, resolvedCollegeCode, updateDepartment]
+    [addDepartment, editing, reload, updateDepartment]
   );
 
   const handleManageBatches = useCallback(
@@ -144,7 +141,7 @@ function DepartmentsPage() {
           <Button
             variant="contained"
             onClick={handleAdd}
-            disabled={!resolvedCollegeCode}
+            disabled={!collegeId && !yearId}
           >
             Add Department
           </Button>
@@ -176,10 +173,16 @@ function DepartmentsPage() {
       <ConfirmDialog
         open={confirmState.open}
         title="Delete department?"
-        message="This will permanently remove the department."
+        message="سيتم حذف القسم نهائياً مع كل دفعاته ومجموعاته والبيانات الأكاديمية. الطلاب والدكاترة لن يُحذفوا."
         confirmLabel="Delete"
         onConfirm={handleConfirmDelete}
         onClose={handleCloseConfirm}
+      />
+
+      <DeleteBlockedDialog
+        open={blockedDialog.open}
+        message={blockedDialog.message}
+        onClose={() => setBlockedDialog({ open: false, message: "" })}
       />
     </div>
   );

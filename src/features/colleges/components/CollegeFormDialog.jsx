@@ -23,7 +23,7 @@ function CollegeFormDialog({
   const [errors, setErrors] = useState({});
 
   const isEdit = useMemo(
-    () => Boolean(initialValues && initialValues.id),
+    () => Boolean(initialValues && (initialValues.id || initialValues.code)),
     [initialValues]
   );
   const title = useMemo(() => (isEdit ? "Edit College" : "Add College"), [isEdit]);
@@ -49,11 +49,10 @@ function CollegeFormDialog({
 
   const validate = useCallback(() => {
     const nextErrors = {};
-    if (!values.name.trim()) {
-      nextErrors.name = "College name is required.";
-    }
+    if (!values.name.trim()) nextErrors.name = "College name is required.";
+    if (!values.code.trim()) nextErrors.code = "College code is required.";
     return nextErrors;
-  }, [values.name]);
+  }, [values.name, values.code]);
 
   const handleSubmit = useCallback(
     async (event) => {
@@ -64,7 +63,6 @@ function CollegeFormDialog({
       await onSubmit({
         name: values.name.trim(),
         code: values.code.trim(),
-        universityCode: "BSNU",
       });
     },
     [onSubmit, validate, values.code, values.name]
@@ -95,7 +93,10 @@ function CollegeFormDialog({
             name="code"
             value={values.code}
             onChange={handleChange}
+            error={Boolean(errors.code)}
+            helperText={errors.code}
             fullWidth
+            required
           />
         </DialogContent>
         <DialogActions>

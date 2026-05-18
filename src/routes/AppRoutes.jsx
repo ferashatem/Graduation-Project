@@ -47,10 +47,6 @@ import BuildingDetails from "../pages/admin/BuildingDetails";
 import RoomSchedulePage from "../pages/admin/RoomSchedulePage";
 import AdminCourseDetailsPage from "../pages/admin/CourseDetailsPage";
 
-// Buildings (legacy)
-import BuildingsPage from "../pages/Buildings/BuildingsPage";
-import RoomsPage from "../pages/Buildings/RoomsPage";
-import LegacyRoomSchedulePage from "../pages/Buildings/RoomSchedulePage";
 
 // Professor
 import ProfessorHome from "../pages/professor/ProfessorHome";
@@ -175,20 +171,6 @@ function AppRoutes() {
           {/* ── AI Assistant ── */}
           <Route path="chat" element={<ChatPage />} />
           <Route path="change-password" element={<ForceChangePassword />} />
-        </Route>
-
-        {/* Legacy buildings routes */}
-        <Route
-          path="/buildings"
-          element={
-            <RequireRole role="admin">
-              <MainLayoutAdmin />
-            </RequireRole>
-          }
-        >
-          <Route index element={<BuildingsPage />} />
-          <Route path=":buildingId/rooms" element={<RoomsPage />} />
-          <Route path=":buildingId/rooms/:roomId" element={<LegacyRoomSchedulePage />} />
         </Route>
 
         {/* Super Admin Routes */}

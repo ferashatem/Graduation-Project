@@ -7,8 +7,7 @@ import {
 } from "../api/batchesApi";
 import { getErrorMessage } from "../../../utils/errorHelpers";
 
-// departmentId — ULID for fetching; departmentCode — public code for create/update
-export const useBatches = (departmentId, departmentCode) => {
+export const useBatches = (departmentId) => {
   const [batches, setBatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -32,28 +31,27 @@ export const useBatches = (departmentId, departmentCode) => {
 
   const addBatch = useCallback(async ({ name, code }) => {
     try {
-      await createBatch({ name, code, departmentCode });
+      await createBatch({ name, code, departmentId });
       await load();
       return { ok: true };
     } catch (err) {
       return { ok: false, error: getErrorMessage(err) };
     }
-  }, [departmentCode, load]);
+  }, [departmentId, load]);
 
-  // batchCode = the batch's public code (not ULID)
-  const editBatch = useCallback(async (batchCode, { name, code }) => {
+  const editBatch = useCallback(async (batchId, { name, code }) => {
     try {
-      await updateBatch(batchCode, { name, code, departmentCode });
+      await updateBatch(batchId, { name, code, departmentId });
       await load();
       return { ok: true };
     } catch (err) {
       return { ok: false, error: getErrorMessage(err) };
     }
-  }, [departmentCode, load]);
+  }, [departmentId, load]);
 
-  const removeBatch = useCallback(async (batchCode) => {
+  const removeBatch = useCallback(async (batchId) => {
     try {
-      await deleteBatch(batchCode);
+      await deleteBatch(batchId);
       await load();
       return { ok: true };
     } catch (err) {

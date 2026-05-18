@@ -3,6 +3,7 @@ import { Button, Alert } from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
 import PageHeader from "../../../components/common/PageHeader";
 import ConfirmDialog from "../../../components/common/ConfirmDialog";
+import DeleteBlockedDialog from "../../../components/common/DeleteBlockedDialog";
 import Loading from "../../../components/common/Loading";
 import ErrorState from "../../../components/common/ErrorState";
 import BatchesTable from "../components/BatchesTable";
@@ -12,16 +13,16 @@ import { getDepartmentById } from "../../departments/api/departmentsApi";
 
 function BatchesPage() {
   const navigate = useNavigate();
-  // deptCode = department's public code (for create/update API calls)
   const { deptId, deptCode } = useParams();
 
   const { batches, loading, error, reload, addBatch, updateBatch, deleteBatch } =
-    useBatches(deptId, deptCode);
+    useBatches(deptId);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [confirmState, setConfirmState] = useState({ open: false, row: null });
   const [actionError, setActionError] = useState("");
+  const [blockedDialog, setBlockedDialog] = useState({ open: false, message: "" });
   const [deptName, setDeptName] = useState("");
 
   useEffect(() => {
@@ -64,15 +65,20 @@ function BatchesPage() {
     const target = confirmState.row;
     handleCloseConfirm();
     if (!target) return;
-    // DELETE /api/batches/{code} — use the batch's public code
-    const result = await deleteBatch(target.code);
-    if (!result.ok) setActionError(result.error);
-  }, [confirmState.row, deleteBatch, handleCloseConfirm]);
+    const result = await deleteBatch(target.id);
+    if (result.ok) {
+      reload();
+    } else if (result.error?.includes("Cannot delete")) {
+      setBlockedDialog({ open: true, message: result.error });
+    } else {
+      setActionError(result.error);
+    }
+  }, [confirmState.row, deleteBatch, handleCloseConfirm, reload]);
 
   const handleSubmit = useCallback(async (values) => {
     setActionError("");
     const result = editing
-      ? await updateBatch(editing.code, values) // PUT /api/batches/{code}
+      ? await updateBatch(editing.id, values)
       : await addBatch(values);
     if (result.ok) {
       setDialogOpen(false);
@@ -121,10 +127,16 @@ function BatchesPage() {
       <ConfirmDialog
         open={confirmState.open}
         title="Delete batch?"
-        message="This will remove the batch and all its groups."
+        message="سيتم حذف الدفعة نهائياً مع كل مجموعاتها والمواد والامتحانات والدرجات. الطلاب لن يُحذفوا."
         confirmLabel="Delete"
         onConfirm={handleConfirmDelete}
         onClose={handleCloseConfirm}
+      />
+
+      <DeleteBlockedDialog
+        open={blockedDialog.open}
+        message={blockedDialog.message}
+        onClose={() => setBlockedDialog({ open: false, message: "" })}
       />
     </div>
   );

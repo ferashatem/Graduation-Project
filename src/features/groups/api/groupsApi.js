@@ -25,21 +25,17 @@ export const getGroupById = async (...args) => {
   return groups.find((group) => String(group.id) === String(groupId)) || null;
 };
 
-export const createGroup = async ({ name, code, batchCode }) => {
-  const res = await apiClient.post("/groups", { name, code, batchCode });
+export const createGroup = async ({ name, code, batchId }) => {
+  const res = await apiClient.post("/groups", { name, code, batchId });
   return res.data?.data ?? res.data;
 };
 
-export const updateGroup = async (groupCode, { name, code, batchCode }) => {
-  const res = await apiClient.put(`/groups/${groupCode}`, {
-    name,
-    code,
-    batchCode,
-  });
+export const updateGroup = async (groupId, { name, code, batchId }) => {
+  const res = await apiClient.put(`/groups/${groupId}`, { name, code, batchId });
   return res.data?.data ?? res.data;
 };
 
-export const deleteGroup = async (groupCode) => {
-  await apiClient.delete(`/groups/${groupCode}`);
-  return groupCode;
+export const deleteGroup = async (groupId) => {
+  await apiClient.delete(`/groups/${groupId}`);
+  return groupId;
 };

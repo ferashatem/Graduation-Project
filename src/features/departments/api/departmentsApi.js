@@ -40,26 +40,19 @@ export const fetchDepartmentsByYear = async (yearId) => {
   return normalizeCollection(payload);
 };
 
-export const createDepartment = async ({ name, code, collegeCode, academicYearId }) => {
-  const body = { name, code, collegeCode };
+export const createDepartment = async ({ name, code, collegeId, academicYearId }) => {
+  const body = { name, code, collegeId };
   if (academicYearId) body.academicYearId = academicYearId;
   const res = await apiClient.post("/Departments", body);
   return res.data?.data ?? res.data;
 };
 
-export const updateDepartment = async (
-  departmentCode,
-  { name, code, collegeCode }
-) => {
-  const res = await apiClient.put(`/Departments/${departmentCode}`, {
-    name,
-    code,
-    collegeCode,
-  });
+export const updateDepartment = async (departmentId, { name, code, collegeId }) => {
+  const res = await apiClient.put(`/Departments/${departmentId}`, { name, code, collegeId });
   return res.data?.data ?? res.data;
 };
 
-export const deleteDepartment = async (departmentCode) => {
-  await apiClient.delete(`/Departments/${departmentCode}`);
-  return departmentCode;
+export const deleteDepartment = async (departmentId) => {
+  await apiClient.delete(`/Departments/${departmentId}`);
+  return departmentId;
 };

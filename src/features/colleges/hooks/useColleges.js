@@ -1,9 +1,10 @@
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   createCollege,
   deleteCollege,
   fetchColleges,
+  fetchUniversity,
   updateCollege,
 } from "../api/collegesApi";
 import { getErrorMessage } from "../../../utils/errorHelpers";
@@ -12,16 +13,15 @@ export const useColleges = () => {
   const [colleges, setColleges] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const universityIdRef = useRef(null);
 
   const loadColleges = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const data = await fetchColleges();
-      console.log("fetchColleges returned:", data);
-      // DataGrid requires an `id` field; fall back to `code` if `id` is missing
+      const [data, university] = await Promise.all([fetchColleges(), fetchUniversity()]);
+      universityIdRef.current = university?.id ?? null;
       const normalised = data.map((c) => ({ ...c, id: c.id ?? c.code }));
-      console.log("normalised colleges:", normalised);
       setColleges(normalised);
     } catch (err) {
       setError(getErrorMessage(err));
@@ -34,38 +34,32 @@ export const useColleges = () => {
     loadColleges();
   }, [loadColleges]);
 
-  const addCollege = useCallback(async (payload) => {
+  const addCollege = useCallback(async ({ name, code }) => {
     setError("");
     try {
-      const created = await createCollege(payload);
-      setColleges((prev) => [created, ...prev]);
+      await createCollege({ name, code, universityId: universityIdRef.current });
+      await loadColleges();
       return { ok: true };
     } catch (err) {
       const message = getErrorMessage(err);
       setError(message);
       return { ok: false, error: message };
     }
-  }, []);
+  }, [loadColleges]);
 
   const editCollege = useCallback(
-    async (collegeId, updates) => {
-      const previous = colleges;
-      setColleges((prev) =>
-        prev.map((college) =>
-          college.id === collegeId ? { ...college, ...updates } : college
-        )
-      );
+    async (collegeId, { name, code }) => {
       try {
-        await updateCollege(collegeId, updates);
+        await updateCollege(collegeId, { name, code, universityId: universityIdRef.current });
+        await loadColleges();
         return { ok: true };
       } catch (err) {
         const message = getErrorMessage(err);
-        setColleges(previous);
         setError(message);
         return { ok: false, error: message };
       }
     },
-    [colleges]
+    [loadColleges]
   );
 
   const removeCollege = useCallback(
