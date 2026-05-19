@@ -359,8 +359,8 @@ function CollapsiblePanel({ title, count, color, defaultExpanded, children }) {
 }
 
 function WarningsPanel({ warnings }) {
-  if (!warnings?.length) return null;
   const [showAll, setShowAll] = useState(false);
+  if (!warnings?.length) return null;
   const visible = showAll ? warnings : warnings.slice(0, 4);
 
   return (
@@ -392,8 +392,8 @@ function WarningsPanel({ warnings }) {
 }
 
 function ErrorsPanel({ errors }) {
-  if (!errors?.length) return null;
   const parsedErrors = useMemo(() => parseErrorRows(errors), [errors]);
+  if (!errors?.length) return null;
 
   return (
     <CollapsiblePanel
