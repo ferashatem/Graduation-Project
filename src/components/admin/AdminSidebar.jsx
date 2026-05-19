@@ -18,6 +18,8 @@ import {
   HiPlusCircle,
   HiChat,
   HiClipboardList,
+  HiChartBar,
+  HiBell,
 } from "react-icons/hi";
 import apiClient from "../../api/apiClient";
 import { clearStoredSession } from "../../auth/session";
@@ -81,6 +83,7 @@ const ADMIN_SECTIONS = [
         to: "/admin/register-student",
         icon: HiPlusCircle,
       },
+      { label: "Import Students", to: "/admin/import-students", icon: HiUpload },
       { label: "Bulk Import (Legacy)", to: "/admin/bulk-import-users", icon: HiUpload },
       { label: "Academic Import", to: "/admin/academic-import", icon: HiUpload },
     ],
@@ -113,6 +116,15 @@ const ADMIN_SECTIONS = [
     icon: HiClipboardList,
     items: [
       { label: "All Complaints", to: "/admin/complaints", icon: HiClipboardList },
+    ],
+  },
+  {
+    id: "analytics",
+    label: "Analytics & Reports",
+    icon: HiChartBar,
+    items: [
+      { label: "Analytics Dashboard", to: "/admin/analytics", icon: HiChartBar },
+      { label: "Send Notifications", to: "/admin/notifications", icon: HiBell },
     ],
   },
   {

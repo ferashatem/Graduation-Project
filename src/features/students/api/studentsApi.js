@@ -57,3 +57,12 @@ export const getStudentByCode = async (code) => {
   const res = await apiClient.get(`/students/${code}`);
   return res.data?.data ?? res.data;
 };
+
+// GET /api/students/struggling
+export const fetchStrugglingStudents = async ({ threshold = 2.0, departmentId, batchId, page = 1, size = 20 } = {}) => {
+  const params = { threshold, page, size };
+  if (departmentId) params.departmentId = departmentId;
+  if (batchId)      params.batchId      = batchId;
+  const res = await apiClient.get("/students/struggling", { params });
+  return normalizePagedResult(res.data?.data ?? res.data);
+};

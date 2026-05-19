@@ -84,7 +84,10 @@ import AdminComplaintsPage from "../features/complaints/pages/AdminComplaintsPag
 
 // Academic Bulk Import & Exam Upload
 import AcademicBulkImportPage from "../pages/admin/AcademicBulkImportPage";
+import AnalyticsDashboardPage from "../pages/admin/AnalyticsDashboardPage";
+import NotificationsPage from "../pages/admin/NotificationsPage";
 import ExamUploadPage from "../pages/professor/ExamUploadPage";
+import ImportStudentsPage from "../features/students/pages/ImportStudentsPage";
 
 function AppRoutes() {
   return (
@@ -137,6 +140,7 @@ function AppRoutes() {
           {/* ── Students ── */}
           <Route path="students" element={<StudentsPage />} />
           <Route path="register-student" element={<RegisterStudentPage />} />
+          <Route path="import-students" element={<ImportStudentsPage />} />
           <Route path="bulk-import-users" element={<BulkImportUsersPage />} />
 
           {/* ── Doctors / Staff ── */}
@@ -167,6 +171,12 @@ function AppRoutes() {
 
           {/* ── Academic Bulk Import ── */}
           <Route path="academic-import" element={<AcademicBulkImportPage />} />
+
+          {/* ── Analytics ── */}
+          <Route path="analytics" element={<AnalyticsDashboardPage />} />
+
+          {/* ── Notifications ── */}
+          <Route path="notifications" element={<NotificationsPage />} />
 
           {/* ── AI Assistant ── */}
           <Route path="chat" element={<ChatPage />} />

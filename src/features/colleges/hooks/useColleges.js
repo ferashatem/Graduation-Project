@@ -13,6 +13,7 @@ export const useColleges = () => {
   const [colleges, setColleges] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [hasUniversity, setHasUniversity] = useState(true);
   const universityIdRef = useRef(null);
 
   const loadColleges = useCallback(async () => {
@@ -21,6 +22,7 @@ export const useColleges = () => {
     try {
       const [data, university] = await Promise.all([fetchColleges(), fetchUniversity()]);
       universityIdRef.current = university?.id ?? null;
+      setHasUniversity(Boolean(university?.id));
       const normalised = data.map((c) => ({ ...c, id: c.id ?? c.code }));
       setColleges(normalised);
     } catch (err) {
@@ -34,29 +36,27 @@ export const useColleges = () => {
     loadColleges();
   }, [loadColleges]);
 
-  const addCollege = useCallback(async ({ name, code }) => {
-    setError("");
+  const addCollege = useCallback(async ({ name, code, universityId }) => {
+    const uid = universityId || universityIdRef.current;
+    if (!uid) return { ok: false, error: "No university found. Please select a university." };
     try {
-      await createCollege({ name, code, universityId: universityIdRef.current });
+      await createCollege({ name, code, universityId: uid });
       await loadColleges();
       return { ok: true };
     } catch (err) {
-      const message = getErrorMessage(err);
-      setError(message);
-      return { ok: false, error: message };
+      return { ok: false, error: getErrorMessage(err) };
     }
   }, [loadColleges]);
 
   const editCollege = useCallback(
-    async (collegeId, { name, code }) => {
+    async (collegeId, { name, code, universityId }) => {
+      const uid = universityId || universityIdRef.current;
       try {
-        await updateCollege(collegeId, { name, code, universityId: universityIdRef.current });
+        await updateCollege(collegeId, { name, code, universityId: uid });
         await loadColleges();
         return { ok: true };
       } catch (err) {
-        const message = getErrorMessage(err);
-        setError(message);
-        return { ok: false, error: message };
+        return { ok: false, error: getErrorMessage(err) };
       }
     },
     [loadColleges]
@@ -70,10 +70,8 @@ export const useColleges = () => {
         await deleteCollege(collegeId);
         return { ok: true };
       } catch (err) {
-        const message = getErrorMessage(err);
         setColleges(previous);
-        setError(message);
-        return { ok: false, error: message };
+        return { ok: false, error: getErrorMessage(err) };
       }
     },
     [colleges]
@@ -83,6 +81,7 @@ export const useColleges = () => {
     colleges,
     loading,
     error,
+    hasUniversity,
     reload: loadColleges,
     addCollege,
     updateCollege: editCollege,

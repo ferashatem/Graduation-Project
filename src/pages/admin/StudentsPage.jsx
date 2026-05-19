@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Avatar, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, InputAdornment, MenuItem, TextField } from "@mui/material";
+import { Avatar, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, InputAdornment, MenuItem, Tab, Tabs, TextField } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import SearchIcon from "@mui/icons-material/Search";
 import LockResetIcon from "@mui/icons-material/LockReset";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import PageHeader from "../../components/common/PageHeader";
 import Loading from "../../components/common/Loading";
 import ErrorState from "../../components/common/ErrorState";
-import { filterStudents } from "../../features/students/api/studentsApi";
+import { filterStudents, fetchStrugglingStudents } from "../../features/students/api/studentsApi";
 import { fetchAllDepartments } from "../../features/departments/api/departmentsApi";
 import { fetchBatchesByDepartment } from "../../features/batches/api/batchesApi";
 import { getErrorMessage } from "../../utils/errorHelpers";
@@ -16,9 +17,17 @@ const breadcrumbs = [{ label: "Student Affairs" }, { label: "Students" }];
 const PAGE_SIZE = 25;
 
 function StudentsPage() {
+  const [tab, setTab] = useState(0);
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // Struggling tab state
+  const [struggling, setStruggling] = useState([]);
+  const [strugglingLoading, setStrugglingLoading] = useState(false);
+  const [strugglingError, setStrugglingError] = useState("");
+  const [strugglingPage, setStrugglingPage] = useState(0);
+  const [strugglingTotal, setStrugglingTotal] = useState(0);
 
   // Reset password dialog state
   const [resetTarget, setResetTarget] = useState(null); // { id, name }
@@ -74,6 +83,24 @@ function StudentsPage() {
       fetchBatchesByDepartment(dept.id).then(setBatches).catch(() => {});
     }
   }, [departments]);
+
+  const loadStruggling = useCallback(async (pg = 0) => {
+    setStrugglingLoading(true);
+    setStrugglingError("");
+    try {
+      const result = await fetchStrugglingStudents({ page: pg + 1, size: PAGE_SIZE });
+      setStruggling(result.items.map((s) => ({ ...s, id: s.id ?? s.code })));
+      setStrugglingTotal(result.total);
+    } catch (err) {
+      setStrugglingError(getErrorMessage(err));
+    } finally {
+      setStrugglingLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (tab === 1) loadStruggling(strugglingPage);
+  }, [tab, strugglingPage, loadStruggling]);
 
   const load = useCallback(async (params) => {
     setLoading(true);
@@ -164,47 +191,84 @@ function StudentsPage() {
     []
   );
 
+  const strugglingColumns = useMemo(
+    () => [
+      {
+        field: "avatar", headerName: "", width: 50, sortable: false,
+        renderCell: (params) => (
+          <Avatar sx={{ width: 30, height: 30, fontSize: 13 }}>
+            {(params.row.fullName || "S")[0].toUpperCase()}
+          </Avatar>
+        ),
+      },
+      { field: "fullName", headerName: "Name", flex: 1, minWidth: 200 },
+      { field: "email", headerName: "Email", flex: 1, minWidth: 220 },
+      { field: "universityStudentId", headerName: "University ID", flex: 1, minWidth: 160 },
+      { field: "departmentName", headerName: "Department", flex: 1, minWidth: 160 },
+      { field: "batchName", headerName: "Batch", flex: 1, minWidth: 140 },
+      {
+        field: "averageGradePoints", headerName: "Avg GPA", width: 110,
+        renderCell: (params) => (
+          <Chip
+            size="small"
+            icon={<WarningAmberIcon fontSize="small" />}
+            label={(params.row.averageGradePoints ?? 0).toFixed(2)}
+            color="warning"
+          />
+        ),
+      },
+    ],
+    []
+  );
+
   return (
     <div className="space-y-5">
       <PageHeader title="Students" breadcrumbs={breadcrumbs} />
 
-      <div className="flex flex-wrap gap-3">
-        <TextField
-          size="small"
-          placeholder="Search by name, email, code, or university ID..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon fontSize="small" />
-              </InputAdornment>
-            ),
-          }}
-          sx={{ width: 340 }}
-        />
-        <TextField
-          select size="small" label="Department" value={departmentId}
-          onChange={(e) => handleDeptChange(e.target.value)} sx={{ width: 200 }}
-        >
-          <MenuItem value="">All departments</MenuItem>
-          {departments.map((d) => (
-            <MenuItem key={d.id} value={d.id}>{d.name}</MenuItem>
-          ))}
-        </TextField>
-        {batches.length > 0 && (
+      <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ borderBottom: 1, borderColor: "divider" }}>
+        <Tab label="All Students" />
+        <Tab label="Struggling Students" icon={<WarningAmberIcon fontSize="small" />} iconPosition="start" />
+      </Tabs>
+
+      {tab === 0 && (
+        <div className="flex flex-wrap gap-3">
           <TextField
-            select size="small" label="Batch" value={batchId}
-            onChange={(e) => { setBatchId(e.target.value); setPage(0); }}
-            sx={{ width: 180 }}
+            size="small"
+            placeholder="Search by name, email, code, or university ID..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+            }}
+            sx={{ width: 340 }}
+          />
+          <TextField
+            select size="small" label="Department" value={departmentId}
+            onChange={(e) => handleDeptChange(e.target.value)} sx={{ width: 200 }}
           >
-            <MenuItem value="">All batches</MenuItem>
-            {batches.map((b) => (
-              <MenuItem key={b.id} value={b.id}>{b.name}</MenuItem>
+            <MenuItem value="">All departments</MenuItem>
+            {departments.map((d) => (
+              <MenuItem key={d.id} value={d.id}>{d.name}</MenuItem>
             ))}
           </TextField>
-        )}
-      </div>
+          {batches.length > 0 && (
+            <TextField
+              select size="small" label="Batch" value={batchId}
+              onChange={(e) => { setBatchId(e.target.value); setPage(0); }}
+              sx={{ width: 180 }}
+            >
+              <MenuItem value="">All batches</MenuItem>
+              {batches.map((b) => (
+                <MenuItem key={b.id} value={b.id}>{b.name}</MenuItem>
+              ))}
+            </TextField>
+          )}
+        </div>
+      )}
 
       {/* Reset Password Dialog */}
       <Dialog open={Boolean(resetTarget)} onClose={resetResult ? closeResetDialog : undefined} maxWidth="xs" fullWidth>
@@ -252,24 +316,51 @@ function StudentsPage() {
         </DialogActions>
       </Dialog>
 
-      {error && !loading ? <ErrorState message={error} onRetry={() => load({ departmentId, batchId, search, page: page + 1, size: PAGE_SIZE })} /> : null}
-      {loading && students.length === 0 ? (
-        <Loading label="Loading students..." />
-      ) : (
-        <div className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 overflow-hidden">
-          <DataGrid
-            autoHeight
-            rows={students}
-            columns={columns}
-            loading={loading}
-            rowCount={rowCount}
-            paginationMode="server"
-            paginationModel={{ page, pageSize: PAGE_SIZE }}
-            onPaginationModelChange={(m) => setPage(m.page)}
-            pageSizeOptions={[PAGE_SIZE]}
-            disableRowSelectionOnClick
-          />
-        </div>
+      {tab === 0 && (
+        <>
+          {error && !loading ? <ErrorState message={error} onRetry={() => load({ departmentId, batchId, search, page: page + 1, size: PAGE_SIZE })} /> : null}
+          {loading && students.length === 0 ? (
+            <Loading label="Loading students..." />
+          ) : (
+            <div className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 overflow-hidden">
+              <DataGrid
+                autoHeight
+                rows={students}
+                columns={columns}
+                loading={loading}
+                rowCount={rowCount}
+                paginationMode="server"
+                paginationModel={{ page, pageSize: PAGE_SIZE }}
+                onPaginationModelChange={(m) => setPage(m.page)}
+                pageSizeOptions={[PAGE_SIZE]}
+                disableRowSelectionOnClick
+              />
+            </div>
+          )}
+        </>
+      )}
+
+      {tab === 1 && (
+        <>
+          <p className="text-sm text-slate-500">
+            Students with average GPA below <strong>2.0</strong> based on finalized grades.
+          </p>
+          {strugglingError ? <ErrorState message={strugglingError} onRetry={() => loadStruggling(strugglingPage)} /> : null}
+          <div className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 overflow-hidden">
+            <DataGrid
+              autoHeight
+              rows={struggling}
+              columns={strugglingColumns}
+              loading={strugglingLoading}
+              rowCount={strugglingTotal}
+              paginationMode="server"
+              paginationModel={{ page: strugglingPage, pageSize: PAGE_SIZE }}
+              onPaginationModelChange={(m) => setStrugglingPage(m.page)}
+              pageSizeOptions={[PAGE_SIZE]}
+              disableRowSelectionOnClick
+            />
+          </div>
+        </>
       )}
     </div>
   );

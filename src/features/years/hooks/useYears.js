@@ -31,15 +31,12 @@ export const useYears = (collegeId) => {
 
   const addYear = useCallback(
     async (payload) => {
-      setError("");
       try {
         const created = await createYear({ ...payload, collegeId });
         setYears((prev) => [...prev, created]);
         return { ok: true };
       } catch (err) {
-        const message = getErrorMessage(err);
-        setError(message);
-        return { ok: false, error: message };
+        return { ok: false, error: getErrorMessage(err) };
       }
     },
     [collegeId]
@@ -55,10 +52,8 @@ export const useYears = (collegeId) => {
         await updateYear(yearId, updates);
         return { ok: true };
       } catch (err) {
-        const message = getErrorMessage(err);
         setYears(previous);
-        setError(message);
-        return { ok: false, error: message };
+        return { ok: false, error: getErrorMessage(err) };
       }
     },
     [collegeId, years]
@@ -72,10 +67,8 @@ export const useYears = (collegeId) => {
         await deleteYear(yearId);
         return { ok: true };
       } catch (err) {
-        const message = getErrorMessage(err);
         setYears(previous);
-        setError(message);
-        return { ok: false, error: message };
+        return { ok: false, error: getErrorMessage(err) };
       }
     },
     [years]

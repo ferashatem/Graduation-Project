@@ -12,6 +12,12 @@ export const fetchUniversity = async () => {
   return list[0] ?? null;
 };
 
+export const fetchUniversities = async () => {
+  const res = await apiClient.get("/University/structure");
+  const payload = res.data?.data ?? res.data;
+  return Array.isArray(payload) ? payload : (payload ? [payload] : []);
+};
+
 export const fetchColleges = async () => {
   const res = await apiClient.get("/Colleges");
   const payload = res.data?.data ?? res.data;
