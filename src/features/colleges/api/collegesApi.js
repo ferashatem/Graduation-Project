@@ -14,8 +14,17 @@ export const fetchUniversity = async () => {
 
 export const fetchUniversities = async () => {
   const res = await apiClient.get("/University/structure");
+  console.log("[fetchUniversities] raw response:", res.data);
   const payload = res.data?.data ?? res.data;
-  return Array.isArray(payload) ? payload : (payload ? [payload] : []);
+  if (!payload) return [];
+  if (Array.isArray(payload)) return payload;
+  // Single university object — normalise field name variants
+  const uni = {
+    id:   payload.id   ?? payload.universityId ?? payload.Id,
+    name: payload.name ?? payload.universityName ?? payload.Name,
+    code: payload.code ?? payload.universityCode ?? payload.Code,
+  };
+  return uni.id ? [uni] : [];
 };
 
 export const fetchColleges = async () => {

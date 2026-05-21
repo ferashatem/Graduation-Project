@@ -1,23 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { HiArrowLeft, HiClock } from "react-icons/hi";
-import apiClient from "../../api/apiClient";
+import { fetchExamById, fetchMyVariant, submitExam } from "../../api/examsApi";
+import { getErrorMessage } from "../../utils/errorHelpers";
 
-function useCountdown(durationMinutes, started) {
-  const endTimeRef = useRef(null);
+// ── Countdown ─────────────────────────────────────────────────────────────────
+function useCountdown(endTime) {
   const [remaining, setRemaining] = useState(null);
 
   useEffect(() => {
-    if (!started || !durationMinutes) return;
-    endTimeRef.current = Date.now() + durationMinutes * 60 * 1000;
-    const tick = () => {
-      const diff = Math.max(0, endTimeRef.current - Date.now());
-      setRemaining(diff);
-    };
+    if (!endTime) return;
+    const end = new Date(endTime).getTime();
+    const tick = () => setRemaining(Math.max(0, end - Date.now()));
     tick();
     const t = setInterval(tick, 1000);
     return () => clearInterval(t);
-  }, [started, durationMinutes]);
+  }, [endTime]);
 
   return remaining;
 }
@@ -31,36 +29,53 @@ function CountdownDisplay({ ms }) {
   const pad = (n) => String(n).padStart(2, "0");
   const urgent = ms < 60000;
   return (
-    <div className={`flex items-center gap-2 rounded-2xl px-4 py-2 font-mono text-sm font-semibold ${urgent ? "bg-red-100 text-red-700 animate-pulse" : "bg-slate-100 text-slate-700"}`}>
+    <div className={`flex items-center gap-2 rounded-2xl px-4 py-2 font-mono text-sm font-semibold ${
+      urgent ? "bg-red-100 text-red-700 animate-pulse" : "bg-slate-100 text-slate-700"
+    }`}>
       <HiClock className="h-4 w-4" />
       {h > 0 ? `${pad(h)}:` : ""}{pad(m)}:{pad(s)}
     </div>
   );
 }
 
+// ── Page ──────────────────────────────────────────────────────────────────────
 function StudentQuizTakePage() {
   const { quizId } = useParams();
-  const navigate   = useNavigate();
+  const navigate = useNavigate();
 
-  const [exam,      setExam]      = useState(null);
-  const [loading,   setLoading]   = useState(true);
-  const [error,     setError]     = useState("");
-  const [answers,   setAnswers]   = useState({});
-  const [submitting, setSubmitting] = useState(false);
+  const [exam,        setExam]       = useState(null);
+  const [questions,   setQuestions]  = useState([]);
+  const [loading,     setLoading]    = useState(true);
+  const [error,       setError]      = useState("");
+  const [answers,     setAnswers]    = useState({});  // { questionId: answerText }
+  const [submitting,  setSubmitting] = useState(false);
   const autoSubmittedRef = useRef(false);
 
-  const remaining = useCountdown(exam?.durationMinutes, Boolean(exam));
+  const remaining = useCountdown(exam?.endTime);
 
   useEffect(() => {
     setLoading(true);
-    apiClient.get(`/exams/${quizId}`)
-      .then((res) => {
-        const data = res.data?.data ?? res.data;
+    fetchExamById(quizId)
+      .then(async (data) => {
         if (!data) { setError("Exam not found."); return; }
-        if (data.status !== 1) { setError("This exam is not available."); return; }
+        if (data.status !== "Published" && data.status !== 1) {
+          setError("This exam is not available."); return;
+        }
         setExam(data);
+
+        // For randomized exams, fetch the student's personal variant
+        if (data.isRandomized) {
+          try {
+            const variant = await fetchMyVariant(quizId);
+            setQuestions(variant);
+          } catch {
+            setQuestions(data.questions ?? []);
+          }
+        } else {
+          setQuestions(data.questions ?? []);
+        }
       })
-      .catch((e) => setError(e?.response?.data?.message ?? e?.message ?? "Failed to load exam."))
+      .catch((err) => setError(getErrorMessage(err)))
       .finally(() => setLoading(false));
   }, [quizId]);
 
@@ -69,18 +84,17 @@ function StudentQuizTakePage() {
     if (!auto && !window.confirm("Submit your exam? You cannot change answers after submission.")) return;
     setSubmitting(true);
     try {
-      const questions  = exam?.questions ?? [];
       const answerList = questions.map((q) => ({
         questionId: q.id,
-        answer:     answers[q.id] ?? "",
+        answerText: answers[q.id] ?? "",
       }));
-      await apiClient.post(`/exams/${quizId}/submit`, { answers: answerList });
+      await submitExam(quizId, answerList);
       navigate(`/student/quizzes/${quizId}/result`, { replace: true });
-    } catch (e) {
-      setError(e?.response?.data?.message ?? e?.message ?? "Submission failed. Try again.");
+    } catch (err) {
+      setError(getErrorMessage(err));
       setSubmitting(false);
     }
-  }, [exam, answers, quizId, submitting, navigate]);
+  }, [exam, questions, answers, quizId, submitting, navigate]);
 
   // Auto-submit when timer hits zero
   useEffect(() => {
@@ -91,7 +105,7 @@ function StudentQuizTakePage() {
   }, [remaining, exam, handleSubmit]);
 
   const answeredCount  = useMemo(() => Object.values(answers).filter(Boolean).length, [answers]);
-  const totalQuestions = exam?.questions?.length ?? 0;
+  const totalQuestions = questions.length;
 
   if (loading) return <div className="py-12 text-center text-sm text-slate-500">Loading exam…</div>;
   if (error)   return <div className="rounded-2xl bg-red-50 p-6 text-sm text-red-700">{error}</div>;
@@ -116,42 +130,68 @@ function StudentQuizTakePage() {
 
       {/* Questions */}
       <div className="space-y-4">
-        {(exam.questions ?? []).map((q, idx) => (
-          <div key={q.id} className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 space-y-3">
-            <div className="flex items-start justify-between gap-2">
-              <p className="text-sm font-medium text-slate-800">
-                <span className="mr-2 text-xs font-semibold text-slate-400">Q{idx + 1}.</span>
-                {q.text}
-              </p>
-              <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">
-                {q.marks ?? q.points ?? 0} pt
-              </span>
+        {questions.map((q, idx) => {
+          const qType = q.questionType ?? q.type ?? 0;
+          // Essay
+          if (qType === 2 || qType === "Essay") {
+            return (
+              <div key={q.id} className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-medium text-slate-800">
+                    <span className="mr-2 text-xs font-semibold text-slate-400">Q{idx + 1}.</span>
+                    {q.questionText ?? q.text}
+                  </p>
+                  <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">
+                    {q.mark ?? q.marks ?? 0} pt
+                  </span>
+                </div>
+                <textarea rows={4} placeholder="Write your answer here…"
+                  value={answers[q.id] ?? ""}
+                  onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 outline-none focus:border-slate-300 resize-none" />
+              </div>
+            );
+          }
+
+          // MCQ / True-False
+          const opts = qType === 1 || qType === "TrueFalse" ? ["True", "False"] : (q.options ?? []);
+          return (
+            <div key={q.id} className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 space-y-3">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-sm font-medium text-slate-800">
+                  <span className="mr-2 text-xs font-semibold text-slate-400">Q{idx + 1}.</span>
+                  {q.questionText ?? q.text}
+                </p>
+                <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">
+                  {q.mark ?? q.marks ?? 0} pt
+                </span>
+              </div>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {opts.map((opt, i) => {
+                  const selected = answers[q.id] === opt;
+                  return (
+                    <label key={i}
+                      className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition ${
+                        selected
+                          ? "border-[#0b2c4a] bg-[#0b2c4a]/5 ring-1 ring-[#0b2c4a]/20"
+                          : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                      }`}>
+                      <input
+                        type="radio"
+                        name={`q-${q.id}`}
+                        value={opt}
+                        checked={selected}
+                        onChange={() => setAnswers((prev) => ({ ...prev, [q.id]: opt }))}
+                        className="accent-[#0b2c4a]"
+                      />
+                      <span className="text-sm text-slate-700">{opt}</span>
+                    </label>
+                  );
+                })}
+              </div>
             </div>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {(q.options ?? []).map((opt, i) => {
-                const selected = answers[q.id] === opt;
-                return (
-                  <label key={i}
-                    className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition ${
-                      selected
-                        ? "border-[#0b2c4a] bg-[#0b2c4a]/5 ring-1 ring-[#0b2c4a]/20"
-                        : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
-                    }`}>
-                    <input
-                      type="radio"
-                      name={`q-${q.id}`}
-                      value={opt}
-                      checked={selected}
-                      onChange={() => setAnswers((prev) => ({ ...prev, [q.id]: opt }))}
-                      className="accent-[#0b2c4a]"
-                    />
-                    <span className="text-sm text-slate-700">{opt}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Submit bar */}

@@ -87,6 +87,8 @@ import AcademicBulkImportPage from "../pages/admin/AcademicBulkImportPage";
 import AnalyticsDashboardPage from "../pages/admin/AnalyticsDashboardPage";
 import NotificationsPage from "../pages/admin/NotificationsPage";
 import ExamUploadPage from "../pages/professor/ExamUploadPage";
+import ProfessorExamsPage from "../pages/professor/ProfessorExamsPage";
+import ProfessorExamResultsPage from "../pages/professor/ProfessorExamResultsPage";
 import ImportStudentsPage from "../features/students/pages/ImportStudentsPage";
 
 function AppRoutes() {
@@ -224,6 +226,8 @@ function AppRoutes() {
           <Route path="complaints" element={<DoctorReportsPage />} />
           <Route path="exam-upload" element={<ExamUploadPage />} />
           <Route path="exam-upload/:offeringId" element={<ExamUploadPage />} />
+          <Route path="exams" element={<ProfessorExamsPage />} />
+          <Route path="exams/:examId/results" element={<ProfessorExamResultsPage />} />
           <Route path="chat" element={<ChatPage />} />
           <Route path="change-password" element={<ForceChangePassword />} />
         </Route>

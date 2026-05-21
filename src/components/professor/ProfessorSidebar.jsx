@@ -23,6 +23,7 @@ function ProfessorSidebar({ open = false, onClose, onNavigate, profile, user }) 
     { label: "Courses",         to: "/prof/courses",        icon: HiBookOpen               },
     { label: "My Schedule",     to: "/prof/schedule",       icon: HiCalendar               },
     { label: "Quizzes",         to: "/prof/quizzes",        icon: HiPencilAlt              },
+    { label: "Exams",           to: "/prof/exams",          icon: HiClipboardList          },
     { label: "Upload Exam PDF", to: "/prof/exam-upload",    icon: HiDocumentText           },
     { label: "Complaint Reports",to:"/prof/complaints",     icon: HiClipboardList          },
     { label: "AI Assistant",    to: "/prof/chat",           icon: HiChat                   },
