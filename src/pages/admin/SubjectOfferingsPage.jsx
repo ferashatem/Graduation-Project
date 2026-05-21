@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle,
-  TextField, MenuItem,
+  Alert, Button, Chip, CircularProgress, Dialog, DialogActions,
+  DialogContent, DialogTitle, InputAdornment, List, ListItemButton,
+  ListItemText, TextField, MenuItem,
 } from "@mui/material";
+import { HiSearch } from "react-icons/hi";
+import apiClient from "../../api/apiClient";
 import { DataGrid } from "@mui/x-data-grid";
 import { useParams, useLocation } from "react-router-dom";
 import PageHeader from "../../components/common/PageHeader";
@@ -285,6 +288,105 @@ function EditOfferingDialog({ open, offering, onClose, onSubmit, error }) {
   );
 }
 
+function EnrollStudentDialog({ open, offering, onClose }) {
+  const [query,       setQuery]       = useState("");
+  const [results,     setResults]     = useState([]);
+  const [searching,   setSearching]   = useState(false);
+  const [selected,    setSelected]    = useState(null);
+  const [enrolling,   setEnrolling]   = useState(false);
+  const [success,     setSuccess]     = useState("");
+  const [error,       setError]       = useState("");
+
+  useEffect(() => {
+    if (!open) { setQuery(""); setResults([]); setSelected(null); setSuccess(""); setError(""); }
+  }, [open]);
+
+  useEffect(() => {
+    if (query.trim().length < 2) { setResults([]); return; }
+    const t = setTimeout(async () => {
+      setSearching(true); setError("");
+      try {
+        const res = await apiClient.get(`/students/search?q=${encodeURIComponent(query.trim())}&size=20`);
+        const payload = res.data?.data ?? res.data;
+        setResults(Array.isArray(payload) ? payload : payload?.items ?? []);
+      } catch { setError("Search failed."); }
+      finally { setSearching(false); }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  const handleSearch = useCallback(() => {}, []);
+
+  const handleEnroll = useCallback(async () => {
+    if (!selected || !offering) return;
+    setEnrolling(true); setError(""); setSuccess("");
+    try {
+      await apiClient.post(`/enrollments/${offering.id}/admin-enroll`, { studentId: selected.id });
+      setSuccess(`${selected.fullName ?? selected.name} enrolled successfully!`);
+      setSelected(null); setResults([]);
+    } catch (err) {
+      setError(err?.response?.data?.message ?? err?.message ?? "Enrollment failed.");
+    } finally { setEnrolling(false); }
+  }, [selected, offering]);
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>Enroll Student — {offering?.subjectName ?? ""}</DialogTitle>
+      <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: "16px !important" }}>
+        {success && <Alert severity="success">{success}</Alert>}
+        {error   && <Alert severity="error">{error}</Alert>}
+
+        <TextField
+          label="Search student by name, email, or ID"
+          value={query}
+          onChange={(e) => { setQuery(e.target.value); setSelected(null); }}
+          onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+          fullWidth size="small"
+          autoComplete="off"
+          inputProps={{ autoComplete: "off" }}
+          InputProps={{
+            endAdornment: (
+              <InputAdornment position="end">
+                <Button size="small" onClick={handleSearch} disabled={searching}>
+                  {searching ? <CircularProgress size={16} /> : <HiSearch />}
+                </Button>
+              </InputAdornment>
+            ),
+          }}
+        />
+
+        {results.length > 0 && (
+          <List dense sx={{ maxHeight: 220, overflow: "auto", border: "1px solid #e2e8f0", borderRadius: 2 }}>
+            {results.map((s) => (
+              <ListItemButton
+                key={s.id}
+                selected={selected?.id === s.id}
+                onClick={() => setSelected(s)}
+              >
+                <ListItemText
+                  primary={s.fullName ?? s.name}
+                  secondary={`${s.universityStudentId ?? s.code ?? ""} · ${s.email ?? ""}`}
+                />
+                {selected?.id === s.id && <Chip label="Selected" size="small" color="primary" />}
+              </ListItemButton>
+            ))}
+          </List>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button
+          variant="contained"
+          disabled={!selected || enrolling}
+          onClick={handleEnroll}
+        >
+          {enrolling ? "Enrolling…" : "Enroll"}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
 function SubjectOfferingsPage() {
   const { semesterId } = useParams();
   const { state } = useLocation();
@@ -294,6 +396,7 @@ function SubjectOfferingsPage() {
   const [error, setError] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
+  const [enrollTarget, setEnrollTarget] = useState(null);
   const [actionError, setActionError] = useState("");
 
   const load = useCallback(async () => {
@@ -351,9 +454,10 @@ function SubjectOfferingsPage() {
     { field: "semesterName", headerName: "Semester", flex: 1, minWidth: 140 },
     { field: "maxCapacity", headerName: "Capacity", width: 100 },
     {
-      field: "actions", headerName: "Actions", width: 160, sortable: false,
+      field: "actions", headerName: "Actions", width: 260, sortable: false,
       renderCell: ({ row }) => (
         <div className="flex gap-2">
+          <Button size="small" variant="outlined" color="success" onClick={() => setEnrollTarget(row)}>Enroll</Button>
           <Button size="small" variant="outlined" onClick={() => { setActionError(""); setEditTarget(row); }}>Edit</Button>
           <Button size="small" variant="outlined" color="error" onClick={() => handleDelete(row.id)}>Delete</Button>
         </div>
@@ -399,6 +503,12 @@ function SubjectOfferingsPage() {
         onClose={() => setEditTarget(null)}
         onSubmit={handleEditSubmit}
         error={actionError}
+      />
+
+      <EnrollStudentDialog
+        open={Boolean(enrollTarget)}
+        offering={enrollTarget}
+        onClose={() => setEnrollTarget(null)}
       />
     </div>
   );

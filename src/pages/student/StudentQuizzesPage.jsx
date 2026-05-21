@@ -3,9 +3,8 @@ import { Link } from "react-router-dom";
 import { HiBookOpen, HiClock, HiQuestionMarkCircle } from "react-icons/hi";
 import apiClient from "../../api/apiClient";
 
-// Exam status: 0=Draft, 1=Published, 2=Closed
-const STATUS_PUBLISHED = 1;
-const STATUS_CLOSED    = 2;
+const isPublished = (s) => s === 1 || s === "Published";
+const isClosed    = (s) => s === 2 || s === "Closed";
 
 function StatusBadge({ exam, submission }) {
   if (submission) {
@@ -16,17 +15,17 @@ function StatusBadge({ exam, submission }) {
       </span>
     );
   }
-  if (exam.status === STATUS_CLOSED) {
+  if (isClosed(exam.status)) {
     return <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500">Closed</span>;
   }
-  if (exam.status === STATUS_PUBLISHED) {
+  if (isPublished(exam.status)) {
     return <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">Available</span>;
   }
   return <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-600">Not published</span>;
 }
 
 function ExamCard({ exam, submission }) {
-  const canTake = exam.status === STATUS_PUBLISHED && !submission;
+  const canTake = isPublished(exam.status) && !submission;
 
   return (
     <article className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 space-y-3">
@@ -77,7 +76,7 @@ function ExamCard({ exam, submission }) {
                 : "border border-slate-200 text-slate-400 cursor-not-allowed pointer-events-none"
             }`}
           >
-            {exam.status === STATUS_CLOSED ? "Exam Closed" : "Take Exam"}
+            {isClosed(exam.status) ? "Exam Closed" : "Take Exam"}
           </Link>
         )}
       </div>

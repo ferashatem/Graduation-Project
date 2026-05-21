@@ -7,13 +7,16 @@ import {
 import apiClient from "../../api/apiClient";
 import {
   fetchMyExams, createExam, generateAiExam, updateExam,
-  deleteExam, autoGradeExam, uploadExamPdf,
+  deleteExam, autoGradeExam, previewQuestionsFromPdf,
 } from "../../api/examsApi";
 import { getErrorMessage } from "../../utils/errorHelpers";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const EXAM_TYPES   = ["Quiz", "Midterm", "Final"];
 const DIFFICULTIES = ["Easy", "Medium", "Hard"];
+
+const TYPE_MAP   = { Quiz: 0, Midterm: 1, Final: 2 };
+const STATUS_MAP = { Draft: 0, Published: 1, Closed: 2 };
 const Q_TYPES      = [
   { label: "MCQ",        value: 0 },
   { label: "True/False", value: 1 },
@@ -149,8 +152,11 @@ function CreateExamDrawer({ open, onClose, onCreated, offerings }) {
   });
 
   // PDF form
-  const [pdfForm, setPdfForm] = useState({ subjectOfferingId: "", file: null });
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [pdfForm, setPdfForm] = useState({
+    file: null, questionCount: 10, difficulty: "Medium", examType: "Final",
+  });
+  const [pdfProgress, setPdfProgress] = useState(0);
+  const [pdfGenerating, setPdfGenerating] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -165,8 +171,9 @@ function CreateExamDrawer({ open, onClose, onCreated, offerings }) {
       subjectOfferingId: "", difficulty: "Medium", questionCount: 10,
       examType: "Quiz", topics: "", isRandomized: false, questionsPerStudent: 5,
     });
-    setPdfForm({ subjectOfferingId: "", file: null });
-    setUploadProgress(0);
+    setPdfForm({ file: null, questionCount: 10, difficulty: "Medium", examType: "Final" });
+    setPdfProgress(0);
+    setPdfGenerating(false);
   }, [open]);
 
   const setF = (k, v) => setForm((p) => ({ ...p, [k]: v }));
@@ -194,15 +201,21 @@ function CreateExamDrawer({ open, onClose, onCreated, offerings }) {
     setSaving(true);
     try {
       const payload = {
-        subjectOfferingId: form.subjectOfferingId || undefined,
+        ...(form.subjectOfferingId ? { subjectOfferingId: form.subjectOfferingId } : {}),
         title: form.title.trim(),
-        type: form.type,
+        type: TYPE_MAP[form.type] ?? 0,
         startTime: new Date(form.startTime).toISOString(),
         endTime: new Date(form.endTime).toISOString(),
-        status,
+        status: STATUS_MAP[status] ?? 0,
         isRandomized: form.isRandomized,
         questionsPerStudent: form.isRandomized ? Number(form.questionsPerStudent) : 0,
-        questions: form.questions.map(({ _id, ...q }) => q),
+        questions: form.questions.map((q) => ({
+          questionText: q.questionText,
+          questionType: q.questionType,
+          options: q.questionType === 2 ? null : (q.options ?? []),
+          correctAnswer: q.correctAnswer ?? "",
+          mark: q.mark ?? 5,
+        })),
       };
       const created = await createExam(payload);
       onCreated(created);
@@ -239,19 +252,36 @@ function CreateExamDrawer({ open, onClose, onCreated, offerings }) {
     }
   };
 
-  const handlePdfUpload = async () => {
+  const handlePdfGenerate = async () => {
     setError("");
-    if (!pdfForm.subjectOfferingId) return setError("Select a subject offering.");
     if (!pdfForm.file) return setError("Select a PDF file.");
-    setSaving(true); setUploadProgress(0);
+    setPdfGenerating(true); setPdfProgress(0);
     try {
-      const created = await uploadExamPdf(pdfForm.subjectOfferingId, pdfForm.file, setUploadProgress);
-      onCreated(created);
-      onClose();
+      const questions = await previewQuestionsFromPdf(
+        {
+          file: pdfForm.file,
+          questionCount: Number(pdfForm.questionCount),
+          difficulty: pdfForm.difficulty,
+          examType: pdfForm.examType,
+        },
+        setPdfProgress,
+      );
+      if (!questions.length) { setError("No questions returned. Try a different PDF."); return; }
+      // Map API response → internal question format and switch to structured tab
+      const mapped = questions.map((q) => ({
+        _id: uid(),
+        questionText: q.questionText ?? q.text ?? "",
+        questionType: q.questionType ?? 0,
+        options: q.options ?? (q.questionType === 1 ? ["True", "False"] : ["", "", "", ""]),
+        correctAnswer: q.correctAnswer ?? "",
+        mark: q.mark ?? q.marks ?? 5,
+      }));
+      setForm((prev) => ({ ...prev, questions: mapped, type: pdfForm.examType }));
+      setMode("structured");
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
-      setSaving(false);
+      setPdfGenerating(false);
     }
   };
 
@@ -444,28 +474,17 @@ function CreateExamDrawer({ open, onClose, onCreated, offerings }) {
 
           {/* ── PDF mode ── */}
           {mode === "pdf" && (
-            <div className="space-y-4">
+            <div className="space-y-5">
               <div className="rounded-2xl border border-dashed border-blue-300 bg-blue-50 p-4">
                 <p className="text-sm font-semibold text-blue-700 flex items-center gap-2">
-                  <HiUpload /> Upload a lecture PDF to auto-generate exam questions
+                  <HiUpload /> Upload a lecture PDF → AI extracts questions
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
-                  AI will extract the content and build a full exam. Created as Draft — review before publishing.
+                  Questions are previewed in the form so you can review and edit before publishing.
                 </p>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-widest text-slate-500 mb-1">Subject Offering *</label>
-                <select value={pdfForm.subjectOfferingId}
-                  onChange={(e) => setPdfForm((p) => ({ ...p, subjectOfferingId: e.target.value }))}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none">
-                  <option value="">— Select offering —</option>
-                  {offerings.map((o) => (
-                    <option key={o.id} value={o.id}>{o.subjectName ?? o.name ?? o.id}</option>
-                  ))}
-                </select>
-              </div>
-
+              {/* File picker */}
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-widest text-slate-500 mb-1">PDF File *</label>
                 <label className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-4 py-8 transition ${
@@ -476,23 +495,49 @@ function CreateExamDrawer({ open, onClose, onCreated, offerings }) {
                     {pdfForm.file ? pdfForm.file.name : "Click to select PDF"}
                   </span>
                   {pdfForm.file && (
-                    <span className="text-xs text-slate-400">
-                      {(pdfForm.file.size / 1024 / 1024).toFixed(2)} MB
-                    </span>
+                    <span className="text-xs text-slate-400">{(pdfForm.file.size / 1024 / 1024).toFixed(2)} MB</span>
                   )}
                   <input type="file" accept="application/pdf" className="hidden"
                     onChange={(e) => setPdfForm((p) => ({ ...p, file: e.target.files[0] ?? null }))} />
                 </label>
               </div>
 
-              {saving && uploadProgress > 0 && (
+              {/* Options */}
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-widest text-slate-500 mb-1">Questions</label>
+                  <input type="number" min="1" max="50" value={pdfForm.questionCount}
+                    onChange={(e) => setPdfForm((p) => ({ ...p, questionCount: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-widest text-slate-500 mb-1">Difficulty</label>
+                  <select value={pdfForm.difficulty}
+                    onChange={(e) => setPdfForm((p) => ({ ...p, difficulty: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none">
+                    {DIFFICULTIES.map((d) => <option key={d}>{d}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-widest text-slate-500 mb-1">Exam Type</label>
+                  <select value={pdfForm.examType}
+                    onChange={(e) => setPdfForm((p) => ({ ...p, examType: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none">
+                    {EXAM_TYPES.map((t) => <option key={t}>{t}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Progress */}
+              {pdfGenerating && (
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs text-slate-500">
-                    <span>Uploading…</span><span>{uploadProgress}%</span>
+                    <span>Extracting questions from PDF…</span>
+                    <span>{pdfProgress}%</span>
                   </div>
                   <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
-                    <div className="h-full rounded-full bg-[#0b2c4a] transition-all"
-                      style={{ width: `${uploadProgress}%` }} />
+                    <div className="h-full rounded-full bg-[#0b2c4a] transition-all duration-300"
+                      style={{ width: `${pdfProgress}%` }} />
                   </div>
                 </div>
               )}
@@ -534,15 +579,15 @@ function CreateExamDrawer({ open, onClose, onCreated, offerings }) {
               )}
             </button>
           ) : (
-            <button type="button" disabled={saving || !pdfForm.file || !pdfForm.subjectOfferingId} onClick={handlePdfUpload}
-              className="flex items-center gap-2 rounded-xl bg-[#0b2c4a] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#153a63] disabled:opacity-50">
-              {saving ? (
+            <button type="button" disabled={pdfGenerating || !pdfForm.file} onClick={handlePdfGenerate}
+              className="flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
+              {pdfGenerating ? (
                 <><svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                </svg> Uploading…</>
+                </svg> Extracting…</>
               ) : (
-                <><HiUpload className="h-4 w-4" /> Upload & Generate</>
+                <><HiLightningBolt className="h-4 w-4" /> Generate Questions</>
               )}
             </button>
           )}
@@ -556,12 +601,18 @@ function CreateExamDrawer({ open, onClose, onCreated, offerings }) {
 function ExamCard({ exam, onDelete, onRefresh }) {
   const [busy, setBusy]     = useState(false);
   const [error, setError]   = useState("");
-  const code = exam.code ?? exam.id;
+  const code = exam.code;
 
   const changeStatus = async (status) => {
     setBusy(true); setError("");
     try {
-      await updateExam(code, { ...exam, status });
+      await updateExam(code, {
+        title: exam.title,
+        type: exam.type,
+        startTime: exam.startTime,
+        endTime: exam.endTime,
+        status: STATUS_MAP[status] ?? exam.status,
+      });
       onRefresh();
     } catch (err) { setError(getErrorMessage(err)); }
     finally { setBusy(false); }
@@ -579,6 +630,8 @@ function ExamCard({ exam, onDelete, onRefresh }) {
 
   const handleDelete = async () => {
     if (!window.confirm(`Delete exam "${exam.title}"?`)) return;
+    console.log("exam object:", exam);
+    console.log("code being sent:", code);
     setBusy(true);
     try { await onDelete(code); }
     finally { setBusy(false); }
@@ -709,7 +762,7 @@ function ProfessorExamsPage() {
 
   const handleDelete = useCallback(async (code) => {
     await deleteExam(code);
-    setExams((prev) => prev.filter((e) => (e.code ?? e.id) !== code));
+    setExams((prev) => prev.filter((e) => e.code !== code));
   }, []);
 
   const sorted = useMemo(

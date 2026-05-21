@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@mui/material";
-import { HiChevronDown, HiChevronUp } from "react-icons/hi";
+import { HiBookOpen, HiChevronDown, HiChevronUp, HiPlusCircle } from "react-icons/hi";
 import PageHeader from "../../components/common/PageHeader";
 import Loading from "../../components/common/Loading";
 import ErrorState from "../../components/common/ErrorState";
@@ -130,11 +130,96 @@ function SubjectCard({ item }) {
   );
 }
 
+function AvailableOfferingsSection({ enrolledIds, onEnrolled }) {
+  const [offerings, setOfferings] = useState([]);
+  const [loading,   setLoading]   = useState(true);
+  const [error,     setError]     = useState("");
+  const [enrolling, setEnrolling] = useState(null);
+  const [messages,  setMessages]  = useState({});
+
+  useEffect(() => {
+    apiClient.get("/registration/eligible-offerings")
+      .then((res) => {
+        const payload = res.data?.data ?? res.data;
+        setOfferings(Array.isArray(payload) ? payload : payload?.items ?? []);
+      })
+      .catch((err) => setError(getErrorMessage(err, "Failed to load available courses.")))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleEnroll = useCallback(async (offeringId) => {
+    setEnrolling(offeringId);
+    setMessages((m) => ({ ...m, [offeringId]: "" }));
+    try {
+      await apiClient.post(`/enrollments/${offeringId}`);
+      setMessages((m) => ({ ...m, [offeringId]: "success" }));
+      onEnrolled();
+    } catch (err) {
+      const msg = err?.response?.data?.message ?? err?.message ?? "Enrollment failed.";
+      setMessages((m) => ({ ...m, [offeringId]: msg }));
+    } finally {
+      setEnrolling(null);
+    }
+  }, [onEnrolled]);
+
+  const available = offerings.filter((o) => !enrolledIds.has(o.id));
+
+  if (loading) return <Loading label="Loading available courses…" />;
+  if (error)   return <ErrorState message={error} />;
+  if (available.length === 0) return (
+    <div className="rounded-2xl bg-white p-6 text-sm text-slate-400 ring-1 ring-slate-200 flex items-center gap-3">
+      <HiBookOpen className="h-5 w-5 shrink-0" />
+      No additional courses available for registration right now.
+    </div>
+  );
+
+  return (
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      {available.map((o) => {
+        const msg = messages[o.id];
+        const done = msg === "success";
+        return (
+          <article key={o.id} className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 space-y-3">
+            <div>
+              <h3 className="text-base font-semibold text-slate-800">{o.subjectName ?? o.name}</h3>
+              <p className="text-xs font-semibold text-blue-600 mt-0.5">{o.subjectCode ?? o.code}</p>
+            </div>
+            <div className="space-y-1 text-sm text-slate-500">
+              {o.doctorName    && <p>Dr. {o.doctorName}</p>}
+              {o.semesterName  && <p>{o.semesterName}</p>}
+              {o.maxCapacity   && <p>Capacity: {o.enrolledCount ?? "?"} / {o.maxCapacity}</p>}
+            </div>
+            {msg && msg !== "success" && (
+              <p className="text-xs text-red-600 rounded-xl bg-red-50 px-3 py-1.5">{msg}</p>
+            )}
+            <button
+              type="button"
+              disabled={!!enrolling || done}
+              onClick={() => handleEnroll(o.id)}
+              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition ${
+                done
+                  ? "bg-emerald-100 text-emerald-700 cursor-default"
+                  : "bg-[#0b2c4a] text-white hover:bg-[#153a63] disabled:opacity-50"
+              }`}
+            >
+              <HiPlusCircle className="h-4 w-4" />
+              {done ? "Enrolled!" : enrolling === o.id ? "Enrolling…" : "Register"}
+            </button>
+          </article>
+        );
+      })}
+    </div>
+  );
+}
+
 function StudentCoursesPage() {
   const [batchSubjects,      setBatchSubjects]      = useState([]);
   const [batchLoading,       setBatchLoading]       = useState(true);
   const [enrollments,        setEnrollments]        = useState([]);
   const [enrollmentsLoading, setEnrollmentsLoading] = useState(true);
+  const [enrollKey,          setEnrollKey]          = useState(0);
+  const [autoEnrolling,      setAutoEnrolling]      = useState(false);
+  const [autoMsg,            setAutoMsg]            = useState(null);
 
   useEffect(() => {
     apiClient.get("/subjects/my-subjects")
@@ -147,15 +232,50 @@ function StudentCoursesPage() {
   }, []);
 
   useEffect(() => {
+    setEnrollmentsLoading(true);
     fetchMyEnrollments()
       .then(setEnrollments)
       .catch(() => setEnrollments([]))
       .finally(() => setEnrollmentsLoading(false));
+  }, [enrollKey]);
+
+  const enrolledIds = new Set(enrollments.map((e) => e.id ?? e.subjectOfferingId));
+
+  const handleAutoEnroll = useCallback(async () => {
+    setAutoEnrolling(true); setAutoMsg(null);
+    try {
+      const res = await apiClient.post("/enrollments/auto-enroll");
+      const data = res.data?.data ?? res.data;
+      setAutoMsg({ type: "success", text: `Enrolled in ${data.enrolled ?? 0} course(s).` });
+      setEnrollKey((k) => k + 1);
+    } catch (err) {
+      setAutoMsg({ type: "error", text: err?.response?.data?.message ?? "Auto-enroll failed." });
+    } finally {
+      setAutoEnrolling(false);
+    }
   }, []);
 
   return (
     <div className="space-y-8">
-      <PageHeader title="My Courses" />
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <PageHeader title="My Courses" />
+        <div className="flex flex-col items-end gap-2">
+          <button
+            type="button"
+            disabled={autoEnrolling}
+            onClick={handleAutoEnroll}
+            className="flex items-center gap-2 rounded-2xl bg-[#0b2c4a] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#153a63] disabled:opacity-50"
+          >
+            <HiPlusCircle className="h-4 w-4" />
+            {autoEnrolling ? "Enrolling…" : "Auto-Enroll in All Courses"}
+          </button>
+          {autoMsg && (
+            <p className={`text-xs font-medium ${autoMsg.type === "success" ? "text-emerald-600" : "text-red-500"}`}>
+              {autoMsg.text}
+            </p>
+          )}
+        </div>
+      </div>
 
       <section>
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
@@ -201,6 +321,17 @@ function StudentCoursesPage() {
           )}
         </section>
       )}
+
+      <section>
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
+          Register for a Course
+        </h2>
+        <AvailableOfferingsSection
+          key={enrollKey}
+          enrolledIds={enrolledIds}
+          onEnrolled={() => setEnrollKey((k) => k + 1)}
+        />
+      </section>
     </div>
   );
 }

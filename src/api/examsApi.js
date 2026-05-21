@@ -28,7 +28,9 @@ export const fetchExamResults = async (examId) => {
 
 // POST /api/exams  — create structured exam manually
 export const createExam = async (dto) => {
-  const res = await apiClient.post("/exams", dto);
+  const res = await apiClient.post("/exams", dto, {
+    headers: { "Content-Type": "application/json" },
+  });
   return res.data?.data ?? res.data;
 };
 
@@ -36,6 +38,23 @@ export const createExam = async (dto) => {
 export const generateAiExam = async (dto) => {
   const res = await apiClient.post("/exams/generate-ai", dto);
   return res.data?.data ?? res.data;
+};
+
+// POST /api/exams/preview-questions-from-pdf  — extract questions preview (no exam created yet)
+export const previewQuestionsFromPdf = async ({ file, questionCount = 10, difficulty = "Medium", examType = "Final" }, onProgress) => {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("questionCount", questionCount);
+  form.append("difficulty", difficulty);
+  form.append("examType", examType);
+  const res = await apiClient.post("/exams/preview-questions-from-pdf", form, {
+    headers: { "Content-Type": "multipart/form-data" },
+    onUploadProgress: (e) => {
+      if (onProgress && e.total) onProgress(Math.round((e.loaded * 100) / e.total));
+    },
+  });
+  const payload = res.data?.data ?? res.data;
+  return Array.isArray(payload) ? payload : [];
 };
 
 // POST /api/exams/upload-pdf  — PDF exam upload

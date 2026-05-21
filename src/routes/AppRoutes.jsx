@@ -87,6 +87,7 @@ import AcademicBulkImportPage from "../pages/admin/AcademicBulkImportPage";
 import AnalyticsDashboardPage from "../pages/admin/AnalyticsDashboardPage";
 import NotificationsPage from "../pages/admin/NotificationsPage";
 import ExamUploadPage from "../pages/professor/ExamUploadPage";
+import AdminEnrollmentsPage from "../pages/admin/AdminEnrollmentsPage";
 import ProfessorExamsPage from "../pages/professor/ProfessorExamsPage";
 import ProfessorExamResultsPage from "../pages/professor/ProfessorExamResultsPage";
 import ImportStudentsPage from "../features/students/pages/ImportStudentsPage";
@@ -176,6 +177,9 @@ function AppRoutes() {
 
           {/* ── Analytics ── */}
           <Route path="analytics" element={<AnalyticsDashboardPage />} />
+
+          {/* ── Enrollments ── */}
+          <Route path="enrollments" element={<AdminEnrollmentsPage />} />
 
           {/* ── Notifications ── */}
           <Route path="notifications" element={<NotificationsPage />} />

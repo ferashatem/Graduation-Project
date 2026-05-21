@@ -52,7 +52,8 @@ const ADMIN_SECTIONS = [
   {
     id: "subjects", label: "Subjects & Registration", icon: HiBookOpen,
     items: [
-      { label: "Subjects", to: "/admin/subjects", icon: HiBookOpen },
+      { label: "Subjects",    to: "/admin/subjects",     icon: HiBookOpen      },
+      { label: "Enrollments", to: "/admin/enrollments",  icon: HiClipboardList },
     ],
   },
   {
