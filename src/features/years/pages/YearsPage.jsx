@@ -109,6 +109,13 @@ function YearsPage() {
     [collegeId, navigate]
   );
 
+  const handleManageSemesters = useCallback(
+    (row) => {
+      navigate(`/admin/academic-years/${row.id}/semesters`);
+    },
+    [navigate]
+  );
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -132,12 +139,14 @@ function YearsPage() {
           onEdit={handleEdit}
           onDelete={handleDeletePrompt}
           onManage={handleManageDepartments}
+          onManageSemesters={handleManageSemesters}
         />
       )}
 
       <YearFormDialog
         open={dialogOpen}
         initialValues={editing}
+        existingYears={rows}
         onClose={handleCloseDialog}
         onSubmit={handleSubmit}
         error={actionError}

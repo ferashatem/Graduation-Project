@@ -1,9 +1,7 @@
 // Central axios instance: base URL, JSON headers, and (optional) interceptors.
 import axios from "axios";
 
-const API_BASE =
-  process.env.VITE_API_BASE ||
-  "https://coowned-api-dev-528199941216.us-central1.run.app/api";
+const API_BASE = "https://universitymanagementsystem-production-e58e.up.railway.app/api";
 
 export const http = axios.create({
   baseURL: API_BASE,

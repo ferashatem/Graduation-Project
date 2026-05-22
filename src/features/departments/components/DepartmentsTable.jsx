@@ -1,19 +1,25 @@
+
 import { useCallback, useMemo } from "react";
 import { DataGrid } from "@mui/x-data-grid";
 import { Button, IconButton } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 
-function DepartmentRowActions({ row, onEdit, onDelete, onManage }) {
+function DepartmentRowActions({ row, onEdit, onDelete, onManageBatches }) {
   const handleEdit = useCallback(() => onEdit(row), [onEdit, row]);
   const handleDelete = useCallback(() => onDelete(row), [onDelete, row]);
-  const handleManage = useCallback(() => onManage(row), [onManage, row]);
+  const handleBatches = useCallback(
+    () => onManageBatches && onManageBatches(row),
+    [onManageBatches, row]
+  );
 
   return (
     <div className="flex items-center gap-2">
-      <Button size="small" variant="outlined" onClick={handleManage}>
-        Manage Courses
-      </Button>
+      {onManageBatches && (
+        <Button size="small" variant="outlined" onClick={handleBatches}>
+          Batches
+        </Button>
+      )}
       <IconButton size="small" color="primary" onClick={handleEdit}>
         <EditIcon fontSize="inherit" />
       </IconButton>
@@ -24,7 +30,7 @@ function DepartmentRowActions({ row, onEdit, onDelete, onManage }) {
   );
 }
 
-function DepartmentsTable({ rows, loading, onEdit, onDelete, onManage }) {
+function DepartmentsTable({ rows, loading, onEdit, onDelete, onManageBatches }) {
   const gridRows = useMemo(() => rows || [], [rows]);
 
   const columns = useMemo(
@@ -34,8 +40,8 @@ function DepartmentsTable({ rows, loading, onEdit, onDelete, onManage }) {
       {
         field: "actions",
         headerName: "Actions",
+        minWidth: 220,
         flex: 1,
-        minWidth: 260,
         sortable: false,
         filterable: false,
         renderCell: (params) => (
@@ -43,12 +49,12 @@ function DepartmentsTable({ rows, loading, onEdit, onDelete, onManage }) {
             row={params.row}
             onEdit={onEdit}
             onDelete={onDelete}
-            onManage={onManage}
+            onManageBatches={onManageBatches}
           />
         ),
       },
     ],
-    [onDelete, onEdit, onManage]
+    [onDelete, onEdit]
   );
 
   return (

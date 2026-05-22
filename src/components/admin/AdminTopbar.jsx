@@ -1,61 +1,88 @@
 import { useMemo } from "react";
-import { HiMenu } from "react-icons/hi";
+import { HiMenu, HiBell } from "react-icons/hi";
 import fallbackAvatar from "../../assets/imgs/profile.png";
 
+const getStoredName  = () => localStorage.getItem("userName")  || "";
+const getStoredEmail = () => localStorage.getItem("userEmail") || "";
+
 const resolveName = (profile, user) =>
-  profile?.fullName ||
-  profile?.Full_Name ||
-  profile?.name ||
-  profile?.displayName ||
-  user?.displayName ||
-  "Admin";
+  profile?.fullName || profile?.Full_Name || profile?.name ||
+  profile?.displayName || user?.displayName || getStoredName() || "Admin";
 
 const resolveEmail = (profile, user) =>
-  profile?.email || profile?.Email || user?.email || "";
+  profile?.email || profile?.Email || user?.email || getStoredEmail() || "";
 
 function AdminTopbar({ title, profile, user, onMenuClick, role = "admin" }) {
   const viewModel = useMemo(() => {
-    const name = resolveName(profile, user);
-    const email = resolveEmail(profile, user);
-    const photoURL =
-      profile?.photoURL || profile?.PhotoURL || user?.photoURL || fallbackAvatar;
+    const name      = resolveName(profile, user);
+    const email     = resolveEmail(profile, user);
+    const photoURL  = profile?.photoURL || profile?.PhotoURL || user?.photoURL || fallbackAvatar;
     const roleLabel = role === "super_admin" ? "Super Admin" : "Admin";
-    return {
-      name,
-      email,
-      photoURL,
-      greeting: name ? `Welcome back, ${name}` : "Welcome back",
-      roleLabel,
-    };
-  }, [profile, user, role]);
+    return { name, email, photoURL, roleLabel };
+  }, [profile, role, user]);
 
   return (
-    <header className="sticky top-0 z-20 flex items-center justify-between gap-4 border-b border-slate-200 bg-white/90 px-4 py-3 shadow-sm backdrop-blur ipad-portrait:px-6">
+    <header
+      className="sticky top-0 z-20 flex items-center justify-between gap-4 px-5 py-3"
+      style={{
+        background: "#ffffff",
+        borderBottom: "1px solid #e2e8f0",
+        boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
+        height: "64px",
+      }}
+    >
+      {/* Left: hamburger + title */}
       <div className="flex items-center gap-3">
         <button
           type="button"
           onClick={onMenuClick}
-          className="rounded-xl bg-slate-100 p-2 text-slate-700 shadow-sm transition hover:bg-slate-200 ipad-landscape:hidden"
+          className="rounded-lg p-2 transition ipad-landscape:hidden"
+          style={{
+            background: "#f0f4f8",
+            border: "1px solid #e2e8f0",
+            color: "#64748b",
+          }}
           aria-label="Open menu"
         >
           <HiMenu className="h-5 w-5" />
         </button>
         <div>
-          <h1 className="text-lg font-semibold text-slate-800">{title}</h1>
-          <p className="text-xs text-slate-500">{viewModel.greeting}</p>
+          <h1 className="text-base font-bold" style={{ color: "#1a1a2e" }}>{title}</h1>
         </div>
       </div>
 
+      {/* Right: bell + user */}
       <div className="flex items-center gap-3">
-        <div className="hidden text-right sm:block">
-          <p className="text-sm font-semibold text-slate-700">{viewModel.name}</p>
-          <p className="text-xs text-slate-500">{viewModel.roleLabel}</p>
+        {/* Notification bell */}
+        <div className="relative">
+          <div
+            className="flex h-9 w-9 items-center justify-center rounded-lg transition hover:bg-slate-100"
+            style={{ background: "#f0f4f8", border: "1px solid #e2e8f0", cursor: "pointer" }}
+          >
+            <HiBell className="h-4.5 w-4.5" style={{ color: "#64748b" }} />
+          </div>
         </div>
-        <img
-          src={viewModel.photoURL}
-          alt="Avatar"
-          className="h-10 w-10 rounded-full object-cover ring-2 ring-white"
-        />
+
+        {/* User pill */}
+        <div
+          className="flex items-center gap-2.5 rounded-lg px-3 py-1.5 transition hover:bg-slate-50"
+          style={{ border: "1px solid #e2e8f0", background: "#f0f4f8", cursor: "pointer" }}
+        >
+          <div className="hidden text-right sm:block">
+            <p className="text-sm font-semibold" style={{ color: "#1a1a2e" }}>
+              {viewModel.name}
+            </p>
+            <p className="text-xs" style={{ color: "#64748b" }}>
+              {viewModel.email || viewModel.roleLabel}
+            </p>
+          </div>
+          <img
+            src={viewModel.photoURL}
+            alt="Avatar"
+            className="h-8 w-8 rounded-full object-cover flex-shrink-0"
+            style={{ border: "2px solid #d6e8f7" }}
+          />
+        </div>
       </div>
     </header>
   );

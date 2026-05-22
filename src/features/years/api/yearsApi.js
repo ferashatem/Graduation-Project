@@ -1,55 +1,57 @@
-import {
-  addDoc,
-  deleteDoc,
-  getDoc,
-  getDocs,
-  orderBy,
-  query,
-  serverTimestamp,
-  updateDoc,
-} from "firebase/firestore";
-import { yearDoc, yearsCollection } from "../../../firebase/firestorePaths";
+import apiClient from "../../../api/apiClient";
 
-const mapDoc = (snapshot) => ({ id: snapshot.id, ...snapshot.data() });
+const normalizeCollection = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  return payload?.data ?? payload?.items ?? [];
+};
 
 export const fetchYears = async (collegeId) => {
-  const yearsQuery = query(yearsCollection(collegeId), orderBy("order", "asc"));
-  const snapshot = await getDocs(yearsQuery);
-  return snapshot.docs.map(mapDoc);
+  if (!collegeId) return [];
+
+  const res = await apiClient.get(`/academic-years/by-college/${collegeId}`);
+  const payload = res.data?.data ?? res.data;
+  return normalizeCollection(payload);
 };
 
-export const getYearById = async (collegeId, yearId) => {
-  const snapshot = await getDoc(yearDoc(collegeId, yearId));
-  if (!snapshot.exists()) return null;
-  return mapDoc(snapshot);
+export const fetchAllYears = async () => {
+  const res = await apiClient.get("/academic-years");
+  const payload = res.data?.data ?? res.data;
+  return normalizeCollection(payload);
 };
 
-export const createYear = async (collegeId, { name, order }) => {
-  const payload = {
-    name: name.trim(),
+export const getYearById = async (...args) => {
+  const yearId = args[args.length - 1];
+  if (!yearId) return null;
+
+  const years = await fetchAllYears();
+  return years.find((year) => String(year.id) === String(yearId)) || null;
+};
+
+export const createYear = async ({
+  name,
+  isActive = true,
+  order,
+  collegeId,
+}) => {
+  const res = await apiClient.post("/academic-years", {
+    name,
+    isActive,
     order: Number(order),
-    createdAt: serverTimestamp(),
-  };
-
-  const docRef = await addDoc(yearsCollection(collegeId), payload);
-  return {
-    id: docRef.id,
-    ...payload,
-    createdAt: new Date(),
-  };
+    collegeId,
+  });
+  return res.data?.data ?? res.data;
 };
 
-export const updateYear = async (collegeId, yearId, updates) => {
-  const payload = {
-    name: updates.name.trim(),
-    order: Number(updates.order),
-  };
-
-  await updateDoc(yearDoc(collegeId, yearId), payload);
-  return payload;
+export const updateYear = async (yearId, { name, isActive = true, order }) => {
+  const res = await apiClient.put(`/academic-years/${yearId}`, {
+    name,
+    isActive,
+    order: Number(order),
+  });
+  return res.data?.data ?? res.data;
 };
 
-export const deleteYear = async (collegeId, yearId) => {
-  await deleteDoc(yearDoc(collegeId, yearId));
+export const deleteYear = async (yearId) => {
+  await apiClient.delete(`/academic-years/${yearId}`);
   return yearId;
 };

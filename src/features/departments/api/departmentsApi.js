@@ -1,65 +1,58 @@
-import {
-  addDoc,
-  deleteDoc,
-  getDoc,
-  getDocs,
-  serverTimestamp,
-  updateDoc,
-} from "firebase/firestore";
-import {
-  departmentDoc,
-  departmentsCollection,
-} from "../../../firebase/firestorePaths";
+import apiClient from "../../../api/apiClient";
 
-const mapDoc = (snapshot) => ({ id: snapshot.id, ...snapshot.data() });
-
-export const fetchDepartments = async (collegeId, yearId) => {
-  const snapshot = await getDocs(departmentsCollection(collegeId, yearId));
-  return snapshot.docs.map(mapDoc);
+const normalizeCollection = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  return payload?.data ?? payload?.items ?? [];
 };
 
-export const getDepartmentById = async (collegeId, yearId, departmentId) => {
-  const snapshot = await getDoc(
-    departmentDoc(collegeId, yearId, departmentId)
+export const fetchAllDepartments = async ({ page = 1, pageSize = 100 } = {}) => {
+  const res = await apiClient.get("/Departments", { params: { page, pageSize } });
+  const payload = res.data?.data ?? res.data;
+  return normalizeCollection(payload);
+};
+
+export const getDepartmentById = async (...args) => {
+  const departmentId = args[args.length - 1];
+  if (!departmentId) return null;
+
+  const departments = await fetchAllDepartments();
+  return (
+    departments.find(
+      (department) =>
+        String(department.id) === String(departmentId) ||
+        String(department.code) === String(departmentId)
+    ) || null
   );
-  if (!snapshot.exists()) return null;
-  return mapDoc(snapshot);
 };
 
-export const createDepartment = async (collegeId, yearId, { name, code }) => {
-  const payload = {
-    name: name.trim(),
-    createdAt: serverTimestamp(),
-  };
+export const fetchDepartmentsByCollege = async (collegeId) => {
+  if (!collegeId) return fetchAllDepartments();
 
-  if (code && code.trim()) {
-    payload.code = code.trim();
-  }
-
-  const docRef = await addDoc(departmentsCollection(collegeId, yearId), payload);
-  return {
-    id: docRef.id,
-    ...payload,
-    createdAt: new Date(),
-  };
+  const res = await apiClient.get(`/Departments/by-college/${collegeId}`);
+  const payload = res.data?.data ?? res.data;
+  return normalizeCollection(payload);
 };
 
-export const updateDepartment = async (
-  collegeId,
-  yearId,
-  departmentId,
-  updates
-) => {
-  const payload = {
-    name: updates.name.trim(),
-    code: updates.code ? updates.code.trim() : "",
-  };
-
-  await updateDoc(departmentDoc(collegeId, yearId, departmentId), payload);
-  return payload;
+export const fetchDepartmentsByYear = async (yearId) => {
+  if (!yearId) return [];
+  const res = await apiClient.get(`/academic-years/${yearId}/departments`);
+  const payload = res.data?.data ?? res.data;
+  return normalizeCollection(payload);
 };
 
-export const deleteDepartment = async (collegeId, yearId, departmentId) => {
-  await deleteDoc(departmentDoc(collegeId, yearId, departmentId));
+export const createDepartment = async ({ name, code, collegeId, academicYearId }) => {
+  const body = { name, code, collegeId };
+  if (academicYearId) body.academicYearId = academicYearId;
+  const res = await apiClient.post("/Departments", body);
+  return res.data?.data ?? res.data;
+};
+
+export const updateDepartment = async (departmentId, { name, code, collegeId }) => {
+  const res = await apiClient.put(`/Departments/${departmentId}`, { name, code, collegeId });
+  return res.data?.data ?? res.data;
+};
+
+export const deleteDepartment = async (departmentId) => {
+  await apiClient.delete(`/Departments/${departmentId}`);
   return departmentId;
 };

@@ -1,74 +1,82 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useOutletContext } from "react-router-dom";
-import { collection, getDocs, onSnapshot, query, where } from "firebase/firestore";
+import { Link } from "react-router-dom";
 import { HiBookOpen, HiClock, HiQuestionMarkCircle } from "react-icons/hi";
-import { db } from "../../firebase/firebaseConfig";
+import apiClient from "../../api/apiClient";
 
-const fmtDate = (ts) => {
-  if (!ts) return "—";
-  const d = ts.toDate ? ts.toDate() : new Date(ts.seconds * 1000);
-  return d.toLocaleString();
-};
+const isPublished = (s) => s === 1 || s === "Published";
+const isClosed    = (s) => s === 2 || s === "Closed";
 
-function StatusBadge({ submitted, score, totalPoints, percentage, now, startTime }) {
-  if (submitted) {
+function StatusBadge({ exam, submission }) {
+  if (submission) {
+    const pct = submission.percentage ?? submission.score ?? null;
     return (
       <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
-        Submitted · {score}/{totalPoints} ({percentage}%)
+        Submitted{pct != null ? ` · ${pct}%` : ""}
       </span>
     );
   }
-  if (startTime && now < startTime) {
-    return <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500">Not started yet</span>;
+  if (isClosed(exam.status)) {
+    return <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500">Closed</span>;
   }
-  return <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">Available</span>;
+  if (isPublished(exam.status)) {
+    return <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">Available</span>;
+  }
+  return <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-600">Not published</span>;
 }
 
-function QuizCard({ quiz, submission, now }) {
-  const startTime = quiz.startTime?.toDate ? quiz.startTime.toDate() : quiz.startTime ? new Date(quiz.startTime.seconds * 1000) : null;
-  const submitted = Boolean(submission);
-  const canTake = !submitted && startTime && now >= startTime;
+function ExamCard({ exam, submission }) {
+  const canTake = isPublished(exam.status) && !submission;
 
   return (
     <article className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 space-y-3">
       <div className="flex items-start justify-between gap-2">
-        <h3 className="text-base font-semibold text-slate-800">{quiz.title}</h3>
-        <StatusBadge
-          submitted={submitted}
-          score={submission?.score}
-          totalPoints={submission?.totalPoints}
-          percentage={submission?.percentage}
-          now={now}
-          startTime={startTime}
-        />
+        <h3 className="text-base font-semibold text-slate-800">{exam.title}</h3>
+        <StatusBadge exam={exam} submission={submission} />
       </div>
-      {quiz.description ? <p className="text-sm text-slate-500 line-clamp-2">{quiz.description}</p> : null}
+
+      {exam.subjectName && (
+        <p className="text-xs text-slate-500">{exam.subjectName}</p>
+      )}
+
       <div className="flex flex-wrap gap-2 text-xs text-slate-500">
-        <span className="flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1">
-          <HiQuestionMarkCircle className="h-3.5 w-3.5" /> {quiz.questions?.length || 0} questions
-        </span>
-        <span className="flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1">
-          <HiClock className="h-3.5 w-3.5" /> {quiz.durationMinutes} min
-        </span>
-        {startTime && (
-          <span className="rounded-full bg-slate-100 px-2.5 py-1">{fmtDate(quiz.startTime)}</span>
+        {exam.questions?.length > 0 && (
+          <span className="flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1">
+            <HiQuestionMarkCircle className="h-3.5 w-3.5" />
+            {exam.questions.length} questions
+          </span>
+        )}
+        {exam.durationMinutes && (
+          <span className="flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1">
+            <HiClock className="h-3.5 w-3.5" />
+            {exam.durationMinutes} min
+          </span>
+        )}
+        {exam.totalMarks && (
+          <span className="rounded-full bg-slate-100 px-2.5 py-1">
+            {exam.totalMarks} marks
+          </span>
         )}
       </div>
+
       <div className="pt-1">
-        {submitted ? (
-          <Link to={`/student/quizzes/${quiz.id}/result`}
-            className="inline-block rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50">
+        {submission ? (
+          <Link
+            to={`/student/quizzes/${exam.id}/result`}
+            className="inline-block rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+          >
             View My Result
           </Link>
         ) : (
           <Link
-            to={canTake ? `/student/quizzes/${quiz.id}` : "#"}
-            className={`inline-block rounded-xl px-4 py-2 text-xs font-semibold transition ${canTake
-              ? "bg-[#0b2c4a] text-white hover:bg-[#153a63]"
-              : "border border-slate-200 text-slate-400 cursor-not-allowed pointer-events-none"}`}
+            to={canTake ? `/student/quizzes/${exam.id}` : "#"}
             aria-disabled={!canTake}
+            className={`inline-block rounded-xl px-4 py-2 text-xs font-semibold transition ${
+              canTake
+                ? "bg-[#0b2c4a] text-white hover:bg-[#153a63]"
+                : "border border-slate-200 text-slate-400 cursor-not-allowed pointer-events-none"
+            }`}
           >
-            {startTime && now < startTime ? "Not available yet" : "Take Quiz"}
+            {isClosed(exam.status) ? "Exam Closed" : "Take Exam"}
           </Link>
         )}
       </div>
@@ -77,85 +85,54 @@ function QuizCard({ quiz, submission, now }) {
 }
 
 function StudentQuizzesPage() {
-  const { user, profile, profileLoading } = useOutletContext() || {};
-  const [quizzes, setQuizzes] = useState([]);
-  const [submissions, setSubmissions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [now, setNow] = useState(new Date());
+  const [exams,    setExams]    = useState([]);
+  const [loading,  setLoading]  = useState(true);
+  const [error,    setError]    = useState("");
 
-  const collegeId = profile?.collegeId || "";
-  const yearId = profile?.yearId || "";
-  const departmentId = profile?.departmentId || "";
-  const canQuery = Boolean(collegeId) && Boolean(yearId) && Boolean(departmentId) && !profileLoading;
-
-  // Refresh "now" every 30s for live status
   useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 30000);
-    return () => clearInterval(t);
+    setLoading(true);
+    apiClient.get("/exams/my-enrolled-exams")
+      .then((res) => {
+        const payload = res.data?.data ?? res.data;
+        const items   = Array.isArray(payload) ? payload : payload?.items ?? [];
+        setExams(items);
+      })
+      .catch((e) => setError(e?.response?.data?.message ?? e?.message ?? "Failed to load exams."))
+      .finally(() => setLoading(false));
   }, []);
 
-  // Load quizzes matching student's college/year/dept
-  useEffect(() => {
-    if (!canQuery) { setQuizzes([]); setLoading(false); return; }
-    setLoading(true);
-    const q = query(
-      collection(db, "quizzes"),
-      where("collegeId", "==", collegeId),
-      where("yearId", "==", yearId),
-      where("departmentId", "==", departmentId),
-      where("isPublished", "==", true),
-    );
-    const unsub = onSnapshot(q, (snap) => {
-      const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      items.sort((a, b) => (b.startTime?.seconds ?? 0) - (a.startTime?.seconds ?? 0));
-      setQuizzes(items);
-      setLoading(false);
-    }, () => setLoading(false));
-    return () => unsub();
-  }, [canQuery, collegeId, yearId, departmentId]);
-
-  // Load student's submissions
-  useEffect(() => {
-    if (!user?.uid) return;
-    getDocs(query(collection(db, "quizSubmissions"), where("studentUid", "==", user.uid)))
-      .then((snap) => setSubmissions(snap.docs.map((d) => ({ id: d.id, ...d.data() }))))
-      .catch(() => {});
-  }, [user?.uid]);
-
+  // Group submissions by examId from each exam's mySubmission field if present
   const submissionMap = useMemo(() => {
     const m = {};
-    submissions.forEach((s) => { m[s.quizId] = s; });
+    exams.forEach((ex) => {
+      if (ex.mySubmission) m[ex.id] = ex.mySubmission;
+    });
     return m;
-  }, [submissions]);
-
-  if (profileLoading) return <div className="py-12 text-center text-sm text-slate-500">Loading your profile…</div>;
-
-  if (!canQuery) {
-    return (
-      <div className="space-y-6">
-        <h1 className="text-2xl font-semibold text-[#0b2c4a]">Available Quizzes</h1>
-        <div className="rounded-2xl bg-amber-50 p-6 text-sm text-amber-700 ring-1 ring-amber-200">
-          Your profile is missing college/year/department. Contact your administrator.
-        </div>
-      </div>
-    );
-  }
+  }, [exams]);
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold text-[#0b2c4a]">Available Quizzes</h1>
+      <h1 className="text-2xl font-semibold text-[#0b2c4a]">Available Exams</h1>
+
+      {error && (
+        <div className="rounded-2xl bg-red-50 p-4 text-sm text-red-700">{error}</div>
+      )}
 
       {loading ? (
-        <div className="py-12 text-center text-sm text-slate-500">Loading quizzes…</div>
-      ) : quizzes.length === 0 ? (
+        <div className="py-12 text-center text-sm text-slate-500">Loading exams…</div>
+      ) : exams.length === 0 ? (
         <div className="rounded-2xl bg-white p-8 text-center text-sm text-slate-500 shadow-sm ring-1 ring-slate-200">
           <HiBookOpen className="mx-auto mb-3 h-10 w-10 text-slate-300" />
-          No quizzes available for your class right now.
+          No exams available right now.
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {quizzes.map((quiz) => (
-            <QuizCard key={quiz.id} quiz={quiz} submission={submissionMap[quiz.id] || null} now={now} />
+          {exams.map((exam) => (
+            <ExamCard
+              key={exam.id}
+              exam={exam}
+              submission={submissionMap[exam.id] ?? null}
+            />
           ))}
         </div>
       )}

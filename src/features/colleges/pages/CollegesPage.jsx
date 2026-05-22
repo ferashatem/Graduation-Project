@@ -1,8 +1,10 @@
+
 import { useCallback, useMemo, useState } from "react";
 import { Button, Alert } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "../../../components/common/PageHeader";
 import ConfirmDialog from "../../../components/common/ConfirmDialog";
+import DeleteBlockedDialog from "../../../components/common/DeleteBlockedDialog";
 import Loading from "../../../components/common/Loading";
 import ErrorState from "../../../components/common/ErrorState";
 import CollegesTable from "../components/CollegesTable";
@@ -11,12 +13,13 @@ import { useColleges } from "../hooks/useColleges";
 
 function CollegesPage() {
   const navigate = useNavigate();
-  const { colleges, loading, error, reload, addCollege, updateCollege, deleteCollege } =
+  const { colleges, loading, error, hasUniversity, reload, addCollege, updateCollege, deleteCollege } =
     useColleges();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [confirmState, setConfirmState] = useState({ open: false, row: null });
   const [actionError, setActionError] = useState("");
+  const [blockedDialog, setBlockedDialog] = useState({ open: false, message: "" });
 
   const rows = useMemo(() => colleges, [colleges]);
   const breadcrumbs = useMemo(() => [{ label: "Colleges" }], []);
@@ -50,10 +53,14 @@ function CollegesPage() {
     handleCloseConfirm();
     if (!target) return;
     const result = await deleteCollege(target.id);
-    if (!result.ok) {
+    if (result.ok) {
+      reload();
+    } else if (result.error?.includes("Cannot delete")) {
+      setBlockedDialog({ open: true, message: result.error });
+    } else {
       setActionError(result.error);
     }
-  }, [confirmState.row, deleteCollege, handleCloseConfirm]);
+  }, [confirmState.row, deleteCollege, handleCloseConfirm, reload]);
 
   const handleSubmit = useCallback(
     async (values) => {
@@ -65,11 +72,12 @@ function CollegesPage() {
       if (result.ok) {
         setDialogOpen(false);
         setEditing(null);
+        reload();
       } else {
         setActionError(result.error);
       }
     },
-    [addCollege, editing, updateCollege]
+    [addCollege, editing, updateCollege, reload]
   );
 
   const handleManageYears = useCallback(
@@ -116,10 +124,16 @@ function CollegesPage() {
       <ConfirmDialog
         open={confirmState.open}
         title="Delete college?"
-        message="This will remove the college. Related years and departments are not deleted automatically."
+        message="سيتم حذف الكلية نهائياً مع كل أقسامها والبيانات الأكاديمية بالكامل."
         confirmLabel="Delete"
         onConfirm={handleConfirmDelete}
         onClose={handleCloseConfirm}
+      />
+
+      <DeleteBlockedDialog
+        open={blockedDialog.open}
+        message={blockedDialog.message}
+        onClose={() => setBlockedDialog({ open: false, message: "" })}
       />
     </div>
   );

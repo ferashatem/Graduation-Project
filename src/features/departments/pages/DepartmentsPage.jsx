@@ -3,18 +3,25 @@ import { Button, Alert } from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
 import PageHeader from "../../../components/common/PageHeader";
 import ConfirmDialog from "../../../components/common/ConfirmDialog";
+import DeleteBlockedDialog from "../../../components/common/DeleteBlockedDialog";
 import Loading from "../../../components/common/Loading";
 import ErrorState from "../../../components/common/ErrorState";
 import DepartmentsTable from "../components/DepartmentsTable";
 import DepartmentFormDialog from "../components/DepartmentFormDialog";
 import { useDepartments } from "../hooks/useDepartments";
 import { getCollegeById } from "../../colleges/api/collegesApi";
-import { getYearById } from "../../years/api/yearsApi";
 import { getErrorMessage } from "../../../utils/errorHelpers";
 
 function DepartmentsPage() {
   const navigate = useNavigate();
-  const { collegeId, yearId } = useParams();
+  const { collegeId, collegeCode, yearId } = useParams();
+  const [collegeMeta, setCollegeMeta] = useState({ name: "", code: "" });
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [confirmState, setConfirmState] = useState({ open: false, row: null });
+  const [actionError, setActionError] = useState("");
+  const [blockedDialog, setBlockedDialog] = useState({ open: false, message: "" });
+
   const {
     departments,
     loading,
@@ -23,45 +30,44 @@ function DepartmentsPage() {
     addDepartment,
     updateDepartment,
     deleteDepartment,
-  } = useDepartments(collegeId, yearId);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState(null);
-  const [confirmState, setConfirmState] = useState({ open: false, row: null });
-  const [actionError, setActionError] = useState("");
-  const [collegeName, setCollegeName] = useState("");
-  const [yearName, setYearName] = useState("");
-
-  const rows = useMemo(() => departments, [departments]);
-
-  const loadBreadcrumbs = useCallback(async () => {
-    if (!collegeId || !yearId) return;
-    try {
-      const [college, year] = await Promise.all([
-        getCollegeById(collegeId),
-        getYearById(collegeId, yearId),
-      ]);
-      setCollegeName(college?.name || "College");
-      setYearName(year?.name || "Year");
-    } catch (err) {
-      setActionError(getErrorMessage(err));
-    }
-  }, [collegeId, yearId]);
+  } = useDepartments(collegeId, null, yearId);
 
   useEffect(() => {
-    loadBreadcrumbs();
-  }, [loadBreadcrumbs]);
+    let active = true;
+
+    const loadCollegeMeta = async () => {
+      if (!collegeId) return;
+
+      try {
+        const college = await getCollegeById(collegeId);
+        if (!active) return;
+
+        setCollegeMeta({
+          name: college?.name || "College",
+          code: college?.code || "",
+        });
+      } catch (err) {
+        if (!active) return;
+        setCollegeMeta({ name: "College", code: "" });
+        setActionError(getErrorMessage(err));
+      }
+    };
+
+    loadCollegeMeta();
+    return () => {
+      active = false;
+    };
+  }, [collegeId]);
+
+  const rows = useMemo(() => departments, [departments]);
 
   const breadcrumbs = useMemo(
     () => [
       { label: "Colleges", to: "/admin/colleges" },
-      {
-        label: collegeName || "College",
-        to: `/admin/colleges/${collegeId}/years`,
-      },
-      { label: yearName || "Year" },
+      { label: collegeMeta.name || "College" },
       { label: "Departments" },
     ],
-    [collegeId, collegeName, yearName]
+    [collegeMeta.name]
   );
 
   const handleAdd = useCallback(() => {
@@ -76,9 +82,7 @@ function DepartmentsPage() {
     setDialogOpen(true);
   }, []);
 
-  const handleCloseDialog = useCallback(() => {
-    setDialogOpen(false);
-  }, []);
+  const handleCloseDialog = useCallback(() => setDialogOpen(false), []);
 
   const handleDeletePrompt = useCallback((row) => {
     setConfirmState({ open: true, row });
@@ -92,11 +96,16 @@ function DepartmentsPage() {
     const target = confirmState.row;
     handleCloseConfirm();
     if (!target) return;
+
     const result = await deleteDepartment(target.id);
-    if (!result.ok) {
+    if (result.ok) {
+      reload();
+    } else if (result.error?.includes("Cannot delete")) {
+      setBlockedDialog({ open: true, message: result.error });
+    } else {
       setActionError(result.error);
     }
-  }, [confirmState.row, deleteDepartment, handleCloseConfirm]);
+  }, [confirmState.row, deleteDepartment, handleCloseConfirm, reload]);
 
   const handleSubmit = useCallback(
     async (values) => {
@@ -108,20 +117,19 @@ function DepartmentsPage() {
       if (result.ok) {
         setDialogOpen(false);
         setEditing(null);
+        reload();
       } else {
         setActionError(result.error);
       }
     },
-    [addDepartment, editing, updateDepartment]
+    [addDepartment, editing, reload, updateDepartment]
   );
 
-  const handleManageCourses = useCallback(
+  const handleManageBatches = useCallback(
     (row) => {
-      navigate(
-        `/admin/colleges/${collegeId}/years/${yearId}/departments/${row.id}/courses`
-      );
+      navigate(`/admin/departments/${row.id}/${row.code}/batches`);
     },
-    [collegeId, navigate, yearId]
+    [navigate]
   );
 
   return (
@@ -130,7 +138,11 @@ function DepartmentsPage() {
         title="Departments"
         breadcrumbs={breadcrumbs}
         action={
-          <Button variant="contained" onClick={handleAdd}>
+          <Button
+            variant="contained"
+            onClick={handleAdd}
+            disabled={!collegeId && !yearId}
+          >
             Add Department
           </Button>
         }
@@ -146,7 +158,7 @@ function DepartmentsPage() {
           loading={loading}
           onEdit={handleEdit}
           onDelete={handleDeletePrompt}
-          onManage={handleManageCourses}
+          onManageBatches={handleManageBatches}
         />
       )}
 
@@ -161,10 +173,16 @@ function DepartmentsPage() {
       <ConfirmDialog
         open={confirmState.open}
         title="Delete department?"
-        message="This will remove the department. Related courses are not deleted automatically."
+        message="سيتم حذف القسم نهائياً مع كل دفعاته ومجموعاته والبيانات الأكاديمية. الطلاب والدكاترة لن يُحذفوا."
         confirmLabel="Delete"
         onConfirm={handleConfirmDelete}
         onClose={handleCloseConfirm}
+      />
+
+      <DeleteBlockedDialog
+        open={blockedDialog.open}
+        message={blockedDialog.message}
+        onClose={() => setBlockedDialog({ open: false, message: "" })}
       />
     </div>
   );

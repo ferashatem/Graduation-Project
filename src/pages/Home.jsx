@@ -1,52 +1,21 @@
-import { useMemo } from "react";
-import { useOutletContext } from "react-router-dom";
-import { useAuthUser } from "../auth/useAuthUser";
-import Loading from "../components/common/Loading";
 
 export default function AdminHome() {
-  const outletContext = useOutletContext() || {};
-  const { user: outletUser, profile: outletProfile, profileLoading } = outletContext;
-  const { user: authUser, authLoading } = useAuthUser();
-  const user = outletUser || authUser;
-  const profile = outletProfile || null;
-
-  const viewModel = useMemo(() => {
-    const p = profile || {};
-    const rawRole = p.role ?? p.Role ?? p.title ?? p.Title ?? "";
-    const roleLabel = rawRole
-      .toString()
-      .trim()
-      .replace(/_/g, " ")
-      .replace(/\b\w/g, (c) => c.toUpperCase()) || "Admin";
-
-    return {
-      name: p.fullName ?? p.Full_Name ?? user?.displayName ?? "—",
-      email: p.email ?? p.Email ?? user?.email ?? "—",
-      phone: p.phoneNumber ?? p.Phone_Number ?? "—",
-      role: roleLabel,
-      college: p.collegeName ?? p.college ?? p.collegeId ?? "—",
-      uid: user?.uid ?? "—",
-    };
-  }, [profile, user]);
-
-  if (authLoading || profileLoading) {
-    return <Loading label="Loading..." />;
-  }
+  const fullName = localStorage.getItem("userName") || "—";
+  const loginEmail = localStorage.getItem("userEmail") || "—";
+  const rawRole = localStorage.getItem("role") || "Admin";
+  const roleLabel = rawRole.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-slate-800">{viewModel.role} Overview</h1>
+        <h1 className="text-xl font-semibold text-slate-800">{roleLabel} Overview</h1>
         <p className="text-sm text-slate-500">Your account details</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <InfoCard label="Full Name" value={viewModel.name} />
-        <InfoCard label="Email" value={viewModel.email} />
-        <InfoCard label="Phone Number" value={viewModel.phone} />
-        <InfoCard label="Role" value={viewModel.role} />
-        <InfoCard label="College" value={viewModel.college} />
-        <InfoCard label="UID" value={viewModel.uid} mono />
+        <InfoCard label="Full Name" value={fullName} />
+        <InfoCard label="Email" value={loginEmail} />
+        <InfoCard label="Role" value={roleLabel} />
       </div>
     </div>
   );

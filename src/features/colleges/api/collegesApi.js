@@ -1,55 +1,62 @@
-import {
-  addDoc,
-  deleteDoc,
-  getDoc,
-  getDocs,
-  serverTimestamp,
-  updateDoc,
-} from "firebase/firestore";
-import { collegesCollection, collegeDoc } from "../../../firebase/firestorePaths";
+import apiClient from "../../../api/apiClient";
 
-const mapDoc = (snapshot) => ({ id: snapshot.id, ...snapshot.data() });
+const normalizeCollection = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  return payload?.data ?? payload?.items ?? [];
+};
+
+export const fetchUniversity = async () => {
+  const res = await apiClient.get("/University/structure");
+  const payload = res.data?.data ?? res.data;
+  const list = Array.isArray(payload) ? payload : [payload];
+  return list[0] ?? null;
+};
+
+export const fetchUniversities = async () => {
+  const res = await apiClient.get("/University/structure");
+  console.log("[fetchUniversities] raw response:", res.data);
+  const payload = res.data?.data ?? res.data;
+  if (!payload) return [];
+  if (Array.isArray(payload)) return payload;
+  const uni = {
+    id:   payload.id   ?? payload.universityId ?? payload.Id,
+    name: payload.name ?? payload.universityName ?? payload.Name,
+    code: payload.code ?? payload.universityCode ?? payload.Code,
+  };
+  return uni.id ? [uni] : [];
+};
 
 export const fetchColleges = async () => {
-  const snapshot = await getDocs(collegesCollection());
-  return snapshot.docs.map(mapDoc);
+  const res = await apiClient.get("/Colleges");
+  const payload = res.data?.data ?? res.data;
+  return normalizeCollection(payload);
 };
 
-export const getCollegeById = async (collegeId) => {
-  const snapshot = await getDoc(collegeDoc(collegeId));
-  if (!snapshot.exists()) return null;
-  return mapDoc(snapshot);
+export const getCollegeById = async (...args) => {
+  const collegeId = args[args.length - 1];
+  if (!collegeId) return null;
+
+  const colleges = await fetchColleges();
+  return (
+    colleges.find(
+      (college) =>
+        String(college.id) === String(collegeId) ||
+        String(college.code) === String(collegeId)
+    ) || null
+  );
 };
 
-export const createCollege = async ({ name, code }) => {
-  const payload = {
-    name: name.trim(),
-    createdAt: serverTimestamp(),
-  };
-
-  if (code && code.trim()) {
-    payload.code = code.trim();
-  }
-
-  const docRef = await addDoc(collegesCollection(), payload);
-  return {
-    id: docRef.id,
-    ...payload,
-    createdAt: new Date(),
-  };
+export const createCollege = async ({ name, code, universityId }) => {
+  const res = await apiClient.post("/Colleges", { name, code, universityId });
+  return res.data?.data ?? res.data;
 };
 
-export const updateCollege = async (collegeId, updates) => {
-  const payload = {
-    name: updates.name.trim(),
-    code: updates.code ? updates.code.trim() : "",
-  };
-
-  await updateDoc(collegeDoc(collegeId), payload);
-  return payload;
+export const updateCollege = async (collegeId, { name, code, universityId }) => {
+  const res = await apiClient.put(`/Colleges/${collegeId}`, { name, code, universityId });
+  return res.data?.data ?? res.data;
 };
 
 export const deleteCollege = async (collegeId) => {
-  await deleteDoc(collegeDoc(collegeId));
+  await apiClient.delete(`/Colleges/${collegeId}`);
   return collegeId;
 };

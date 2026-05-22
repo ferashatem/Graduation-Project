@@ -1,14 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams, useOutletContext } from "react-router-dom";
-import { collection, doc, getDoc, getDocs, query, where } from "firebase/firestore";
+import { Link, useParams } from "react-router-dom";
 import { HiArrowLeft, HiChevronDown, HiChevronUp } from "react-icons/hi";
-import { db } from "../../firebase/firebaseConfig";
+import { fetchExam, fetchExamResults } from "../../features/professor/api/professorBackendApi";
 
 const pct = (score, total) => (total > 0 ? Math.round((score / total) * 100) : 0);
-const fmtDate = (ts) => {
-  if (!ts) return "—";
-  const d = ts.toDate ? ts.toDate() : new Date(ts.seconds * 1000);
-  return d.toLocaleString();
+const fmtDate = (str) => {
+  if (!str) return "—";
+  try { return new Date(str).toLocaleString(); } catch { return str; }
 };
 
 function DetailRow({ question, answer, isWrong }) {
@@ -18,9 +16,7 @@ function DetailRow({ question, answer, isWrong }) {
       <div className="mt-1.5 flex flex-wrap gap-4 text-xs">
         <span>
           <span className="font-semibold text-slate-500">Answer: </span>
-          <span className={isWrong ? "font-semibold text-red-600" : "font-semibold text-emerald-600"}>
-            {answer || "—"}
-          </span>
+          <span className={isWrong ? "font-semibold text-red-600" : "font-semibold text-emerald-600"}>{answer || "—"}</span>
         </span>
         {isWrong && (
           <span>
@@ -38,23 +34,33 @@ function DetailRow({ question, answer, isWrong }) {
 
 function SubmissionRow({ submission, questions }) {
   const [open, setOpen] = useState(false);
+
   const answerMap = useMemo(() => {
     const m = {};
-    (submission.answers || []).forEach((a) => { m[a.questionId] = a.selectedAnswer; });
+    (submission.answers ?? []).forEach((a) => {
+      m[a.questionId ?? a.id] = a.selectedAnswer ?? a.answer;
+    });
     return m;
   }, [submission.answers]);
+
+  const totalPoints = submission.totalPoints ?? questions.reduce((s, q) => s + (q.points ?? 1), 0);
+  const score = submission.score ?? submission.totalScore ?? 0;
 
   return (
     <>
       <tr className="border-b border-slate-100 hover:bg-slate-50">
-        <td className="px-4 py-3 font-medium text-slate-800">{submission.studentName || "—"}</td>
-        <td className="px-4 py-3 text-slate-600">{submission.score ?? "—"} / {submission.totalPoints ?? "—"}</td>
+        <td className="px-4 py-3 font-medium text-slate-800">
+          {submission.studentName ?? submission.studentFullName ?? submission.userName ?? "—"}
+        </td>
+        <td className="px-4 py-3 text-slate-600">{score} / {totalPoints}</td>
         <td className="px-4 py-3">
-          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${pct(submission.score, submission.totalPoints) >= 50 ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-600"}`}>
-            {pct(submission.score, submission.totalPoints)}%
+          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${pct(score, totalPoints) >= 50 ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-600"}`}>
+            {pct(score, totalPoints)}%
           </span>
         </td>
-        <td className="px-4 py-3 text-xs text-slate-500">{fmtDate(submission.submittedAt)}</td>
+        <td className="px-4 py-3 text-xs text-slate-500">
+          {fmtDate(submission.submittedAt ?? submission.submittedOn)}
+        </td>
         <td className="px-4 py-3 text-right">
           <button type="button" onClick={() => setOpen((o) => !o)}
             className="flex items-center gap-1 rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">
@@ -67,14 +73,14 @@ function SubmissionRow({ submission, questions }) {
         <tr className="border-b border-slate-100 bg-slate-50">
           <td colSpan={5} className="px-6 py-4">
             <div className="space-y-2">
-              {questions.map((q) => (
-                <DetailRow
-                  key={q.id}
-                  question={q}
-                  answer={answerMap[q.id] ?? "—"}
-                  isWrong={(submission.wrongQuestions || []).includes(q.id)}
-                />
-              ))}
+              {questions.map((q) => {
+                const key = q.id ?? q.questionId;
+                const studentAnswer = answerMap[key] ?? "—";
+                const isWrong = studentAnswer !== q.correctAnswer;
+                return (
+                  <DetailRow key={key} question={q} answer={studentAnswer} isWrong={isWrong} />
+                );
+              })}
             </div>
           </td>
         </tr>
@@ -85,44 +91,50 @@ function SubmissionRow({ submission, questions }) {
 
 function ProfessorQuizResultsPage() {
   const { quizId } = useParams();
-  const { user } = useOutletContext() || {};
-  const [quiz, setQuiz] = useState(null);
-  const [submissions, setSubmissions] = useState([]);
+  const [exam, setExam] = useState(null);
+  const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!user?.uid) return;
+    if (!quizId) return;
     let active = true;
     setLoading(true);
-    Promise.all([
-      getDoc(doc(db, "quizzes", quizId)),
-      getDocs(query(collection(db, "quizSubmissions"), where("quizId", "==", quizId))),
-    ]).then(([quizSnap, subSnap]) => {
-      if (!active) return;
-      if (!quizSnap.exists()) { setError("Quiz not found."); setLoading(false); return; }
-      const quizData = { id: quizSnap.id, ...quizSnap.data() };
-      if (quizData.createdBy !== user.uid) { setError("You are not authorized to view these results."); setLoading(false); return; }
-      setQuiz(quizData);
-      setSubmissions(subSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
-      setLoading(false);
-    }).catch((e) => {
-      if (active) { setError(e.message || "Failed to load."); setLoading(false); }
-    });
+    setError("");
+
+    Promise.all([fetchExam(quizId), fetchExamResults(quizId)])
+      .then(([examData, resultsData]) => {
+        if (!active) return;
+        setExam(examData);
+        setResults(resultsData);
+      })
+      .catch((e) => {
+        if (active) setError(e?.response?.data?.message ?? e?.message ?? "Failed to load results.");
+      })
+      .finally(() => { if (active) setLoading(false); });
+
     return () => { active = false; };
-  }, [quizId, user?.uid]);
+  }, [quizId]);
+
+  // Results can be an object with a submissions array, or a direct array
+  const submissions = useMemo(() => {
+    if (!results) return [];
+    if (Array.isArray(results)) return results;
+    return results.submissions ?? results.items ?? [];
+  }, [results]);
+
+  const questions = exam?.questions ?? [];
 
   const stats = useMemo(() => {
     if (!submissions.length) return null;
-    const pcts = submissions.map((s) => pct(s.score, s.totalPoints));
+    const totalPoints = questions.reduce((s, q) => s + (q.points ?? 1), 0);
+    const pcts = submissions.map((s) => pct(s.score ?? s.totalScore ?? 0, s.totalPoints ?? totalPoints));
     const avg = Math.round(pcts.reduce((a, b) => a + b, 0) / pcts.length);
     return { total: submissions.length, avg, high: Math.max(...pcts), low: Math.min(...pcts) };
-  }, [submissions]);
+  }, [submissions, questions]);
 
   if (loading) return <div className="py-12 text-center text-sm text-slate-500">Loading…</div>;
   if (error) return <div className="rounded-2xl bg-red-50 p-6 text-sm text-red-700">{error}</div>;
-
-  const questions = quiz?.questions || [];
 
   return (
     <div className="space-y-6">
@@ -132,12 +144,11 @@ function ProfessorQuizResultsPage() {
           <HiArrowLeft className="h-4 w-4" /> Back
         </Link>
         <div>
-          <h1 className="text-xl font-semibold text-[#0b2c4a]">{quiz.title} — Results</h1>
-          <p className="text-xs text-slate-500">{quiz.durationMinutes} min · {questions.length} questions</p>
+          <h1 className="text-xl font-semibold text-[#0b2c4a]">{exam?.title ?? "Quiz"} — Results</h1>
+          <p className="text-xs text-slate-500">{exam?.durationMinutes} min · {questions.length} questions</p>
         </div>
       </div>
 
-      {/* Stats */}
       {stats ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {[
@@ -158,7 +169,6 @@ function ProfessorQuizResultsPage() {
         </div>
       )}
 
-      {/* Table */}
       {submissions.length > 0 && (
         <div className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 overflow-hidden">
           <table className="min-w-full text-sm text-slate-700">
@@ -172,8 +182,8 @@ function ProfessorQuizResultsPage() {
               </tr>
             </thead>
             <tbody>
-              {submissions.map((s) => (
-                <SubmissionRow key={s.id} submission={s} questions={questions} />
+              {submissions.map((s, i) => (
+                <SubmissionRow key={s.id ?? s.submissionId ?? i} submission={s} questions={questions} />
               ))}
             </tbody>
           </table>

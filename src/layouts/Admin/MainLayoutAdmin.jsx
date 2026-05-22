@@ -1,8 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { useAuthUser } from "../../auth/useAuthUser";
-import { getProfessorProfile } from "../../firebase/professorApi";
-import { getCollegeById } from "../../firebase/firestoreColleges";
 import AdminSidebar from "../../components/admin/AdminSidebar";
 import AdminTopbar from "../../components/admin/AdminTopbar";
 
@@ -27,48 +25,23 @@ function resolveTitle(pathname) {
 }
 
 function MainLayoutAdmin() {
-  const { user, authLoading } = useAuthUser();
+  const { user } = useAuthUser();
   const location = useLocation();
-
-  const [profile, setProfile] = useState(null);
-  const [profileLoading, setProfileLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  useEffect(() => {
-    let isActive = true;
-
-    const loadProfile = async () => {
-      if (!user?.uid) {
-        if (isActive) { setProfile(null); setProfileLoading(false); }
-        return;
-      }
-      setProfileLoading(true);
-      try {
-        const nextProfile = await getProfessorProfile(user.uid);
-        if (nextProfile && (nextProfile.collegeId || nextProfile.college)) {
-          const collegeDoc = await getCollegeById(
-            nextProfile.collegeId || nextProfile.college
-          ).catch(() => null);
-          if (collegeDoc?.name) nextProfile.collegeName = collegeDoc.name;
-        }
-        if (isActive) setProfile(nextProfile);
-      } catch {
-        if (isActive) setProfile(null);
-      } finally {
-        if (isActive) setProfileLoading(false);
-      }
+  // Profile built from localStorage — no Firestore needed
+  const profile = useMemo(() => {
+    if (!user) return null;
+    return {
+      fullName: user.displayName || "",
+      email:    user.email       || "",
+      id:       user.uid         || "",
     };
+  }, [user]);
 
-    if (!authLoading) loadProfile();
-    return () => { isActive = false; };
-  }, [authLoading, user?.uid]);
+  const pageTitle = useMemo(() => resolveTitle(location.pathname), [location.pathname]);
 
-  const pageTitle = useMemo(
-    () => resolveTitle(location.pathname),
-    [location.pathname]
-  );
-
-  const handleMenuClick = useCallback(() => setSidebarOpen((p) => !p), []);
+  const handleMenuClick    = useCallback(() => setSidebarOpen((p) => !p), []);
   const handleCloseSidebar = useCallback(() => setSidebarOpen(false), []);
 
   return (
@@ -90,7 +63,7 @@ function MainLayoutAdmin() {
           role="admin"
         />
         <main className="flex-1 overflow-y-auto p-4 ipad-portrait:p-6 ipad-pro-portrait:p-8">
-          <Outlet context={{ user, profile, profileLoading }} />
+          <Outlet context={{ user, profile, profileLoading: false }} />
         </main>
       </div>
     </div>

@@ -6,13 +6,13 @@ import { getAnalytics } from "firebase/analytics";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDUGcfluzoDKLa1dt_OZcwEn0C-HFHtBVU",
-  authDomain: "graduation-project-61aa9.firebaseapp.com",
-  projectId: "graduation-project-61aa9",
-  storageBucket: "graduation-project-61aa9.firebasestorage.app",
-  messagingSenderId: "1001425488308",
-  appId: "1:1001425488308:web:4742a1a2477b5ed8638ae1",
-  measurementId: "G-GEGSYVRXSN",
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.REACT_APP_FIREBASE_APP_ID,
+  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID,
 };
 
 const app = initializeApp(firebaseConfig);

@@ -1,3 +1,4 @@
+
 import { useCallback, useMemo } from "react";
 import { DataGrid } from "@mui/x-data-grid";
 import { Button, IconButton } from "@mui/material";
@@ -35,7 +36,7 @@ function CollegesTable({ rows, loading, onEdit, onDelete, onManage }) {
         field: "actions",
         headerName: "Actions",
         flex: 1,
-        minWidth: 240,
+        minWidth: 360,
         sortable: false,
         filterable: false,
         renderCell: (params) => (

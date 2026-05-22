@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
-import { useAuthUser } from "../auth/useAuthUser";
-import { getProfessorProfile } from "../firebase/professorApi";
-import { getCollegeById } from "../firebase/firestoreColleges";
+import { fetchMyProfile } from "../features/professor/api/professorBackendApi";
 import ProfessorSidebar from "../components/professor/ProfessorSidebar";
 import ProfessorTopbar from "../components/professor/ProfessorTopbar";
+import { getStoredAccessToken } from "../auth/session";
 
 function ProfessorLayout() {
-  const { user, authLoading } = useAuthUser();
   const location = useLocation();
 
   const [profile, setProfile] = useState(null);
@@ -15,41 +13,27 @@ function ProfessorLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    let isActive = true;
+    let active = true;
 
-    const loadProfile = async () => {
-      if (!user?.uid) {
-        if (isActive) {
-          setProfile(null);
-          setProfileLoading(false);
-        }
+    const load = async () => {
+      if (!getStoredAccessToken()) {
+        if (active) { setProfile(null); setProfileLoading(false); }
         return;
       }
-
       setProfileLoading(true);
-
       try {
-        const nextProfile = await getProfessorProfile(user.uid);
-        if (nextProfile && (nextProfile.collegeId || nextProfile.college)) {
-          const collegeDoc = await getCollegeById(nextProfile.collegeId || nextProfile.college).catch(() => null);
-          if (collegeDoc?.name) nextProfile.collegeName = collegeDoc.name;
-        }
-        if (isActive) setProfile(nextProfile);
-      } catch (err) {
-        if (isActive) setProfile(null);
+        const data = await fetchMyProfile();
+        if (active) setProfile(data ?? null);
+      } catch {
+        if (active) setProfile(null);
       } finally {
-        if (isActive) setProfileLoading(false);
+        if (active) setProfileLoading(false);
       }
     };
 
-    if (!authLoading) {
-      loadProfile();
-    }
-
-    return () => {
-      isActive = false;
-    };
-  }, [authLoading, user?.uid]);
+    load();
+    return () => { active = false; };
+  }, []);
 
   const pageTitle = useMemo(() => {
     const path = location.pathname;
@@ -57,17 +41,20 @@ function ProfessorLayout() {
     if (path.startsWith("/prof/courses")) return "Courses";
     if (path.startsWith("/prof/quizzes/") && path.endsWith("/results")) return "Quiz Results";
     if (path.startsWith("/prof/quizzes")) return "Quizzes";
+    if (path.startsWith("/prof/chat")) return "AI Assistant";
     if (path === "/prof" || path === "/prof/") return "Professor Home";
     return "Professor";
   }, [location.pathname]);
 
-  const handleMenuClick = useCallback(() => {
-    setSidebarOpen((prev) => !prev);
-  }, []);
+  const handleMenuClick = useCallback(() => setSidebarOpen((p) => !p), []);
+  const handleCloseSidebar = useCallback(() => setSidebarOpen(false), []);
 
-  const handleCloseSidebar = useCallback(() => {
-    setSidebarOpen(false);
-  }, []);
+  // Expose a stable user-like object from the backend profile so child pages
+  // that still reference user.uid gracefully receive the profile's id.
+  const user = useMemo(
+    () => (profile ? { uid: profile.id ?? profile.userId ?? profile.code, ...profile } : null),
+    [profile]
+  );
 
   return (
     <div className="flex min-h-screen bg-gray-100">
