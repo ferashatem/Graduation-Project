@@ -1,6 +1,7 @@
 import { useMemo } from "react";
-import { HiMenu, HiBell } from "react-icons/hi";
+import { HiMenu } from "react-icons/hi";
 import fallbackAvatar from "../../assets/imgs/profile.png";
+import NotificationDropdown from "../shared/NotificationDropdown";
 
 const getStoredName  = () => localStorage.getItem("userName")  || "";
 const getStoredEmail = () => localStorage.getItem("userEmail") || "";
@@ -53,15 +54,7 @@ function AdminTopbar({ title, profile, user, onMenuClick, role = "admin" }) {
 
       {/* Right: bell + user */}
       <div className="flex items-center gap-3">
-        {/* Notification bell */}
-        <div className="relative">
-          <div
-            className="flex h-9 w-9 items-center justify-center rounded-lg transition hover:bg-slate-100"
-            style={{ background: "#f0f4f8", border: "1px solid #e2e8f0", cursor: "pointer" }}
-          >
-            <HiBell className="h-4.5 w-4.5" style={{ color: "#64748b" }} />
-          </div>
-        </div>
+        <NotificationDropdown />
 
         {/* User pill */}
         <div

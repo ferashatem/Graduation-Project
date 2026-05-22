@@ -688,6 +688,10 @@ function ExamCard({ exam, onDelete, onRefresh }) {
           className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">
           Submissions
         </Link>
+        <Link to={`/prof/exams/${exam.id}/analytics`}
+          className="rounded-xl border border-blue-200 px-3 py-1.5 text-xs font-semibold text-blue-600 hover:bg-blue-50">
+          Analytics
+        </Link>
 
         {status === "Draft" && (
           <button type="button" disabled={busy} onClick={() => changeStatus("Published")}

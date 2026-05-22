@@ -5,6 +5,7 @@ import { getProfessorProfile } from "../firebase/professorApi";
 import { getCollegeById } from "../firebase/firestoreColleges";
 import AssistantSidebar from "../components/assistant/AssistantSidebar";
 import AssistantTopbar from "../components/assistant/AssistantTopbar";
+import { NotificationProvider } from "../context/NotificationContext";
 
 function AssistantLayout() {
   const { user, authLoading } = useAuthUser();
@@ -68,6 +69,7 @@ function AssistantLayout() {
   }, []);
 
   return (
+    <NotificationProvider>
     <div className="flex min-h-screen bg-gray-100">
       <AssistantSidebar
         open={sidebarOpen}
@@ -88,6 +90,7 @@ function AssistantLayout() {
         </main>
       </div>
     </div>
+    </NotificationProvider>
   );
 }
 

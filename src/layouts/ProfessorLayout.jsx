@@ -4,6 +4,7 @@ import { fetchMyProfile } from "../features/professor/api/professorBackendApi";
 import ProfessorSidebar from "../components/professor/ProfessorSidebar";
 import ProfessorTopbar from "../components/professor/ProfessorTopbar";
 import { getStoredAccessToken } from "../auth/session";
+import { NotificationProvider } from "../context/NotificationContext";
 
 function ProfessorLayout() {
   const location = useLocation();
@@ -57,6 +58,7 @@ function ProfessorLayout() {
   );
 
   return (
+    <NotificationProvider>
     <div className="flex min-h-screen bg-gray-100">
       <ProfessorSidebar
         open={sidebarOpen}
@@ -77,6 +79,7 @@ function ProfessorLayout() {
         </main>
       </div>
     </div>
+    </NotificationProvider>
   );
 }
 

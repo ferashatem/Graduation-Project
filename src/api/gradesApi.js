@@ -37,6 +37,13 @@ export const deleteGrade = async (gradeId) => {
   return gradeId;
 };
 
+// GET /api/grades/my-grades  — Student views own finalized grades
+export const fetchMyGrades = async () => {
+  const res = await apiClient.get("/grades/my-grades");
+  const payload = res.data?.data ?? res.data;
+  return Array.isArray(payload) ? payload : payload?.items ?? [];
+};
+
 // ── GPA ──────────────────────────────────────────────────────────────────────
 
 // GET /api/gpa/my-gpa  — Student views own GPA (token-based)

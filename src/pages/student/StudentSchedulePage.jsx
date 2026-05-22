@@ -2,11 +2,9 @@ import { useCallback, useEffect, useState } from "react";
 import PageHeader from "../../components/common/PageHeader";
 import Loading from "../../components/common/Loading";
 import ErrorState from "../../components/common/ErrorState";
-import { fetchMyEnrollments } from "../../features/subjectOfferings/api/subjectOfferingsApi";
 import {
-  fetchBatchToday,
-  fetchBatchDay,
-  fetchBatchSchedule,
+  fetchMySchedule,
+  fetchMyToday,
 } from "../../api/scheduleApi";
 import { getErrorMessage } from "../../utils/errorHelpers";
 
@@ -103,56 +101,43 @@ function WeekGrid({ entries }) {
 }
 
 function StudentSchedulePage() {
-  const [batchId, setBatchId] = useState(null);
-  const [batchError, setBatchError] = useState("");
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [mode, setMode] = useState("today"); // "today" | "day" | "week"
   const [selectedDay, setSelectedDay] = useState(new Date().getDay());
 
-  // Resolve batchId from enrollments
-  useEffect(() => {
-    let active = true;
-    fetchMyEnrollments()
-      .then((items) => {
-        if (!active) return;
-        const id = items?.[0]?.batchId ?? items?.[0]?.batch?.id ?? null;
-        if (!id) setBatchError("Could not determine your batch. Please contact your administrator.");
-        else setBatchId(id);
-      })
-      .catch((err) => {
-        if (active) setBatchError(getErrorMessage(err, "Failed to load enrollment data."));
-      });
-    return () => { active = false; };
-  }, []);
-
   const loadSchedule = useCallback(async () => {
-    if (!batchId) return;
     setLoading(true);
     setError("");
     try {
-      let data;
       if (mode === "today") {
-        data = await fetchBatchToday(batchId);
-      } else if (mode === "day") {
-        data = await fetchBatchDay(batchId, selectedDay);
+        const data = await fetchMyToday();
+        setEntries(Array.isArray(data) ? data : []);
       } else {
-        data = await fetchBatchSchedule(batchId);
+        const data = await fetchMySchedule();
+        const list = Array.isArray(data) ? data : [];
+        if (mode === "week") {
+          setEntries(list);
+        } else {
+          const dayLabel = DAYS.find((d) => d.number === selectedDay)?.label;
+          setEntries(
+            list.filter(
+              (e) => e.dayOfWeekNumber === selectedDay || e.dayOfWeek === dayLabel
+            )
+          );
+        }
       }
-      setEntries(Array.isArray(data) ? data : []);
     } catch (err) {
       setError(getErrorMessage(err, "Failed to load schedule."));
     } finally {
       setLoading(false);
     }
-  }, [batchId, mode, selectedDay]);
+  }, [mode, selectedDay]);
 
   useEffect(() => {
-    if (batchId) loadSchedule();
-  }, [loadSchedule, batchId]);
-
-  if (batchError) return <ErrorState message={batchError} />;
+    loadSchedule();
+  }, [loadSchedule]);
 
   const todayNumber = new Date().getDay();
 

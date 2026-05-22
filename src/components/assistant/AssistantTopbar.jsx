@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { HiMenu } from "react-icons/hi";
 import fallbackAvatar from "../../assets/imgs/profile.png";
+import NotificationDropdown from "../shared/NotificationDropdown";
 
 const resolveName = (profile, user) =>
   profile?.fullName ||
@@ -46,6 +47,7 @@ function AssistantTopbar({ title, profile, user, onMenuClick }) {
       </div>
 
       <div className="flex items-center gap-3">
+        <NotificationDropdown />
         <div className="hidden text-right sm:block">
           <p className="text-sm font-semibold text-slate-700">
             {viewModel.name}

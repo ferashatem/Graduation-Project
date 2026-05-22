@@ -5,6 +5,7 @@ import { getProfessorProfile } from "../../firebase/professorApi";
 import { getCollegeById } from "../../firebase/firestoreColleges";
 import AdminSidebar from "../../components/admin/AdminSidebar";
 import AdminTopbar from "../../components/admin/AdminTopbar";
+import { NotificationProvider } from "../../context/NotificationContext";
 
 const PAGE_TITLES = [
   ["/super_admin/bulk-import-users", "Bulk Import Users"],
@@ -67,6 +68,7 @@ function MainLayoutSuperAdmin() {
   const handleCloseSidebar = useCallback(() => setSidebarOpen(false), []);
 
   return (
+    <NotificationProvider>
     <div className="flex min-h-screen bg-slate-50">
       <AdminSidebar
         open={sidebarOpen}
@@ -89,6 +91,7 @@ function MainLayoutSuperAdmin() {
         </main>
       </div>
     </div>
+    </NotificationProvider>
   );
 }
 

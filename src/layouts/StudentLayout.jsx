@@ -3,6 +3,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import { useAuthUser } from "../auth/useAuthUser";
 import StudentSidebar from "../components/student/StudentSidebar";
 import StudentTopbar from "../components/student/StudentTopbar";
+import { NotificationProvider } from "../context/NotificationContext";
 
 function StudentLayout() {
   const { user, authLoading } = useAuthUser();
@@ -34,6 +35,7 @@ function StudentLayout() {
   const handleCloseSidebar = useCallback(() => setSidebarOpen(false), []);
 
   return (
+    <NotificationProvider>
     <div className="flex min-h-screen bg-gray-100">
       <StudentSidebar
         open={sidebarOpen}
@@ -54,6 +56,7 @@ function StudentLayout() {
         </main>
       </div>
     </div>
+    </NotificationProvider>
   );
 }
 

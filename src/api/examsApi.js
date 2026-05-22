@@ -137,3 +137,9 @@ export const fetchExamByCode = async (code) => {
   const res = await apiClient.get(`/exams/by-code/${code}`);
   return res.data?.data ?? res.data;
 };
+
+// GET /api/exams/{id}/analytics  — Doctor views statistics for one exam
+export const fetchExamAnalytics = async (examId) => {
+  const res = await apiClient.get(`/exams/${examId}/analytics`);
+  return res.data?.data ?? res.data;
+};
