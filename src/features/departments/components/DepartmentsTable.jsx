@@ -54,7 +54,7 @@ function DepartmentsTable({ rows, loading, onEdit, onDelete, onManageBatches }) 
         ),
       },
     ],
-    [onDelete, onEdit]
+    [onDelete, onEdit, onManageBatches]
   );
 
   return (

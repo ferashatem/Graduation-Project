@@ -4,7 +4,7 @@ import { useOutletContext } from "react-router-dom";
 import { HiBookOpen } from "react-icons/hi";
 
 function StudentHome() {
-  const { user, profile, profileLoading } = useOutletContext() || {};
+  const { user, profile } = useOutletContext() || {};
 
   const name = useMemo(
     () => profile?.fullName || profile?.name || user?.displayName || "Student",

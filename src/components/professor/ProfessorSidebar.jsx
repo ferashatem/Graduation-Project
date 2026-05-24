@@ -5,6 +5,7 @@ import {
   HiDocumentText, HiHome, HiKey, HiLogout, HiPencilAlt, HiUserGroup,
 } from "react-icons/hi";
 import { clearStoredSession } from "../../auth/session";
+import { resetAuthUser } from "../../auth/useAuthUser";
 import logo from "../../assets/university-logo.png";
 import fallbackAvatar from "../../assets/imgs/profile.png";
 
@@ -24,9 +25,7 @@ function ProfessorSidebar({ open = false, onClose, onNavigate, profile, user }) 
     { label: "My Schedule",      to: "/prof/schedule",        icon: HiCalendar               },
     { label: "Attendance",       to: "/prof/attendance",      icon: HiUserGroup              },
     { label: "Assignments",      to: "/prof/assignments",     icon: HiClipboardList          },
-    { label: "Quizzes",          to: "/prof/quizzes",         icon: HiPencilAlt              },
     { label: "Exams",            to: "/prof/exams",           icon: HiClipboardList          },
-    { label: "Upload Exam PDF",  to: "/prof/exam-upload",     icon: HiDocumentText           },
     { label: "Complaint Reports",to: "/prof/complaints",      icon: HiClipboardList          },
     { label: "AI Assistant",     to: "/prof/chat",            icon: HiChat                   },
     { label: "Change Password",  to: "/prof/change-password", icon: HiKey                    },
@@ -39,6 +38,7 @@ function ProfessorSidebar({ open = false, onClose, onNavigate, profile, user }) 
 
   const handleLogout = useCallback(() => {
     clearStoredSession();
+    resetAuthUser();
     if (onClose) onClose();
     navigate("/signin", { replace: true });
   }, [navigate, onClose]);

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { HiChevronDown, HiChevronUp, HiCheckCircle, HiClock, HiUpload, HiX } from "react-icons/hi";
+import { HiChevronDown, HiChevronUp, HiCheckCircle, HiClock, HiUpload } from "react-icons/hi";
 import PageHeader from "../../components/common/PageHeader";
 import Loading from "../../components/common/Loading";
 import ErrorState from "../../components/common/ErrorState";

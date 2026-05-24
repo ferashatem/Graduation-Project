@@ -56,7 +56,7 @@ function YearsTable({ rows, loading, onEdit, onDelete, onManage, onManageSemeste
         ),
       },
     ],
-    [onDelete, onEdit, onManage]
+    [onDelete, onEdit, onManage, onManageSemesters]
   );
 
   return (

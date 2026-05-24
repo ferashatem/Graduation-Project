@@ -190,11 +190,11 @@ function SubjectFormDialog({ open, initialValues, onClose, onSubmit, submitting,
 // ─── Assign Doctor Dialog ─────────────────────────────────────────────────────
 function AssignDoctorDialog({ open, subject, colleges, onClose, onAssigned }) {
   const [selectedCollegeId, setSelectedCollegeId] = useState("");
-  const [deptIds, setDeptIds] = useState(new Set());
+  const [, setDeptIds] = useState(new Set());
   const [deptLoading, setDeptLoading] = useState(false);
 
   const [allDoctors, setAllDoctors] = useState([]);
-  const [doctorsLoading, setDoctorsLoading] = useState(false);
+  const [, setDoctorsLoading] = useState(false);
 
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [submitting, setSubmitting] = useState(false);

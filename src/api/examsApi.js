@@ -19,9 +19,16 @@ export const fetchExamsByOffering = async (offeringId) => {
   return list(payload);
 };
 
-// GET /api/exams/{id}/results  — all submissions for an exam
+// GET /api/exams/{id}/results  — all submissions for an exam (legacy by ID)
 export const fetchExamResults = async (examId) => {
   const res = await apiClient.get(`/exams/${examId}/results`);
+  const payload = res.data?.data ?? res.data;
+  return list(payload);
+};
+
+// GET /api/exams/by-code/{code}/results  — preferred by-code route
+export const fetchExamResultsByCode = async (code) => {
+  const res = await apiClient.get(`/exams/by-code/${code}/results`);
   const payload = res.data?.data ?? res.data;
   return list(payload);
 };
@@ -47,12 +54,26 @@ export const previewQuestionsFromPdf = async ({ file, questionCount = 10, diffic
   form.append("questionCount", questionCount);
   form.append("difficulty", difficulty);
   form.append("examType", examType);
+
+  console.log("📤 [previewQuestionsFromPdf] REQUEST", {
+    endpoint: "/exams/preview-questions-from-pdf",
+    file: file?.name,
+    fileSize: file?.size,
+    questionCount,
+    difficulty,
+    examType,
+  });
+
   const res = await apiClient.post("/exams/preview-questions-from-pdf", form, {
     headers: { "Content-Type": "multipart/form-data" },
     onUploadProgress: (e) => {
       if (onProgress && e.total) onProgress(Math.round((e.loaded * 100) / e.total));
     },
   });
+
+  console.log("📥 [previewQuestionsFromPdf] RESPONSE status:", res.status);
+  console.log("📥 [previewQuestionsFromPdf] RESPONSE data:", res.data);
+
   const payload = res.data?.data ?? res.data;
   return Array.isArray(payload) ? payload : [];
 };
@@ -71,15 +92,36 @@ export const uploadExamPdf = async (subjectOfferingId, file, onProgress) => {
   return res.data?.data ?? res.data;
 };
 
-// POST /api/exams/{id}/auto-grade  — auto-grade MCQ + TrueFalse
+// POST /api/exams/{id}/auto-grade  — auto-grade MCQ + TrueFalse (legacy by ID)
 export const autoGradeExam = async (examId) => {
   const res = await apiClient.post(`/exams/${examId}/auto-grade`);
   return res.data?.data ?? res.data;
 };
 
-// POST /api/exams/grade-submission  — manually grade one submission (Essay)
+// POST /api/exams/by-code/{code}/auto-grade  — preferred by-code route
+export const autoGradeExamByCode = async (code) => {
+  const res = await apiClient.post(`/exams/by-code/${code}/auto-grade`);
+  return res.data?.data ?? res.data;
+};
+
+// POST /api/exams/grade-submission  — legacy: grade whole submission with one score
 export const gradeSubmission = async ({ submissionId, score }) => {
   const res = await apiClient.post("/exams/grade-submission", { submissionId, score });
+  return res.data?.data ?? res.data;
+};
+
+// GET /api/submissions/{submissionId}  — full per-question breakdown for doctor
+export const fetchSubmission = async (submissionId) => {
+  const res = await apiClient.get(`/submissions/${submissionId}`);
+  return res.data?.data ?? res.data;
+};
+
+// POST /api/submissions/{submissionId}/grade-question  — essay grading per question
+export const gradeQuestion = async ({ submissionId, questionId, score, comment }) => {
+  const res = await apiClient.post(
+    `/submissions/${submissionId}/grade-question`,
+    { questionId, score, comment: comment ?? "" }
+  );
   return res.data?.data ?? res.data;
 };
 
@@ -141,5 +183,25 @@ export const fetchExamByCode = async (code) => {
 // GET /api/exams/{id}/analytics  — Doctor views statistics for one exam
 export const fetchExamAnalytics = async (examId) => {
   const res = await apiClient.get(`/exams/${examId}/analytics`);
+  return res.data?.data ?? res.data;
+};
+
+// GET /api/exams/{id}/session  — restore student's in-progress session (saved answers)
+export const fetchExamSession = async (examId) => {
+  const res = await apiClient.get(`/exams/${examId}/session`);
+  return res.data?.data ?? res.data;
+};
+
+// POST /api/exams/{id}/save-progress  — auto-save student answers mid-exam
+export const saveExamProgress = async (examId, answers) => {
+  const res = await apiClient.post(`/exams/${examId}/save-progress`, {
+    answers: answers.map((a) => ({ questionId: a.questionId, answerText: a.answerText ?? "" })),
+  });
+  return res.data?.data ?? res.data;
+};
+
+// POST /api/exams/by-code/{code}/restore  — restore a closed exam (Doctor)
+export const restoreExamByCode = async (code) => {
+  const res = await apiClient.post(`/exams/by-code/${code}/restore`);
   return res.data?.data ?? res.data;
 };

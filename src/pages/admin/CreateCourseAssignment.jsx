@@ -29,12 +29,12 @@ function CreateCourseAssignment() {
   }, []);
 
   // Keep collection refs stable for hook dependencies and caching.
-  const coursesRef = useMemo(() => collection(db, "allCourses"), [db]);
-  const usersRef = useMemo(() => collection(db, "users"), [db]);
+  const coursesRef = useMemo(() => collection(db, "allCourses"), []);
+  const usersRef = useMemo(() => collection(db, "users"), []);
 
   const assignmentsRef = useMemo(
     () => collection(db, "courseAssignments"),
-    [db]
+    []
   );
 
   const [courses, setCourses] = useState([]);
@@ -210,6 +210,7 @@ function CreateCourseAssignment() {
       selectedProfessorIds,
       termId,
       termLabel,
+      navigate,
     ]
   );
 

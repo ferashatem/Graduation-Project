@@ -2,6 +2,7 @@ import { useCallback, useMemo } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { HiBookOpen, HiChat, HiHome, HiKey, HiLogout } from "react-icons/hi";
 import { clearStoredSession } from "../../auth/session";
+import { resetAuthUser } from "../../auth/useAuthUser";
 import logo from "../../assets/university-logo.png";
 import fallbackAvatar from "../../assets/imgs/profile.png";
 
@@ -39,6 +40,7 @@ function AssistantSidebar({ open = false, onClose, onNavigate, profile, user }) 
 
   const handleLogout = useCallback(() => {
     clearStoredSession();
+    resetAuthUser();
     if (onClose) onClose();
     navigate("/signin", { replace: true });
   }, [navigate, onClose]);

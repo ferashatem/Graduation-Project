@@ -59,9 +59,13 @@ export function NotificationProvider({ children }) {
     syncFromServer();
 
     const connection = new signalR.HubConnectionBuilder()
-      .withUrl(HUB_URL, { accessTokenFactory: () => getStoredAccessToken() })
+      .withUrl(HUB_URL, {
+        accessTokenFactory: () => getStoredAccessToken(),
+        // Railway doesn't support WebSocket upgrades — use long polling
+        transport: signalR.HttpTransportType.LongPolling,
+      })
       .withAutomaticReconnect()
-      .configureLogging(signalR.LogLevel.Warning)
+      .configureLogging(signalR.LogLevel.None)
       .build();
 
     connection.on("ReceiveNotification", (notification) => {

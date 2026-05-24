@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert } from "@mui/material";
+import { HiOutlineSun, HiOutlineMoon } from "react-icons/hi";
 import ChatInput from "./ChatInput";
 import ChatMessage from "./ChatMessage";
 import {
@@ -11,6 +12,8 @@ import {
 } from "../../../firebase/courseAiApi";
 import { fetchMaterialsForCourse } from "../../../firebase/materialsApi";
 import { getErrorMessage } from "../../../utils/errorHelpers";
+
+const COURSE_AI_THEME_KEY = "course-ai-theme";
 
 const toTimestampValue = (timestamp) => {
   if (!timestamp) return 0;
@@ -73,6 +76,16 @@ function AIChat({ professorId, courseDocId, courseName }) {
   const [materialsLoading, setMaterialsLoading] = useState(true);
   const [materialsError, setMaterialsError] = useState("");
   const [selectedLectureId, setSelectedLectureId] = useState("");
+  const [dark, setDark] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem(COURSE_AI_THEME_KEY) === "dark";
+  });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem(COURSE_AI_THEME_KEY, dark ? "dark" : "light");
+    }
+  }, [dark]);
 
   const listRef = useRef(null);
 
@@ -273,18 +286,31 @@ function AIChat({ professorId, courseDocId, courseName }) {
   }, [orderedMessages.length]);
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50">
-      <div className="border-b border-slate-200 px-4 py-3">
-        <h3 className="text-sm font-semibold text-slate-700">AI Assistant</h3>
-        <p className="text-xs text-slate-500">
-          Ask questions about {courseName || "this course"} and generate quizzes.
-        </p>
+    <div className={dark ? "dark" : ""}>
+    <div className="rounded-2xl border border-[#ececec] dark:border-[#2f2f2f] bg-white dark:bg-[#212121] overflow-hidden">
+      <div className="border-b border-[#ececec] dark:border-[#2f2f2f] px-4 py-3">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-semibold text-[#0d0d0d] dark:text-[#ececec]">AI Assistant</h3>
+            <p className="text-xs text-[#8e8e8e] dark:text-[#9b9b9b]">
+              Ask questions about {courseName || "this course"} and generate quizzes.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setDark((v) => !v)}
+            className="p-1.5 rounded-md hover:bg-[#f4f4f4] dark:hover:bg-[#2f2f2f] text-[#5d5d5d] dark:text-[#b4b4b4] transition shrink-0"
+            title={dark ? "Switch to light mode" : "Switch to dark mode"}
+          >
+            {dark ? <HiOutlineSun className="h-4 w-4" /> : <HiOutlineMoon className="h-4 w-4" />}
+          </button>
+        </div>
         <div className="mt-3">
-          <label className="text-xs font-semibold text-slate-600">
+          <label className="text-xs font-semibold text-[#5d5d5d] dark:text-[#b4b4b4]">
             Select lecture
           </label>
           <select
-            className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm"
+            className="mt-2 w-full rounded-xl border border-[#ececec] dark:border-[#3f3f3f] bg-white dark:bg-[#2f2f2f] px-3 py-2 text-sm text-[#0d0d0d] dark:text-[#ececec] shadow-sm"
             value={selectedLectureId}
             onChange={(event) => setSelectedLectureId(event.target.value)}
             disabled={materialsLoading || lectureOptions.length === 0}
@@ -314,16 +340,19 @@ function AIChat({ professorId, courseDocId, courseName }) {
 
       <div
         ref={listRef}
-        className="max-h-[360px] min-h-[240px] overflow-y-auto px-4 py-4"
+        className="max-h-[420px] min-h-[280px] overflow-y-auto px-4 py-6"
       >
         {conversationLoading ? (
-          <p className="text-sm text-slate-500">Loading conversation…</p>
+          <p className="text-sm text-[#8e8e8e] dark:text-[#9b9b9b]">Loading conversation…</p>
         ) : orderedMessages.length === 0 ? (
-          <p className="text-sm text-slate-500">
-            No messages yet. Ask the assistant to get started.
-          </p>
+          <div className="flex flex-col items-center justify-center text-center py-10">
+            <p className="text-[#0d0d0d] dark:text-[#ececec] font-semibold text-lg">How can I help with this lecture?</p>
+            <p className="text-[#8e8e8e] dark:text-[#9b9b9b] text-sm mt-1">
+              Ask anything or generate a quiz.
+            </p>
+          </div>
         ) : (
-          <div className="space-y-3">
+          <div className="mx-auto max-w-3xl space-y-6">
             {orderedMessages.map((message) => (
               <ChatMessage
                 key={message.id}
@@ -354,6 +383,7 @@ function AIChat({ professorId, courseDocId, courseName }) {
           !selectedLecture
         }
       />
+    </div>
     </div>
   );
 }

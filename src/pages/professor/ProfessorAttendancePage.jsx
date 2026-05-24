@@ -62,8 +62,6 @@ function ProfessorAttendancePage() {
   if (offerLoad) return <Loading label="Loading your offerings…" />;
   if (offerErr)  return <ErrorState message={offerErr} />;
 
-  const selectedOffering = offerings.find((o) => (o.id ?? o.subjectOfferingId) === selectedId);
-
   return (
     <div className="space-y-8">
       <PageHeader title="Attendance Sessions" />

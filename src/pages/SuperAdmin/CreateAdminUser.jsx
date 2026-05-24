@@ -136,11 +136,11 @@ function CreateAdminUser() {
 
   const deleteUserAccount = useMemo(
     () => httpsCallable(functions, "deleteUserAccount"),
-    [functions],
+    [],
   );
   const editUserAccount = useMemo(
     () => httpsCallable(functions, "editUserAccount"),
-    [functions],
+    [],
   );
 
   const isSuperAdmin = userRole === "super_admin";
@@ -167,14 +167,6 @@ function CreateAdminUser() {
   const isCollegeMissing = useMemo(
     () => roleNeedsCollege && !collegesLoading && collegeOptions.length === 0,
     [roleNeedsCollege, collegesLoading, collegeOptions.length],
-  );
-  const isCollegeSelectionInvalid = useMemo(
-    () =>
-      roleNeedsCollege &&
-      !collegesLoading &&
-      collegeOptions.length > 0 &&
-      !collegeId,
-    [roleNeedsCollege, collegesLoading, collegeOptions.length, collegeId],
   );
   const isCreateDisabled = useMemo(() => {
     if (!roleNeedsCollege) return loading;
@@ -440,7 +432,7 @@ function CreateAdminUser() {
       setActionSuccess("");
       setIsEditModalOpen(true);
     },
-    [isAdmin],
+    [isAdmin, colleges.length, loadColleges],
   );
 
   const closeEditModal = useCallback(() => {

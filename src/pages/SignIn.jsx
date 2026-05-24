@@ -8,6 +8,7 @@ import {
   getRoleHomePath,
   persistAuthSession,
 } from "../auth/session";
+import { refreshAuthUser, resetAuthUser } from "../auth/useAuthUser";
 
 import BigLogo from "../assets/university-logo.png";
 
@@ -54,10 +55,13 @@ function SignIn() {
         }
 
         clearStoredSession();
+        resetAuthUser();
         const session = persistAuthSession(json, {
           email,
           fullName: email.split("@")[0],
         });
+
+        await refreshAuthUser();
 
         if (authPayload.requiresPasswordChange) {
           navigate("/change-password", { replace: true });

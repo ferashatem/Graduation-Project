@@ -13,7 +13,7 @@ import { useColleges } from "../hooks/useColleges";
 
 function CollegesPage() {
   const navigate = useNavigate();
-  const { colleges, loading, error, hasUniversity, reload, addCollege, updateCollege, deleteCollege } =
+  const { colleges, loading, error, reload, addCollege, updateCollege, deleteCollege } =
     useColleges();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(null);

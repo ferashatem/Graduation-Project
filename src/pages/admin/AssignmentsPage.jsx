@@ -40,7 +40,7 @@ const resolveCourseName = (assignment) =>
   "Untitled course";
 
 function AssignmentsPage() {
-  const usersRef = useMemo(() => collection(db, USERS_COLLECTION), [db]);
+  const usersRef = useMemo(() => collection(db, USERS_COLLECTION), []);
 
   const [assignments, setAssignments] = useState([]);
   const [professors, setProfessors] = useState([]);
@@ -132,7 +132,7 @@ function AssignmentsPage() {
       isActive = false;
       unsubscribe();
     };
-  }, [auth]);
+  }, []);
 
   const canManageAssignments = useMemo(
     () => EDITOR_ROLES.has(currentUser.role),

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Box, Tab, Tabs } from "@mui/material";
+import { Tab, Tabs } from "@mui/material";
 import { useState } from "react";
 import PageHeader from "../../../components/common/PageHeader";
 import Loading from "../../../components/common/Loading";

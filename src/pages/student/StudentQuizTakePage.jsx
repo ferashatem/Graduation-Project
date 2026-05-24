@@ -1,22 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { HiArrowLeft, HiClock } from "react-icons/hi";
-import { fetchExamById, fetchMyVariant, submitExam } from "../../api/examsApi";
+import { fetchExamSession, saveExamProgress, submitExam } from "../../api/examsApi";
 import { recordProctoringEvent } from "../../api/proctoringApi";
 import { getErrorMessage } from "../../utils/errorHelpers";
 
 // ── Countdown ─────────────────────────────────────────────────────────────────
-function useCountdown(endTime) {
+function useCountdown(endEpochMs) {
   const [remaining, setRemaining] = useState(null);
 
   useEffect(() => {
-    if (!endTime) return;
-    const end = new Date(endTime).getTime();
-    const tick = () => setRemaining(Math.max(0, end - Date.now()));
+    if (!endEpochMs) return;
+    const tick = () => setRemaining(Math.max(0, endEpochMs - Date.now()));
     tick();
     const t = setInterval(tick, 1000);
     return () => clearInterval(t);
-  }, [endTime]);
+  }, [endEpochMs]);
 
   return remaining;
 }
@@ -44,68 +43,77 @@ function StudentQuizTakePage() {
   const { quizId } = useParams();
   const navigate = useNavigate();
 
-  const [exam,        setExam]       = useState(null);
+  const [session,     setSession]    = useState(null);
   const [questions,   setQuestions]  = useState([]);
   const [loading,     setLoading]    = useState(true);
   const [error,       setError]      = useState("");
-  const [answers,     setAnswers]    = useState({});  // { questionId: answerText }
+  const [answers,     setAnswers]    = useState({});
   const [submitting,  setSubmitting] = useState(false);
   const autoSubmittedRef = useRef(false);
 
-  const remaining = useCountdown(exam?.endTime);
-  const submissionIdRef = useRef(null);
+  // endEpochMs = Date.now() + secondsRemaining * 1000 (set once on load)
+  const [endEpochMs, setEndEpochMs] = useState(null);
+  const remaining = useCountdown(endEpochMs);
 
-  // Proctoring: record tab-switch / visibility events during exam
+  // Proctoring: tab-switch / blur events
   useEffect(() => {
-    if (!exam) return;
-
-    const sendEvent = (eventType, details = "") => {
-      recordProctoringEvent({
-        examId: quizId,
-        submissionId: submissionIdRef.current,
-        eventType,
-        details,
-      }).catch(() => {});
-    };
-
-    const onVisibilityChange = () => {
-      if (document.hidden) sendEvent("TabSwitch", "Tab hidden");
-    };
-    const onBlur = () => sendEvent("WindowBlur", "Window lost focus");
-
-    document.addEventListener("visibilitychange", onVisibilityChange);
+    if (!session) return;
+    const send = (type, details = "") =>
+      recordProctoringEvent({ examId: quizId, eventType: type, details }).catch(() => {});
+    const onVisibility = () => { if (document.hidden) send("TabSwitch", "Tab hidden"); };
+    const onBlur = () => send("WindowBlur", "Window lost focus");
+    document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("blur", onBlur);
     return () => {
-      document.removeEventListener("visibilitychange", onVisibilityChange);
+      document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("blur", onBlur);
     };
-  }, [exam, quizId]);
+  }, [session, quizId]);
 
+  // Load session from backend
   useEffect(() => {
     setLoading(true);
-    fetchExamById(quizId)
-      .then(async (data) => {
+    fetchExamSession(quizId)
+      .then((data) => {
         if (!data) { setError("Exam not found."); return; }
-        if (data.status !== "Published" && data.status !== 1) {
-          setError("This exam is not available."); return;
-        }
-        setExam(data);
 
-        // For randomized exams, fetch the student's personal variant
-        if (data.isRandomized) {
-          try {
-            const variant = await fetchMyVariant(quizId);
-            setQuestions(variant);
-          } catch {
-            setQuestions(data.questions ?? []);
-          }
-        } else {
-          setQuestions(data.questions ?? []);
+        // Already submitted → go straight to results
+        if (data.isSubmitted) {
+          navigate(`/student/quizzes/${quizId}/result`, { replace: true });
+          return;
+        }
+
+        setSession(data);
+        setQuestions(data.questions ?? []);
+
+        // Restore draft answers  (answerText is the actual text, not index)
+        if (data.draftAnswers?.length) {
+          const saved = {};
+          data.draftAnswers.forEach((a) => { saved[a.questionId] = a.answerText ?? ""; });
+          setAnswers(saved);
+        }
+
+        // Calculate end time from secondsRemaining (more accurate than endTime string)
+        if (data.secondsRemaining != null) {
+          setEndEpochMs(Date.now() + data.secondsRemaining * 1000);
+        } else if (data.endTime) {
+          setEndEpochMs(new Date(data.endTime).getTime());
         }
       })
       .catch((err) => setError(getErrorMessage(err)))
       .finally(() => setLoading(false));
-  }, [quizId]);
+  }, [quizId, navigate]);
+
+  // Auto-save every 30 s
+  useEffect(() => {
+    if (!session || questions.length === 0) return;
+    const save = () => {
+      const list = questions.map((q) => ({ questionId: q.id, answerText: answers[q.id] ?? "" }));
+      saveExamProgress(quizId, list).catch(() => {});
+    };
+    const t = setInterval(save, 30_000);
+    return () => clearInterval(t);
+  }, [session, questions, answers, quizId]);
 
   const handleSubmit = useCallback(async (auto = false) => {
     if (submitting) return;
@@ -122,22 +130,22 @@ function StudentQuizTakePage() {
       setError(getErrorMessage(err));
       setSubmitting(false);
     }
-  }, [exam, questions, answers, quizId, submitting, navigate]);
+  }, [questions, answers, quizId, submitting, navigate]);
 
   // Auto-submit when timer hits zero
   useEffect(() => {
-    if (remaining === 0 && exam && !autoSubmittedRef.current) {
+    if (remaining === 0 && session && !autoSubmittedRef.current) {
       autoSubmittedRef.current = true;
       handleSubmit(true);
     }
-  }, [remaining, exam, handleSubmit]);
+  }, [remaining, session, handleSubmit]);
 
   const answeredCount  = useMemo(() => Object.values(answers).filter(Boolean).length, [answers]);
   const totalQuestions = questions.length;
 
   if (loading) return <div className="py-12 text-center text-sm text-slate-500">Loading exam…</div>;
   if (error)   return <div className="rounded-2xl bg-red-50 p-6 text-sm text-red-700">{error}</div>;
-  if (!exam)   return null;
+  if (!session) return null;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -149,19 +157,29 @@ function StudentQuizTakePage() {
             <HiArrowLeft className="h-5 w-5" />
           </button>
           <div>
-            <h1 className="text-base font-semibold text-slate-800">{exam.title}</h1>
+            <h1 className="text-base font-semibold text-slate-800">{session.title}</h1>
             <p className="text-xs text-slate-500">{answeredCount}/{totalQuestions} answered</p>
           </div>
         </div>
         <CountdownDisplay ms={remaining} />
       </div>
 
+      {/* Instructions */}
+      {session.instructions && (
+        <div className="rounded-2xl bg-blue-50 px-5 py-3 text-sm text-blue-700 ring-1 ring-blue-200">
+          {session.instructions}
+        </div>
+      )}
+
       {/* Questions */}
       <div className="space-y-4">
         {questions.map((q, idx) => {
           const qType = q.questionType ?? q.type ?? 0;
-          // Essay
-          if (qType === 2 || qType === "Essay") {
+          const isEssay = qType === 2 || qType === "Essay";
+          const isTF    = qType === 1 || qType === "TrueFalse";
+          const opts    = isTF ? ["True", "False"] : (q.options ?? []);
+
+          if (isEssay) {
             return (
               <div key={q.id} className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 space-y-3">
                 <div className="flex items-start justify-between gap-2">
@@ -181,8 +199,6 @@ function StudentQuizTakePage() {
             );
           }
 
-          // MCQ / True-False
-          const opts = qType === 1 || qType === "TrueFalse" ? ["True", "False"] : (q.options ?? []);
           return (
             <div key={q.id} className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 space-y-3">
               <div className="flex items-start justify-between gap-2">
@@ -204,14 +220,10 @@ function StudentQuizTakePage() {
                           ? "border-[#0b2c4a] bg-[#0b2c4a]/5 ring-1 ring-[#0b2c4a]/20"
                           : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
                       }`}>
-                      <input
-                        type="radio"
-                        name={`q-${q.id}`}
-                        value={opt}
+                      <input type="radio" name={`q-${q.id}`} value={opt}
                         checked={selected}
                         onChange={() => setAnswers((prev) => ({ ...prev, [q.id]: opt }))}
-                        className="accent-[#0b2c4a]"
-                      />
+                        className="accent-[#0b2c4a]" />
                       <span className="text-sm text-slate-700">{opt}</span>
                     </label>
                   );

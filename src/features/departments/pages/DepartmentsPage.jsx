@@ -14,7 +14,7 @@ import { getErrorMessage } from "../../../utils/errorHelpers";
 
 function DepartmentsPage() {
   const navigate = useNavigate();
-  const { collegeId, collegeCode, yearId } = useParams();
+  const { collegeId, yearId } = useParams();
   const [collegeMeta, setCollegeMeta] = useState({ name: "", code: "" });
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(null);

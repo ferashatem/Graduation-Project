@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
-  HiChevronDown, HiChevronUp, HiPlus, HiTrash, HiPencil,
+  HiPlus, HiTrash, HiPencil,
   HiCheckCircle, HiClock, HiSparkles, HiRefresh,
 } from "react-icons/hi";
 import PageHeader from "../../components/common/PageHeader";

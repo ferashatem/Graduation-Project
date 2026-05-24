@@ -1,7 +1,6 @@
 import {
   doc,
   serverTimestamp,
-  updateDoc,
   writeBatch,
 } from "firebase/firestore";
 import { db as appDb } from "../firebase/firebaseConfig";

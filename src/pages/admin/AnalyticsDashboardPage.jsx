@@ -19,7 +19,6 @@ import {
 import {
   HiAcademicCap,
   HiBookOpen,
-  HiExclamation,
   HiLibrary,
   HiUsers,
   HiUserGroup,

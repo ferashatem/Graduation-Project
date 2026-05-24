@@ -1,64 +1,43 @@
-import { useMemo } from "react";
-
-const formatDate = (timestamp) => {
-  if (!timestamp) return "";
-  if (typeof timestamp.toDate === "function") {
-    return timestamp.toDate().toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }
-  if (typeof timestamp.seconds === "number") {
-    return new Date(timestamp.seconds * 1000).toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }
-  if (timestamp instanceof Date) {
-    return timestamp.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }
-  return "";
-};
-
-function ChatMessage({ role, content, status, createdAt }) {
+function ChatMessage({ role, content, status }) {
   const isProfessor = role === "professor";
   const isProcessing = status === "processing";
   const isError = status === "error";
 
-  const timestampLabel = useMemo(() => formatDate(createdAt), [createdAt]);
-
-  const bubbleClasses = useMemo(() => {
-    if (isProfessor) {
-      return "bg-slate-900 text-white";
-    }
-    if (isError) {
-      return "bg-rose-50 text-rose-700 ring-1 ring-rose-200";
-    }
-    return "bg-white text-slate-700 ring-1 ring-slate-200";
-  }, [isError, isProfessor]);
+  if (isProfessor) {
+    return (
+      <div className="flex justify-end">
+        <div className="max-w-[75%] rounded-3xl bg-[#f4f4f4] dark:bg-[#323232] text-[#0d0d0d] dark:text-[#ececec] px-4 py-2.5 text-[15px] leading-relaxed whitespace-pre-wrap">
+          {content}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className={`flex ${isProfessor ? "justify-end" : "justify-start"}`}>
-      <div className="max-w-[80%] space-y-1">
-        <div className={`rounded-2xl px-4 py-3 text-sm ${bubbleClasses}`}>
-          {isProcessing && !content ? (
-            <span className="italic text-slate-400">AI is thinking…</span>
-          ) : (
-            <p className="whitespace-pre-wrap">{content}</p>
-          )}
-        </div>
-        {timestampLabel ? (
+    <div className="flex gap-3">
+      <div className="h-7 w-7 rounded-full bg-[#0d0d0d] dark:bg-[#ececec] flex items-center justify-center shrink-0 text-white dark:text-[#0d0d0d] text-[11px] font-semibold">
+        AI
+      </div>
+      <div className="flex-1 min-w-0 pt-0.5">
+        {isProcessing && !content ? (
+          <div className="flex items-center gap-1 pt-1">
+            {[0, 1, 2].map((i) => (
+              <span
+                key={i}
+                className="h-2 w-2 rounded-full bg-[#0d0d0d] dark:bg-[#ececec] animate-bounce"
+                style={{ animationDelay: `${i * 0.15}s` }}
+              />
+            ))}
+          </div>
+        ) : (
           <p
-            className={`text-[11px] ${
-              isProfessor ? "text-right text-slate-400" : "text-slate-400"
+            className={`whitespace-pre-wrap text-[15px] leading-relaxed ${
+              isError ? "text-rose-600 dark:text-rose-400" : "text-[#0d0d0d] dark:text-[#ececec]"
             }`}
           >
-            {timestampLabel}
+            {content}
           </p>
-        ) : null}
+        )}
       </div>
     </div>
   );

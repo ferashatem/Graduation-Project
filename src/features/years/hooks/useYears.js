@@ -56,7 +56,7 @@ export const useYears = (collegeId) => {
         return { ok: false, error: getErrorMessage(err) };
       }
     },
-    [collegeId, years]
+    [years]
   );
 
   const removeYear = useCallback(

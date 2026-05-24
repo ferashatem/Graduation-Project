@@ -5,7 +5,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 function ListNavBar({ isMobile, closeMenu, navItems = [] }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const cards = Array.isArray(navItems) ? navItems : [];
+  const cards = useMemo(() => Array.isArray(navItems) ? navItems : [], [navItems]);
 
   const normalizePath = useCallback((value) => {
     if (!value) return "";

@@ -101,6 +101,7 @@ apiClient.interceptors.response.use(
       return apiClient(originalRequest);
     } catch (refreshError) {
       clearStoredSession();
+      try { (await import("../auth/useAuthUser")).resetAuthUser(); } catch {}
       redirectToSignIn();
       throw refreshError;
     }

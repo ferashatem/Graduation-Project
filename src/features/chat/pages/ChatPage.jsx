@@ -1,15 +1,20 @@
 import { useEffect, useRef, useState } from "react";
-import { HiChat, HiPaperAirplane, HiPencilAlt, HiPlus, HiTrash } from "react-icons/hi";
+import { HiOutlinePencilAlt, HiOutlinePlus, HiOutlineTrash, HiOutlineMenuAlt2, HiOutlineSun, HiOutlineMoon } from "react-icons/hi";
+import { FiArrowUp } from "react-icons/fi";
 import { useChat } from "../hooks/useChat";
 
+const THEME_KEY = "chat-theme";
+
 function ConversationItem({ conv, active, onClick, onDelete }) {
-  const title = conv?.title || "Conversation";
+  const title = conv?.title || "New chat";
   const [hovered, setHovered] = useState(false);
 
   return (
     <div
-      className={`group flex items-center gap-1 rounded-xl transition ${
-        active ? "bg-white/90 shadow-sm ring-1 ring-white/70" : "hover:bg-white/60"
+      className={`group flex items-center gap-1 rounded-lg transition px-2 ${
+        active
+          ? "bg-[#ececec] dark:bg-[#2f2f2f]"
+          : "hover:bg-[#ececec] dark:hover:bg-[#2f2f2f]"
       }`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -17,98 +22,123 @@ function ConversationItem({ conv, active, onClick, onDelete }) {
       <button
         type="button"
         onClick={() => onClick(conv.id)}
-        className={`flex-1 text-left px-3 py-3 text-sm font-medium truncate ${
-          active ? "text-slate-900" : "text-slate-700"
-        }`}
+        className="flex-1 text-left py-2 text-sm text-[#0d0d0d] dark:text-[#ececec] truncate"
       >
-        <span className="flex items-center gap-2">
-          <HiChat className="h-4 w-4 shrink-0 opacity-60" />
-          <span className="truncate">{title}</span>
-        </span>
+        <span className="truncate block">{title}</span>
       </button>
       {hovered && (
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onDelete(conv.id); }}
-          className="shrink-0 p-1.5 mr-1 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition"
+          className="shrink-0 p-1 rounded-md text-[#5d5d5d] dark:text-[#9b9b9b] hover:text-red-500 hover:bg-white dark:hover:bg-[#3f3f3f] transition"
           title="Delete conversation"
         >
-          <HiTrash className="h-3.5 w-3.5" />
+          <HiOutlineTrash className="h-4 w-4" />
         </button>
       )}
     </div>
   );
 }
 
+function AssistantAvatar() {
+  return (
+    <div className="h-7 w-7 rounded-full bg-[#0d0d0d] dark:bg-[#ececec] flex items-center justify-center shrink-0 text-white dark:text-[#0d0d0d] text-[11px] font-semibold">
+      AI
+    </div>
+  );
+}
+
+function isUserMessage(msg) {
+  const raw = msg?.role ?? msg?.sender ?? msg?.senderType ?? msg?.from;
+  if (raw === 0 || raw === "0") return true;
+  if (typeof raw === "string") {
+    const v = raw.toLowerCase();
+    return v === "user" || v === "human" || v === "professor" || v === "student" || v === "me";
+  }
+  return false;
+}
+
 function ChatBubble({ msg, onSuggestionClick, onDelete }) {
-  const isUser = msg.role === "user";
+  const isUser = isUserMessage(msg);
   const text = msg.content ?? msg.message ?? "";
   const suggestions = !isUser && Array.isArray(msg.suggestions) ? msg.suggestions : [];
   const [hovered, setHovered] = useState(false);
 
+  if (isUser) {
+    return (
+      <div
+        className="flex justify-end group"
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      >
+        <div className="flex items-end gap-1.5 max-w-[75%]">
+          {hovered && (
+            <button
+              type="button"
+              onClick={() => onDelete?.(msg.id)}
+              className="p-1 rounded-md text-[#8e8e8e] hover:text-red-500 hover:bg-[#f4f4f4] dark:hover:bg-[#2f2f2f] transition mb-1"
+              title="Delete message"
+            >
+              <HiOutlineTrash className="h-3.5 w-3.5" />
+            </button>
+          )}
+          <div className="rounded-3xl bg-[#f4f4f4] dark:bg-[#323232] text-[#0d0d0d] dark:text-[#ececec] px-4 py-2.5 text-[15px] leading-relaxed whitespace-pre-wrap">
+            {text}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
-      className={`flex flex-col ${isUser ? "items-end" : "items-start"}`}
+      className="flex gap-3 group"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <div className="flex items-end gap-1">
-        {isUser && hovered && (
-          <button
-            type="button"
-            onClick={() => onDelete?.(msg.id)}
-            className="p-1 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition mb-1"
-            title="Delete message"
-          >
-            <HiTrash className="h-3.5 w-3.5" />
-          </button>
-        )}
-        <div
-          className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm ${
-            isUser
-              ? "bg-[#1d5fa3] text-white rounded-br-sm"
-              : "bg-white/90 text-slate-800 rounded-bl-sm ring-1 ring-slate-200/60"
-          }`}
-        >
+      <AssistantAvatar />
+      <div className="flex-1 min-w-0 pt-0.5">
+        <div className="text-[15px] leading-relaxed text-[#0d0d0d] dark:text-[#ececec] whitespace-pre-wrap">
           {text}
         </div>
-        {!isUser && hovered && (
+        {suggestions.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-3">
+            {suggestions.map((s, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => onSuggestionClick?.(s)}
+                className="text-xs px-3 py-1.5 rounded-full border border-[#e5e5e5] dark:border-[#4a4a4a] text-[#0d0d0d] dark:text-[#ececec] hover:bg-[#f4f4f4] dark:hover:bg-[#2f2f2f] transition"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
+        {hovered && (
           <button
             type="button"
             onClick={() => onDelete?.(msg.id)}
-            className="p-1 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition mb-1"
+            className="mt-2 p-1 rounded-md text-[#8e8e8e] hover:text-red-500 hover:bg-[#f4f4f4] dark:hover:bg-[#2f2f2f] transition"
             title="Delete message"
           >
-            <HiTrash className="h-3.5 w-3.5" />
+            <HiOutlineTrash className="h-3.5 w-3.5" />
           </button>
         )}
       </div>
-      {suggestions.length > 0 && (
-        <div className="flex flex-wrap gap-2 mt-2 max-w-[75%]">
-          {suggestions.map((s, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => onSuggestionClick?.(s)}
-              className="text-xs px-3 py-1.5 rounded-full bg-white/80 text-[#1d5fa3] ring-1 ring-[#1d5fa3]/30 hover:bg-[#1d5fa3] hover:text-white transition shadow-sm"
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
 
 function TypingDots() {
   return (
-    <div className="flex justify-start">
-      <div className="bg-white/90 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm ring-1 ring-slate-200/60 flex items-center gap-1">
+    <div className="flex gap-3">
+      <AssistantAvatar />
+      <div className="flex items-center gap-1 pt-2">
         {[0, 1, 2].map((i) => (
           <span
             key={i}
-            className="h-2 w-2 rounded-full bg-slate-400 animate-bounce"
+            className="h-2 w-2 rounded-full bg-[#0d0d0d] dark:bg-[#ececec] animate-bounce"
             style={{ animationDelay: `${i * 0.15}s` }}
           />
         ))}
@@ -135,12 +165,29 @@ export default function ChatPage() {
 
   const [input, setInput] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [dark, setDark] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem(THEME_KEY) === "dark";
+  });
   const bottomRef = useRef(null);
   const textareaRef = useRef(null);
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem(THEME_KEY, dark ? "dark" : "light");
+    }
+  }, [dark]);
+
+  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, sending]);
+
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 200) + "px";
+  }, [input]);
 
   const handleSend = async (overrideText) => {
     const text = overrideText ?? input;
@@ -159,127 +206,154 @@ export default function ChatPage() {
   const isEmpty = messages.length === 0 && !loadingMsgs;
 
   return (
-    <div className="flex h-[calc(100vh-64px)] overflow-hidden bg-gradient-to-br from-[#e6f7f1] via-[#edfff4] to-[#c7e8d7]">
-      {/* Sidebar */}
-      <aside
-        className={`flex flex-col bg-white/40 backdrop-blur-sm border-r border-white/60 transition-all duration-300 ${
-          sidebarOpen ? "w-64 min-w-[220px]" : "w-0 overflow-hidden"
-        }`}
-      >
-        <div className="flex items-center justify-between px-4 py-4 border-b border-white/60">
-          <span className="text-sm font-semibold text-slate-700 truncate">Conversations</span>
-          <button
-            type="button"
-            onClick={startNewConversation}
-            title="New conversation"
-            className="p-1.5 rounded-lg hover:bg-white/70 text-slate-600 transition"
-          >
-            <HiPlus className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-2 space-y-1">
-          {loadingConvs ? (
-            <p className="px-4 py-3 text-xs text-slate-500">Loading…</p>
-          ) : conversations.length === 0 ? (
-            <p className="px-4 py-3 text-xs text-slate-500">No conversations yet.</p>
-          ) : (
-            conversations.map((conv) => (
-              <ConversationItem
-                key={conv.id}
-                conv={conv}
-                active={conv.id === activeConversationId}
-                onClick={selectConversation}
-                onDelete={deleteConv}
-              />
-            ))
-          )}
-        </div>
-      </aside>
-
-      {/* Main chat area */}
-      <div className="flex flex-1 flex-col min-w-0">
-        {/* Chat header */}
-        <div className="flex items-center gap-3 border-b border-white/60 bg-white/40 backdrop-blur-sm px-4 py-3 shrink-0">
-          <button
-            type="button"
-            onClick={() => setSidebarOpen((v) => !v)}
-            className="p-1.5 rounded-lg hover:bg-white/70 text-slate-600 transition"
-            title="Toggle sidebar"
-          >
-            <HiPencilAlt className="h-4 w-4" />
-          </button>
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-[#0b2c4a] to-[#1d5fa3] flex items-center justify-center shadow">
-              <HiChat className="h-4 w-4 text-white" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-slate-800">AI Assistant</p>
-              <p className="text-xs text-slate-500">University Management System</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
-          {loadingMsgs ? (
-            <div className="flex items-center justify-center h-full">
-              <p className="text-slate-500 text-sm">Loading messages…</p>
-            </div>
-          ) : isEmpty ? (
-            <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
-              <div className="h-16 w-16 rounded-full bg-gradient-to-br from-[#0b2c4a] to-[#1d5fa3] flex items-center justify-center shadow-lg">
-                <HiChat className="h-8 w-8 text-white" />
-              </div>
-              <div>
-                <p className="text-slate-700 font-semibold text-lg">How can I help you today?</p>
-                <p className="text-slate-500 text-sm mt-1">
-                  Ask me anything about your courses, grades, or university info.
-                </p>
-              </div>
-            </div>
-          ) : (
-            messages.map((msg) => (
-              <ChatBubble key={msg.id} msg={msg} onSuggestionClick={handleSend} onDelete={deleteMsg} />
-            ))
-          )}
-
-          {sending && <TypingDots />}
-
-          {error && (
-            <p className="text-center text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">
-              {error}
-            </p>
-          )}
-
-          <div ref={bottomRef} />
-        </div>
-
-        {/* Input */}
-        <div className="shrink-0 border-t border-white/60 bg-white/40 backdrop-blur-sm px-4 py-3">
-          <div className="flex items-end gap-2 bg-white/80 rounded-2xl ring-1 ring-white/70 shadow-sm px-4 py-2">
-            <textarea
-              ref={textareaRef}
-              rows={1}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Type a message… (Enter to send)"
-              className="flex-1 resize-none bg-transparent text-sm text-slate-800 placeholder-slate-400 outline-none max-h-32 overflow-y-auto py-1"
-              style={{ lineHeight: "1.5" }}
-            />
+    <div className={`h-full ${dark ? "dark" : ""}`}>
+      <div className="flex h-full overflow-hidden bg-white dark:bg-[#212121]">
+        {/* Sidebar */}
+        <aside
+          className={`flex flex-col bg-[#f9f9f9] dark:bg-[#171717] border-r border-[#ececec] dark:border-[#2f2f2f] transition-all duration-200 ${
+            sidebarOpen ? "w-64 min-w-[240px]" : "w-0 overflow-hidden"
+          }`}
+        >
+          <div className="flex items-center justify-between px-3 py-3">
             <button
               type="button"
-              onClick={handleSend}
-              disabled={sending || !input.trim()}
-              className="shrink-0 p-2 rounded-xl bg-gradient-to-br from-[#0b2c4a] to-[#1d5fa3] text-white shadow transition hover:opacity-90 disabled:opacity-40"
+              onClick={() => setSidebarOpen(false)}
+              className="p-1.5 rounded-md hover:bg-[#ececec] dark:hover:bg-[#2f2f2f] text-[#5d5d5d] dark:text-[#b4b4b4] transition"
+              title="Close sidebar"
             >
-              <HiPaperAirplane className="h-4 w-4 rotate-90" />
+              <HiOutlineMenuAlt2 className="h-5 w-5" />
+            </button>
+            <button
+              type="button"
+              onClick={startNewConversation}
+              title="New chat"
+              className="p-1.5 rounded-md hover:bg-[#ececec] dark:hover:bg-[#2f2f2f] text-[#5d5d5d] dark:text-[#b4b4b4] transition"
+            >
+              <HiOutlinePencilAlt className="h-5 w-5" />
             </button>
           </div>
-          <p className="text-center text-xs text-slate-400 mt-2">
-            Shift+Enter for new line · Enter to send
-          </p>
+
+          <div className="px-3 pb-2">
+            <button
+              type="button"
+              onClick={startNewConversation}
+              className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-sm text-[#0d0d0d] dark:text-[#ececec] hover:bg-[#ececec] dark:hover:bg-[#2f2f2f] transition"
+            >
+              <HiOutlinePlus className="h-4 w-4" />
+              New chat
+            </button>
+          </div>
+
+          <div className="px-3 pt-2 pb-1">
+            <p className="text-xs font-medium text-[#8e8e8e] dark:text-[#9b9b9b] px-2">Chats</p>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-0.5">
+            {loadingConvs ? (
+              <p className="px-3 py-2 text-xs text-[#8e8e8e] dark:text-[#9b9b9b]">Loading…</p>
+            ) : conversations.length === 0 ? (
+              <p className="px-3 py-2 text-xs text-[#8e8e8e] dark:text-[#9b9b9b]">No conversations yet.</p>
+            ) : (
+              conversations.map((conv) => (
+                <ConversationItem
+                  key={conv.id}
+                  conv={conv}
+                  active={conv.id === activeConversationId}
+                  onClick={selectConversation}
+                  onDelete={deleteConv}
+                />
+              ))
+            )}
+          </div>
+        </aside>
+
+        {/* Main chat area */}
+        <div className="flex flex-1 flex-col min-w-0">
+          {/* Chat header */}
+          <div className="flex items-center gap-2 px-3 py-2.5 shrink-0">
+            {!sidebarOpen && (
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(true)}
+                className="p-1.5 rounded-md hover:bg-[#f4f4f4] dark:hover:bg-[#2f2f2f] text-[#5d5d5d] dark:text-[#b4b4b4] transition"
+                title="Open sidebar"
+              >
+                <HiOutlineMenuAlt2 className="h-5 w-5" />
+              </button>
+            )}
+            <p className="text-base font-semibold text-[#0d0d0d] dark:text-[#ececec]">AI Assistant</p>
+            <div className="ml-auto">
+              <button
+                type="button"
+                onClick={() => setDark((v) => !v)}
+                className="p-1.5 rounded-md hover:bg-[#f4f4f4] dark:hover:bg-[#2f2f2f] text-[#5d5d5d] dark:text-[#b4b4b4] transition"
+                title={dark ? "Switch to light mode" : "Switch to dark mode"}
+              >
+                {dark ? <HiOutlineSun className="h-5 w-5" /> : <HiOutlineMoon className="h-5 w-5" />}
+              </button>
+            </div>
+          </div>
+
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="mx-auto max-w-3xl px-4 py-6 space-y-6">
+              {loadingMsgs ? (
+                <div className="flex items-center justify-center py-20">
+                  <p className="text-[#8e8e8e] dark:text-[#9b9b9b] text-sm">Loading messages…</p>
+                </div>
+              ) : isEmpty ? (
+                <div className="flex flex-col items-center justify-center gap-3 text-center py-24">
+                  <p className="text-[#0d0d0d] dark:text-[#ececec] font-semibold text-2xl">How can I help you today?</p>
+                  <p className="text-[#8e8e8e] dark:text-[#9b9b9b] text-sm">
+                    Ask me anything about your courses, grades, or university info.
+                  </p>
+                </div>
+              ) : (
+                messages.map((msg) => (
+                  <ChatBubble key={msg.id} msg={msg} onSuggestionClick={handleSend} onDelete={deleteMsg} />
+                ))
+              )}
+
+              {sending && <TypingDots />}
+
+              {error && (
+                <p className="text-center text-xs text-red-500 bg-red-50 dark:bg-red-950/30 rounded-lg px-3 py-2">
+                  {error}
+                </p>
+              )}
+
+              <div ref={bottomRef} />
+            </div>
+          </div>
+
+          {/* Input */}
+          <div className="shrink-0 pb-4 px-4">
+            <div className="mx-auto max-w-3xl">
+              <div className="flex items-end gap-2 bg-[#f4f4f4] dark:bg-[#2f2f2f] rounded-3xl px-4 py-3 shadow-sm">
+                <textarea
+                  ref={textareaRef}
+                  rows={1}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Ask anything"
+                  className="flex-1 resize-none bg-transparent text-[15px] text-[#0d0d0d] dark:text-[#ececec] placeholder-[#8e8e8e] dark:placeholder-[#9b9b9b] outline-none max-h-[200px] overflow-y-auto py-1"
+                  style={{ lineHeight: "1.5" }}
+                />
+                <button
+                  type="button"
+                  onClick={handleSend}
+                  disabled={sending || !input.trim()}
+                  className="shrink-0 h-9 w-9 rounded-full bg-[#0d0d0d] dark:bg-[#ececec] text-white dark:text-[#0d0d0d] flex items-center justify-center transition hover:bg-[#2d2d2d] dark:hover:bg-white disabled:bg-[#d7d7d7] dark:disabled:bg-[#4a4a4a] dark:disabled:text-[#7a7a7a] disabled:cursor-not-allowed"
+                >
+                  <FiArrowUp className="h-4 w-4" />
+                </button>
+              </div>
+              <p className="text-center text-xs text-[#8e8e8e] dark:text-[#9b9b9b] mt-2">
+                AI can make mistakes. Check important info.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>

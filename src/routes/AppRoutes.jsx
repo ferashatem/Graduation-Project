@@ -42,9 +42,6 @@ import BulkImportUsersPage from "../pages/admin/BulkImportUsersPage";
 import RegulationsPage from "../pages/admin/RegulationsPage";
 import AssignmentsPage from "../pages/admin/AssignmentsPage";
 import CreateCourseAssignment from "../pages/admin/CreateCourseAssignment";
-import BuildingsList from "../pages/admin/BuildingsList";
-import BuildingDetails from "../pages/admin/BuildingDetails";
-import RoomSchedulePage from "../pages/admin/RoomSchedulePage";
 import AdminCourseDetailsPage from "../pages/admin/CourseDetailsPage";
 
 // Professor
@@ -165,13 +162,6 @@ function AppRoutes() {
           <Route path="assignments" element={<AssignmentsPage />} />
           <Route path="assignments/new" element={<CreateCourseAssignment />} />
 
-          {/* ── Campus ── */}
-          <Route path="campus-buildings" element={<BuildingsList />} />
-          <Route path="campus-buildings/:buildingId" element={<BuildingDetails />} />
-          <Route
-            path="campus-buildings/:buildingId/floors/:floorId/rooms/:roomId"
-            element={<RoomSchedulePage />}
-          />
 
           {/* ── Schedule ── */}
           <Route path="schedule" element={<AdminSchedulePage />} />

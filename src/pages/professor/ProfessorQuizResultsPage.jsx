@@ -123,7 +123,7 @@ function ProfessorQuizResultsPage() {
     return results.submissions ?? results.items ?? [];
   }, [results]);
 
-  const questions = exam?.questions ?? [];
+  const questions = useMemo(() => exam?.questions ?? [], [exam?.questions]);
 
   const stats = useMemo(() => {
     if (!submissions.length) return null;

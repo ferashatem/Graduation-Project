@@ -5,6 +5,7 @@ import {
   HiDocumentText, HiHome, HiKey, HiLogout, HiPencilAlt, HiChartBar, HiMap,
 } from "react-icons/hi";
 import { clearStoredSession } from "../../auth/session";
+import { resetAuthUser } from "../../auth/useAuthUser";
 import logo from "../../assets/university-logo.png";
 import fallbackAvatar from "../../assets/imgs/profile.png";
 
@@ -40,6 +41,7 @@ function StudentSidebar({ open = false, onClose, onNavigate, profile, user }) {
 
   const handleLogout = useCallback(() => {
     clearStoredSession();
+    resetAuthUser();
     if (onClose) onClose();
     navigate("/signin", { replace: true });
   }, [navigate, onClose]);

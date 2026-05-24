@@ -83,7 +83,7 @@ function BulkImportUsersPage() {
 
   const bulkCreateUsers = useMemo(
     () => httpsCallable(functions, "bulkCreateUsers"),
-    [functions],
+    [],
   );
 
   const validationRows = useMemo(

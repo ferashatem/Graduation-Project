@@ -26,19 +26,19 @@ function resolveTitle(pathname) {
 }
 
 function MainLayoutAdmin() {
-  const { user } = useAuthUser();
+  const { user, profile: meProfile, authLoading } = useAuthUser();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Profile built from localStorage — no Firestore needed
   const profile = useMemo(() => {
+    if (meProfile) return meProfile;
     if (!user) return null;
     return {
       fullName: user.displayName || "",
       email:    user.email       || "",
       id:       user.uid         || "",
     };
-  }, [user]);
+  }, [meProfile, user]);
 
   const pageTitle = useMemo(() => resolveTitle(location.pathname), [location.pathname]);
 
@@ -47,7 +47,7 @@ function MainLayoutAdmin() {
 
   return (
     <NotificationProvider>
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex h-screen overflow-hidden bg-slate-50">
       <AdminSidebar
         open={sidebarOpen}
         onClose={handleCloseSidebar}
@@ -65,7 +65,7 @@ function MainLayoutAdmin() {
           role="admin"
         />
         <main className="flex-1 overflow-y-auto p-4 ipad-portrait:p-6 ipad-pro-portrait:p-8">
-          <Outlet context={{ user, profile, profileLoading: false }} />
+          <Outlet context={{ user, profile, profileLoading: authLoading }} />
         </main>
       </div>
     </div>

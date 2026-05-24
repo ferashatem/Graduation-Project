@@ -350,7 +350,6 @@ function QuizCard({ quiz, onEdit, onDelete }) {
   };
 
   const examId = quiz.id ?? quiz.examId;
-  const examCode = quiz.code ?? quiz.examCode ?? examId;
 
   return (
     <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 space-y-3">

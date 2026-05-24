@@ -3,7 +3,6 @@ import { NavLink, useNavigate } from "react-router-dom";
 import {
   HiHome,
   HiAcademicCap,
-  HiOfficeBuilding,
   HiUsers,
   HiUpload,
   HiLogout,
@@ -23,6 +22,7 @@ import {
 } from "react-icons/hi";
 import apiClient from "../../api/apiClient";
 import { clearStoredSession } from "../../auth/session";
+import { resetAuthUser } from "../../auth/useAuthUser";
 import logo from "../../assets/university-logo.png";
 import fallbackAvatar from "../../assets/imgs/profile.png";
 
@@ -98,7 +98,6 @@ const ADMIN_SECTIONS = [
   {
     id: "settings", label: "Settings & Reports", icon: HiCog,
     items: [
-      { label: "Campus Buildings", to: "/admin/campus-buildings", icon: HiOfficeBuilding },
       { label: "Change Password",  to: "/admin/change-password",  icon: HiCog           },
     ],
   },
@@ -184,6 +183,7 @@ function AdminSidebar({ open = false, onClose, onNavigate, profile, user, role =
       if (refreshToken) await apiClient.post("/auth/logout", { refreshToken });
     } catch {}
     clearStoredSession();
+    resetAuthUser();
     if (onClose) onClose();
     navigate("/signin", { replace: true });
   }, [navigate, onClose]);

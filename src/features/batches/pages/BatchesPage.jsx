@@ -13,7 +13,7 @@ import { getDepartmentById } from "../../departments/api/departmentsApi";
 
 function BatchesPage() {
   const navigate = useNavigate();
-  const { deptId, deptCode } = useParams();
+  const { deptId } = useParams();
 
   const { batches, loading, error, reload, addBatch, updateBatch, deleteBatch } =
     useBatches(deptId);

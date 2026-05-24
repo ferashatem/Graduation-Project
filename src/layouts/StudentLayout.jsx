@@ -6,19 +6,20 @@ import StudentTopbar from "../components/student/StudentTopbar";
 import { NotificationProvider } from "../context/NotificationContext";
 
 function StudentLayout() {
-  const { user, authLoading } = useAuthUser();
+  const { user, profile: meProfile, authLoading } = useAuthUser();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Profile built from localStorage — no Firestore needed
+  // Prefer the rich /auth/me profile; fall back to a shim built from user fields.
   const profile = useMemo(() => {
+    if (meProfile) return meProfile;
     if (!user) return null;
     return {
       fullName: user.displayName || "",
       email:    user.email       || "",
       id:       user.uid         || "",
     };
-  }, [user]);
+  }, [meProfile, user]);
 
   const pageTitle = useMemo(() => {
     const path = location.pathname;
@@ -36,7 +37,7 @@ function StudentLayout() {
 
   return (
     <NotificationProvider>
-    <div className="flex min-h-screen bg-gray-100">
+    <div className="flex h-screen overflow-hidden bg-gray-100">
       <StudentSidebar
         open={sidebarOpen}
         onClose={handleCloseSidebar}

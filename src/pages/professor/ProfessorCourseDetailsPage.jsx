@@ -167,7 +167,7 @@ function EnrolledStudentsSection({ offeringId }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 function ProfessorCourseDetailsPage() {
   const { courseDocId } = useParams();
-  const { user, profile, profileLoading } = useOutletContext() || {};
+  const { user, profileLoading } = useOutletContext() || {};
   const navigate = useNavigate();
   const location = useLocation();
 

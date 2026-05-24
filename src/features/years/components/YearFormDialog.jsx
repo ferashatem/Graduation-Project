@@ -93,7 +93,7 @@ function YearFormDialog({
         isActive: values.isActive,
       });
     },
-    [onSubmit, validate, values.name, values.order]
+    [onSubmit, validate, values.name, values.order, values.isActive]
   );
 
   const handleClose = useCallback(() => {
