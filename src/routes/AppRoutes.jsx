@@ -97,6 +97,8 @@ import ProfessorExamsPage from "../pages/professor/ProfessorExamsPage";
 import ProfessorExamResultsPage from "../pages/professor/ProfessorExamResultsPage";
 import ProfessorAttendancePage from "../pages/professor/ProfessorAttendancePage";
 import ProfessorExamAnalyticsPage from "../pages/professor/ProfessorExamAnalyticsPage";
+import ProfessorAssignmentsPage from "../pages/professor/ProfessorAssignmentsPage";
+import StudentAssignmentsPage from "../pages/student/StudentAssignmentsPage";
 import ImportStudentsPage from "../features/students/pages/ImportStudentsPage";
 
 function AppRoutes() {
@@ -245,6 +247,7 @@ function AppRoutes() {
           <Route path="exams/:examId/results" element={<ProfessorExamResultsPage />} />
           <Route path="exams/:examId/analytics" element={<ProfessorExamAnalyticsPage />} />
           <Route path="attendance" element={<ProfessorAttendancePage />} />
+          <Route path="assignments" element={<ProfessorAssignmentsPage />} />
           <Route path="chat" element={<ChatPage />} />
           <Route path="change-password" element={<ForceChangePassword />} />
         </Route>
@@ -296,6 +299,7 @@ function AppRoutes() {
           <Route path="quizzes/:quizId/result" element={<StudentQuizResultPage />} />
           <Route path="grades" element={<StudentGradesPage />} />
           <Route path="attendance" element={<StudentAttendancePage />} />
+          <Route path="assignments" element={<StudentAssignmentsPage />} />
           <Route path="academic-status" element={<StudentAcademicStatusPage />} />
           <Route path="roadmap" element={<StudentRoadmapPage />} />
           <Route path="complaints" element={<StudentComplaintsPage />} />
