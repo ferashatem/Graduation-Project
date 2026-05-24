@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { HiArrowLeft, HiClock } from "react-icons/hi";
 import { fetchExamById, fetchMyVariant, submitExam } from "../../api/examsApi";
+import { recordProctoringEvent } from "../../api/proctoringApi";
 import { getErrorMessage } from "../../utils/errorHelpers";
 
 // ── Countdown ─────────────────────────────────────────────────────────────────
@@ -52,6 +53,33 @@ function StudentQuizTakePage() {
   const autoSubmittedRef = useRef(false);
 
   const remaining = useCountdown(exam?.endTime);
+  const submissionIdRef = useRef(null);
+
+  // Proctoring: record tab-switch / visibility events during exam
+  useEffect(() => {
+    if (!exam) return;
+
+    const sendEvent = (eventType, details = "") => {
+      recordProctoringEvent({
+        examId: quizId,
+        submissionId: submissionIdRef.current,
+        eventType,
+        details,
+      }).catch(() => {});
+    };
+
+    const onVisibilityChange = () => {
+      if (document.hidden) sendEvent("TabSwitch", "Tab hidden");
+    };
+    const onBlur = () => sendEvent("WindowBlur", "Window lost focus");
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("blur", onBlur);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("blur", onBlur);
+    };
+  }, [exam, quizId]);
 
   useEffect(() => {
     setLoading(true);

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { HiArrowLeft, HiCheckCircle, HiClock, HiPencil, HiRefresh, HiUser } from "react-icons/hi";
+import { HiArrowLeft, HiCheckCircle, HiClock, HiExclamation, HiPencil, HiRefresh, HiShieldExclamation, HiUser } from "react-icons/hi";
 import { fetchExamById, fetchExamResults, gradeSubmission } from "../../api/examsApi";
+import { flagSubmission, getExamProctoringsummary, getProctoringReport } from "../../api/proctoringApi";
 import { getErrorMessage } from "../../utils/errorHelpers";
 
 const fmtDate = (s) => { try { return new Date(s).toLocaleString(); } catch { return s ?? "—"; } };
@@ -86,8 +87,102 @@ function GradeEssayModal({ submission, open, onClose, onGraded }) {
   );
 }
 
+// ── ProctoringReportModal ─────────────────────────────────────────────────────
+function ProctoringReportModal({ submissionId, studentName, open, onClose, onFlag }) {
+  const [report, setReport] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [flagging, setFlagging] = useState(false);
+  const [reason, setReason] = useState("");
+
+  useEffect(() => {
+    if (!open || !submissionId) return;
+    setLoading(true);
+    getProctoringReport(submissionId)
+      .then(setReport)
+      .catch(() => setReport(null))
+      .finally(() => setLoading(false));
+  }, [open, submissionId]);
+
+  const handleFlag = async () => {
+    if (!reason.trim()) return;
+    setFlagging(true);
+    try {
+      await flagSubmission(submissionId, reason);
+      onFlag && onFlag(submissionId);
+      onClose();
+    } finally {
+      setFlagging(false);
+    }
+  };
+
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl space-y-4 p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-semibold text-slate-800 flex items-center gap-2">
+            <HiShieldExclamation className="h-5 w-5 text-amber-500" />
+            Proctoring Report
+          </h3>
+          <p className="text-xs text-slate-500">{studentName}</p>
+        </div>
+        {loading ? (
+          <p className="text-sm text-slate-500 text-center py-4">Loading…</p>
+        ) : report ? (
+          <div className="space-y-2 text-sm">
+            <div className="flex gap-4">
+              <div className="rounded-xl bg-amber-50 px-3 py-2 text-center flex-1">
+                <p className="text-xl font-bold text-amber-700">{report.tabSwitchCount ?? 0}</p>
+                <p className="text-xs text-slate-500">Tab Switches</p>
+              </div>
+              <div className="rounded-xl bg-red-50 px-3 py-2 text-center flex-1">
+                <p className="text-xl font-bold text-red-700">{report.totalEvents ?? 0}</p>
+                <p className="text-xs text-slate-500">Total Events</p>
+              </div>
+              <div className="rounded-xl bg-slate-50 px-3 py-2 text-center flex-1">
+                <p className={`text-xl font-bold ${report.isFlagged ? "text-red-600" : "text-emerald-600"}`}>
+                  {report.isFlagged ? "Flagged" : "Clean"}
+                </p>
+                <p className="text-xs text-slate-500">Status</p>
+              </div>
+            </div>
+            {report.events?.length > 0 && (
+              <div className="max-h-32 overflow-y-auto rounded-xl bg-slate-50 p-2 space-y-1">
+                {report.events.map((ev, i) => (
+                  <p key={i} className="text-xs text-slate-600">
+                    <span className="font-semibold">{ev.eventType}</span> — {new Date(ev.occurredAt).toLocaleTimeString()}
+                    {ev.details && <span className="text-slate-400"> · {ev.details}</span>}
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-slate-500 text-center py-4">No proctoring data available.</p>
+        )}
+        {!report?.isFlagged && (
+          <div className="space-y-2 border-t border-slate-100 pt-3">
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Flag Reason</label>
+            <input value={reason} onChange={(e) => setReason(e.target.value)}
+              placeholder="e.g. Multiple tab switches observed"
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-300" />
+            <button type="button" onClick={handleFlag} disabled={flagging || !reason.trim()}
+              className="w-full rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50">
+              {flagging ? "Flagging…" : "Flag Submission"}
+            </button>
+          </div>
+        )}
+        <button type="button" onClick={onClose}
+          className="w-full rounded-xl border border-slate-200 py-2 text-sm text-slate-600 hover:bg-slate-50">
+          Close
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── SubmissionRow ─────────────────────────────────────────────────────────────
-function SubmissionRow({ sub, hasEssay, onGrade }) {
+function SubmissionRow({ sub, hasEssay, onGrade, onViewProctoring }) {
   return (
     <tr className="border-t border-slate-100 hover:bg-slate-50 transition">
       <td className="px-4 py-3">
@@ -123,13 +218,20 @@ function SubmissionRow({ sub, hasEssay, onGrade }) {
         )}
       </td>
       <td className="px-4 py-3 text-right">
-        {hasEssay && (
-          <button type="button" onClick={() => onGrade(sub)}
-            className="flex items-center gap-1 rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 ml-auto">
-            <HiPencil className="h-3.5 w-3.5" />
-            {sub.isGraded ? "Re-grade" : "Grade"}
+        <div className="flex items-center justify-end gap-2">
+          <button type="button" onClick={() => onViewProctoring(sub)}
+            className="flex items-center gap-1 rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">
+            <HiShieldExclamation className="h-3.5 w-3.5" />
+            Proctoring
           </button>
-        )}
+          {hasEssay && (
+            <button type="button" onClick={() => onGrade(sub)}
+              className="flex items-center gap-1 rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">
+              <HiPencil className="h-3.5 w-3.5" />
+              {sub.isGraded ? "Re-grade" : "Grade"}
+            </button>
+          )}
+        </div>
       </td>
     </tr>
   );
@@ -139,11 +241,13 @@ function SubmissionRow({ sub, hasEssay, onGrade }) {
 function ProfessorExamResultsPage() {
   const { examId } = useParams();
 
-  const [exam,         setExam]         = useState(null);
-  const [submissions,  setSubmissions]  = useState([]);
-  const [loading,      setLoading]      = useState(true);
-  const [error,        setError]        = useState("");
-  const [gradeTarget,  setGradeTarget]  = useState(null);
+  const [exam,              setExam]              = useState(null);
+  const [submissions,       setSubmissions]       = useState([]);
+  const [loading,           setLoading]           = useState(true);
+  const [error,             setError]             = useState("");
+  const [gradeTarget,       setGradeTarget]       = useState(null);
+  const [proctoringTarget,  setProctoringTarget]  = useState(null);
+  const [procSummary,       setProcSummary]       = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true); setError("");
@@ -154,6 +258,8 @@ function ProfessorExamResultsPage() {
       ]);
       setExam(examData);
       setSubmissions(subs);
+      // Load proctoring summary in background
+      getExamProctoringsummary(examId).then(setProcSummary).catch(() => {});
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -236,6 +342,27 @@ function ProfessorExamResultsPage() {
             ))}
           </div>
 
+          {/* Proctoring Summary */}
+          {procSummary && (
+            <div className="rounded-2xl bg-amber-50 p-4 ring-1 ring-amber-200 space-y-2">
+              <div className="flex items-center gap-2 text-sm font-semibold text-amber-800">
+                <HiShieldExclamation className="h-5 w-5" />
+                Proctoring Summary
+              </div>
+              <div className="flex flex-wrap gap-3 text-xs text-amber-700">
+                <span className="rounded-full bg-amber-100 px-2.5 py-1">
+                  {procSummary.totalEvents ?? 0} total events
+                </span>
+                <span className="rounded-full bg-amber-100 px-2.5 py-1">
+                  {procSummary.flaggedCount ?? 0} flagged submissions
+                </span>
+                <span className="rounded-full bg-amber-100 px-2.5 py-1">
+                  {procSummary.tabSwitchCount ?? 0} tab switches
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* Submissions table */}
           {submissions.length === 0 ? (
             <div className="rounded-2xl bg-white p-8 text-center text-sm text-slate-500 shadow-sm ring-1 ring-slate-200">
@@ -257,7 +384,8 @@ function ProfessorExamResultsPage() {
                   {submissions.map((sub) => (
                     <SubmissionRow key={sub.id} sub={sub}
                       hasEssay={hasEssay}
-                      onGrade={setGradeTarget} />
+                      onGrade={setGradeTarget}
+                      onViewProctoring={setProctoringTarget} />
                   ))}
                 </tbody>
               </table>
@@ -271,6 +399,18 @@ function ProfessorExamResultsPage() {
         open={Boolean(gradeTarget)}
         onClose={() => setGradeTarget(null)}
         onGraded={handleGraded}
+      />
+
+      <ProctoringReportModal
+        submissionId={proctoringTarget?.id}
+        studentName={proctoringTarget?.studentName}
+        open={Boolean(proctoringTarget)}
+        onClose={() => setProctoringTarget(null)}
+        onFlag={(subId) => {
+          setSubmissions((prev) => prev.map((s) =>
+            s.id === subId ? { ...s, isFlagged: true } : s
+          ));
+        }}
       />
     </div>
   );

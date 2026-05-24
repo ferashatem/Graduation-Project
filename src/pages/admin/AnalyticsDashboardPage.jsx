@@ -19,11 +19,14 @@ import {
 import {
   HiAcademicCap,
   HiBookOpen,
+  HiExclamation,
   HiLibrary,
   HiUsers,
   HiUserGroup,
   HiCollection,
   HiClipboardList,
+  HiTrendingUp,
+  HiShieldExclamation,
 } from "react-icons/hi";
 import PageHeader from "../../components/common/PageHeader";
 import {
@@ -31,6 +34,9 @@ import {
   fetchStudentCountByDepartment,
   fetchDoctorWorkload,
   fetchTopEnrolledSubjects,
+  fetchAdminDashboard,
+  fetchAtRiskStudents,
+  fetchDepartmentComparison,
 } from "../../api/analyticsApi";
 import { getErrorMessage } from "../../utils/errorHelpers";
 
@@ -75,9 +81,12 @@ function SectionTitle({ children }) {
 
 function AnalyticsDashboardPage() {
   const [summary, setSummary] = useState(null);
+  const [adminDash, setAdminDash] = useState(null);
   const [deptStats, setDeptStats] = useState([]);
   const [doctorWorkload, setDoctorWorkload] = useState([]);
   const [topSubjects, setTopSubjects] = useState([]);
+  const [atRisk, setAtRisk] = useState([]);
+  const [deptComparison, setDeptComparison] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -96,6 +105,10 @@ function AnalyticsDashboardPage() {
         setDeptStats(depts);
         setDoctorWorkload(doctors);
         setTopSubjects(subjects);
+        // Secondary data — load in background, don't block initial render
+        fetchAdminDashboard().then(setAdminDash).catch(() => {});
+        fetchAtRiskStudents().then(setAtRisk).catch(() => {});
+        fetchDepartmentComparison().then(setDeptComparison).catch(() => {});
       } catch (err) {
         setError(getErrorMessage(err));
       } finally {
@@ -144,6 +157,19 @@ function AnalyticsDashboardPage() {
         <Grid item xs={6} sm={4} md={3}>
           <StatCard icon={HiUsers} label="Batches" value={summary?.totalBatches} color="#0f766e" />
         </Grid>
+        {adminDash && (
+          <>
+            <Grid item xs={6} sm={4} md={3}>
+              <StatCard icon={HiTrendingUp} label="Avg GPA" value={adminDash.avgGpa} color="#7c3aed" />
+            </Grid>
+            <Grid item xs={6} sm={4} md={3}>
+              <StatCard icon={HiShieldExclamation} label="At-Risk Students" value={adminDash.atRiskCount} color="#dc2626" />
+            </Grid>
+            <Grid item xs={6} sm={4} md={3}>
+              <StatCard icon={HiAcademicCap} label="Pass Rate %" value={adminDash.passRate != null ? `${adminDash.passRate}%` : null} color="#059669" />
+            </Grid>
+          </>
+        )}
       </Grid>
 
       {/* Students by Department */}
@@ -216,7 +242,7 @@ function AnalyticsDashboardPage() {
 
       {/* Doctor Workload */}
       <SectionTitle>Doctor Workload</SectionTitle>
-      <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3, mb: 4 }}>
+      <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3 }}>
         <Table size="small">
           <TableHead>
             <TableRow>
@@ -245,6 +271,85 @@ function AnalyticsDashboardPage() {
           </TableBody>
         </Table>
       </TableContainer>
+
+      {/* Department Comparison */}
+      {deptComparison.length > 0 && (
+        <>
+          <SectionTitle>Department Performance Comparison</SectionTitle>
+          <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3 }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell><strong>Department</strong></TableCell>
+                  <TableCell align="right"><strong>Avg GPA</strong></TableCell>
+                  <TableCell align="right"><strong>Pass Rate %</strong></TableCell>
+                  <TableCell align="right"><strong>Attendance %</strong></TableCell>
+                  <TableCell align="right"><strong>Students</strong></TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {deptComparison.map((row) => (
+                  <TableRow key={row.departmentName} hover>
+                    <TableCell>{row.departmentName}</TableCell>
+                    <TableCell align="right">
+                      <strong style={{ color: row.avgGpa >= 2.0 ? "#059669" : "#dc2626" }}>
+                        {row.avgGpa}
+                      </strong>
+                    </TableCell>
+                    <TableCell align="right">{row.passRate}%</TableCell>
+                    <TableCell align="right">{row.attendanceRate}%</TableCell>
+                    <TableCell align="right">{row.studentCount}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </>
+      )}
+
+      {/* At-Risk Students */}
+      {atRisk.length > 0 && (
+        <>
+          <SectionTitle>At-Risk Students</SectionTitle>
+          <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3, mb: 4 }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell><strong>Student</strong></TableCell>
+                  <TableCell><strong>Department</strong></TableCell>
+                  <TableCell align="right"><strong>GPA</strong></TableCell>
+                  <TableCell align="right"><strong>Attendance %</strong></TableCell>
+                  <TableCell align="right"><strong>Failing</strong></TableCell>
+                  <TableCell><strong>Risk</strong></TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {atRisk.map((row) => (
+                  <TableRow key={row.studentId} hover>
+                    <TableCell>
+                      <Typography variant="body2">{row.fullName}</Typography>
+                      <Typography variant="caption" color="text.secondary">{row.studentCode}</Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Chip label={row.departmentName || "—"} size="small" variant="outlined" />
+                    </TableCell>
+                    <TableCell align="right">{row.gpa ?? "—"}</TableCell>
+                    <TableCell align="right">{row.attendanceRate}%</TableCell>
+                    <TableCell align="right">{row.failingSubjects}</TableCell>
+                    <TableCell>
+                      <Chip
+                        label={row.riskLevel}
+                        size="small"
+                        color={row.riskLevel === "High" ? "error" : "warning"}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </>
+      )}
     </div>
   );
 }

@@ -72,6 +72,7 @@ const ADMIN_SECTIONS = [
       { label: "Doctors",         to: "/admin/doctors",         icon: HiAcademicCap },
       { label: "Register Doctor", to: "/admin/register-doctor", icon: HiPlusCircle  },
       { label: "Create Admin",    to: "/admin/create-admin",    icon: HiUsers       },
+      { label: "Manage Admins",   to: "/admin/admins",          icon: HiCog         },
     ],
   },
   {
@@ -89,8 +90,9 @@ const ADMIN_SECTIONS = [
   {
     id: "analytics", label: "Analytics & Reports", icon: HiChartBar,
     items: [
-      { label: "Analytics Dashboard", to: "/admin/analytics",     icon: HiChartBar },
-      { label: "Send Notifications",  to: "/admin/notifications", icon: HiBell     },
+      { label: "Analytics Dashboard", to: "/admin/analytics",     icon: HiChartBar      },
+      { label: "Send Notifications",  to: "/admin/notifications", icon: HiBell          },
+      { label: "Audit Logs",          to: "/admin/audit-logs",    icon: HiClipboardList },
     ],
   },
   {

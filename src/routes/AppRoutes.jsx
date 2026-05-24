@@ -89,6 +89,8 @@ import AdminComplaintsPage from "../features/complaints/pages/AdminComplaintsPag
 import AcademicBulkImportPage from "../pages/admin/AcademicBulkImportPage";
 import AnalyticsDashboardPage from "../pages/admin/AnalyticsDashboardPage";
 import NotificationsPage from "../pages/admin/NotificationsPage";
+import AdminsManagementPage from "../pages/admin/AdminsManagementPage";
+import AuditLogsPage from "../pages/admin/AuditLogsPage";
 import ExamUploadPage from "../pages/professor/ExamUploadPage";
 import AdminEnrollmentsPage from "../pages/admin/AdminEnrollmentsPage";
 import ProfessorExamsPage from "../pages/professor/ProfessorExamsPage";
@@ -180,6 +182,12 @@ function AppRoutes() {
 
           {/* ── Analytics ── */}
           <Route path="analytics" element={<AnalyticsDashboardPage />} />
+
+          {/* ── Admins Management ── */}
+          <Route path="admins" element={<AdminsManagementPage />} />
+
+          {/* ── Audit Logs ── */}
+          <Route path="audit-logs" element={<AuditLogsPage />} />
 
           {/* ── Enrollments ── */}
           <Route path="enrollments" element={<AdminEnrollmentsPage />} />
