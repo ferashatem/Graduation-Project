@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import PageHeader from "../../components/common/PageHeader";
 import Loading from "../../components/common/Loading";
 import ErrorState from "../../components/common/ErrorState";
-import apiClient from "../../api/apiClient";
+import { createSession } from "../../api/attendanceApi";
 import { getErrorMessage } from "../../utils/errorHelpers";
 import { fetchMySubjects } from "../../features/professor/api/professorBackendApi";
 
@@ -49,11 +49,7 @@ function ProfessorAttendancePage() {
     setCreating(true);
     setCreateErr("");
     try {
-      const res = await apiClient.post("/attendance/sessions", {
-        subjectOfferingId: selectedId,
-        notes: notes.trim() || null,
-      });
-      const data = res.data?.data ?? res.data;
+      const data = await createSession({ subjectOfferingId: selectedId, notes: notes.trim() || null });
       setSessions((prev) => [data, ...prev]);
       setNotes("");
     } catch (err) {

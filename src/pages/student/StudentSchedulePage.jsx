@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import PageHeader from "../../components/common/PageHeader";
 import Loading from "../../components/common/Loading";
 import ErrorState from "../../components/common/ErrorState";
 import {
-  fetchMySchedule,
-  fetchMyToday,
+  fetchStudentBatchId,
+  fetchBatchSchedule,
+  fetchBatchToday,
+  fetchBatchDay,
 } from "../../api/scheduleApi";
 import { getErrorMessage } from "../../utils/errorHelpers";
 
@@ -106,27 +108,28 @@ function StudentSchedulePage() {
   const [error, setError] = useState("");
   const [mode, setMode] = useState("today"); // "today" | "day" | "week"
   const [selectedDay, setSelectedDay] = useState(new Date().getDay());
+  const batchIdRef = useRef(null);
 
   const loadSchedule = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
+      // fetch batchId once and cache it
+      if (!batchIdRef.current) {
+        batchIdRef.current = await fetchStudentBatchId();
+      }
+      const batchId = batchIdRef.current;
+      if (!batchId) throw new Error("Could not determine your batch. Contact your administrator.");
+
       if (mode === "today") {
-        const data = await fetchMyToday();
+        const data = await fetchBatchToday(batchId);
+        setEntries(Array.isArray(data) ? data : []);
+      } else if (mode === "week") {
+        const data = await fetchBatchSchedule(batchId);
         setEntries(Array.isArray(data) ? data : []);
       } else {
-        const data = await fetchMySchedule();
-        const list = Array.isArray(data) ? data : [];
-        if (mode === "week") {
-          setEntries(list);
-        } else {
-          const dayLabel = DAYS.find((d) => d.number === selectedDay)?.label;
-          setEntries(
-            list.filter(
-              (e) => e.dayOfWeekNumber === selectedDay || e.dayOfWeek === dayLabel
-            )
-          );
-        }
+        const data = await fetchBatchDay(batchId, selectedDay);
+        setEntries(Array.isArray(data) ? data : []);
       }
     } catch (err) {
       setError(getErrorMessage(err, "Failed to load schedule."));

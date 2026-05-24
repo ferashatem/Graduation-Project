@@ -36,6 +36,14 @@ export const fetchMyToday = async () => {
   return norm(res);
 };
 
+// ── Student helpers (requires batchId from profile) ───────────────────────────
+
+export const fetchStudentBatchId = async () => {
+  const res = await apiClient.get("/students/me");
+  const data = res.data?.data ?? res.data;
+  return data?.batchId ?? data?.BatchId ?? null;
+};
+
 // ── Admin CRUD ────────────────────────────────────────────────────────────────
 
 export const createScheduleEntry = async (dto) => {
