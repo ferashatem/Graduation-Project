@@ -30,7 +30,15 @@ function MaterialsList({ offeringId }) {
     setLoading(true);
     getMaterialsByOffering(offeringId)
       .then((items) => { if (active) setMaterials(items); })
-      .catch((err) => { if (active) setError(getErrorMessage(err, "Failed to load materials.")); })
+      .catch((err) => {
+        if (!active) return;
+        const status = err?.response?.status;
+        if (status === 401 || status === 403) {
+          setMaterials([]);
+        } else {
+          setError(getErrorMessage(err, "Failed to load materials."));
+        }
+      })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [offeringId]);
@@ -84,7 +92,8 @@ function SubjectCard({ item }) {
   const sem     = item.semesterName ?? item.termName ?? "-";
   const dept    = item.departmentName                ?? "-";
   const credits = item.creditHours  ?? item.credits  ?? null;
-  const offeringId = item.id ?? item.subjectOfferingId ?? null;
+  // Prefer explicit offeringId/subjectOfferingId fields; fall back to id only if needed
+  const offeringId = item.subjectOfferingId ?? item.offeringId ?? item.id ?? null;
 
   const [showMaterials, setShowMaterials] = useState(false);
 
@@ -234,7 +243,10 @@ function StudentCoursesPage() {
   useEffect(() => {
     setEnrollmentsLoading(true);
     fetchMyEnrollments()
-      .then(setEnrollments)
+      .then((data) => {
+        console.log("📚 [enrollments] sample item:", data[0]);
+        setEnrollments(data);
+      })
       .catch(() => setEnrollments([]))
       .finally(() => setEnrollmentsLoading(false));
   }, [enrollKey]);

@@ -110,18 +110,24 @@ export const gradeSubmission = async ({ submissionId, score }) => {
   return res.data?.data ?? res.data;
 };
 
-// GET /api/submissions/{submissionId}  — full per-question breakdown for doctor
+// GET /api/exams/submissions/{submissionId}  — full per-question breakdown for doctor
 export const fetchSubmission = async (submissionId) => {
-  const res = await apiClient.get(`/submissions/${submissionId}`);
+  const res = await apiClient.get(`/exams/submissions/${submissionId}`);
   return res.data?.data ?? res.data;
 };
 
-// POST /api/submissions/{submissionId}/grade-question  — essay grading per question
+// POST /api/exams/submissions/{submissionId}/grade-question  — essay grading per question
 export const gradeQuestion = async ({ submissionId, questionId, score, comment }) => {
   const res = await apiClient.post(
-    `/submissions/${submissionId}/grade-question`,
+    `/exams/submissions/${submissionId}/grade-question`,
     { questionId, score, comment: comment ?? "" }
   );
+  return res.data?.data ?? res.data;
+};
+
+// POST /api/exams/submissions/{submissionId}/ai-grade-question/{questionId}
+export const aiGradeQuestion = async (submissionId, questionId) => {
+  const res = await apiClient.post(`/exams/submissions/${submissionId}/ai-grade-question/${questionId}`);
   return res.data?.data ?? res.data;
 };
 
@@ -167,10 +173,14 @@ export const fetchMySubmission = async (examId) => {
 
 // POST /api/exams/{examId}/submit
 export const submitExam = async (examId, answers) => {
-  const res = await apiClient.post(`/exams/${examId}/submit`, {
-    examId,
+  const payload = {
     answers: answers.map((a) => ({ questionId: a.questionId, answerText: a.answerText ?? a.answer ?? "" })),
-  });
+  };
+  console.log("📤 [submitExam] examId:", examId);
+  console.log("📤 [submitExam] payload:", JSON.stringify(payload, null, 2));
+  const res = await apiClient.post(`/exams/${examId}/submit`, payload);
+  console.log("📥 [submitExam] response status:", res.status);
+  console.log("📥 [submitExam] response data:", res.data);
   return res.data?.data ?? res.data;
 };
 

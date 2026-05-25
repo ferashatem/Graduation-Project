@@ -1,7 +1,11 @@
 import apiClient from "./apiClient";
 
-export const recordProctoringEvent = async (dto) => {
-  const res = await apiClient.post("/proctoring/event", dto);
+export const recordProctoringEvent = async ({ examId, eventType, details = "" }) => {
+  const res = await apiClient.post("/proctoring/event", {
+    ExamId:    examId,
+    EventType: eventType,
+    Details:   details,
+  });
   return res.data;
 };
 

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { HiArrowLeft, HiClock } from "react-icons/hi";
-import { fetchExamSession, saveExamProgress, submitExam } from "../../api/examsApi";
+import { fetchExamSession, fetchMyVariant, saveExamProgress, submitExam } from "../../api/examsApi";
 import { recordProctoringEvent } from "../../api/proctoringApi";
 import { getErrorMessage } from "../../utils/errorHelpers";
 
@@ -73,35 +73,43 @@ function StudentQuizTakePage() {
   // Load session from backend
   useEffect(() => {
     setLoading(true);
-    fetchExamSession(quizId)
-      .then((data) => {
+    const run = async () => {
+      try {
+        const data = await fetchExamSession(quizId);
         if (!data) { setError("Exam not found."); return; }
 
-        // Already submitted → go straight to results
         if (data.isSubmitted) {
           navigate(`/student/quizzes/${quizId}/result`, { replace: true });
           return;
         }
 
         setSession(data);
-        setQuestions(data.questions ?? []);
 
-        // Restore draft answers  (answerText is the actual text, not index)
+        if (data.isRandomized) {
+          const variant = await fetchMyVariant(quizId).catch(() => []);
+          setQuestions(variant.length > 0 ? variant : (data.questions ?? []));
+        } else {
+          setQuestions(data.questions ?? []);
+        }
+
         if (data.draftAnswers?.length) {
           const saved = {};
           data.draftAnswers.forEach((a) => { saved[a.questionId] = a.answerText ?? ""; });
           setAnswers(saved);
         }
 
-        // Calculate end time from secondsRemaining (more accurate than endTime string)
         if (data.secondsRemaining != null) {
           setEndEpochMs(Date.now() + data.secondsRemaining * 1000);
         } else if (data.endTime) {
           setEndEpochMs(new Date(data.endTime).getTime());
         }
-      })
-      .catch((err) => setError(getErrorMessage(err)))
-      .finally(() => setLoading(false));
+      } catch (err) {
+        setError(getErrorMessage(err));
+      } finally {
+        setLoading(false);
+      }
+    };
+    run();
   }, [quizId, navigate]);
 
   // Auto-save every 30 s
@@ -117,7 +125,12 @@ function StudentQuizTakePage() {
 
   const handleSubmit = useCallback(async (auto = false) => {
     if (submitting) return;
-    if (!auto && !window.confirm("Submit your exam? You cannot change answers after submission.")) return;
+    const unanswered = questions.filter((q) => !answers[q.id]?.trim()).length;
+    if (!auto && unanswered > 0) {
+      if (!window.confirm(`You have ${unanswered} unanswered question(s). Submit anyway?`)) return;
+    } else if (!auto) {
+      if (!window.confirm("Submit your exam? You cannot change answers after submission.")) return;
+    }
     setSubmitting(true);
     try {
       const answerList = questions.map((q) => ({

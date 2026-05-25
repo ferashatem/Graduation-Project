@@ -608,7 +608,7 @@ function ExamCard({ exam, onDelete, onRefresh }) {
     try {
       await updateExam(code, {
         title: exam.title,
-        type: exam.type,
+        type: TYPE_MAP[exam.type] ?? 0,
         startTime: exam.startTime,
         endTime: exam.endTime,
         status: STATUS_MAP[status] ?? exam.status,
@@ -629,16 +629,21 @@ function ExamCard({ exam, onDelete, onRefresh }) {
   };
 
   const handleDelete = async () => {
+    const status = exam.status ?? "Draft";
+    if (status === "Closed") {
+      alert("Cannot delete a closed exam. Restore it first or contact the admin.");
+      return;
+    }
     if (!window.confirm(`Delete exam "${exam.title}"?`)) return;
-    console.log("exam object:", exam);
-    console.log("code being sent:", code);
     setBusy(true);
     try { await onDelete(code); }
+    catch (err) { setError(getErrorMessage(err)); }
     finally { setBusy(false); }
   };
 
   const status = exam.status ?? "Draft";
   const totalMarks = exam.totalMarks ?? exam.questions?.reduce((s, q) => s + (q.mark ?? 0), 0) ?? 0;
+  const questionCount = exam.questionCount > 0 ? exam.questionCount : (exam.questions?.length ?? 0);
 
   return (
     <article className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 space-y-3">
@@ -658,9 +663,11 @@ function ExamCard({ exam, onDelete, onRefresh }) {
         <span className="rounded-full bg-slate-100 px-2.5 py-1">
           {exam.type ?? "—"}
         </span>
-        <span className="rounded-full bg-slate-100 px-2.5 py-1">
-          {exam.questions?.length ?? 0} questions
-        </span>
+        {questionCount > 0 ? (
+          <span className="rounded-full bg-slate-100 px-2.5 py-1">{questionCount} questions</span>
+        ) : totalMarks > 0 ? (
+          <span className="rounded-full bg-slate-100 px-2.5 py-1">— questions</span>
+        ) : null}
         {totalMarks > 0 && (
           <span className="rounded-full bg-slate-100 px-2.5 py-1">{totalMarks} marks</span>
         )}

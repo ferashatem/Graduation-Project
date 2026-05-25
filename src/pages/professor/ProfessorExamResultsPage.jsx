@@ -5,8 +5,8 @@ import {
   HiRefresh, HiShieldExclamation, HiUser, HiX,
 } from "react-icons/hi";
 import {
-  autoGradeExamByCode, fetchExamById, fetchExamResults, fetchExamResultsByCode,
-  fetchSubmission, gradeQuestion,
+  aiGradeQuestion, autoGradeExamByCode, fetchExamById, fetchExamResults,
+  fetchExamResultsByCode, fetchSubmission, gradeQuestion,
 } from "../../api/examsApi";
 import { flagSubmission, getExamProctoringsummary, getProctoringReport } from "../../api/proctoringApi";
 import { getErrorMessage } from "../../utils/errorHelpers";
@@ -21,8 +21,9 @@ function SubmissionAnswersModal({ submissionId, studentName, open, onClose, onGr
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState("");
-  const [savingQ, setSavingQ] = useState(null);
-  const [draft, setDraft]     = useState({});
+  const [savingQ,   setSavingQ]   = useState(null);
+  const [aiGradingQ, setAiGradingQ] = useState(null);
+  const [draft, setDraft]       = useState({});
 
   const load = useCallback(async () => {
     if (!submissionId) return;
@@ -46,6 +47,19 @@ function SubmissionAnswersModal({ submissionId, studentName, open, onClose, onGr
   }, [submissionId]);
 
   useEffect(() => { if (open) load(); }, [open, load]);
+
+  const handleAiGrade = async (questionId) => {
+    setAiGradingQ(questionId); setError("");
+    try {
+      await aiGradeQuestion(submissionId, questionId);
+      await load();
+      if (onGraded) onGraded(submissionId);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setAiGradingQ(null);
+    }
+  };
 
   const handleSaveQuestion = async (questionId) => {
     const entry = draft[questionId];
@@ -187,14 +201,24 @@ function SubmissionAnswersModal({ submissionId, studentName, open, onClose, onGr
                             className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-300"
                           />
                         </div>
-                        <button
-                          type="button"
-                          disabled={savingQ === ans.questionId}
-                          onClick={() => handleSaveQuestion(ans.questionId)}
-                          className="rounded-xl bg-[#0b2c4a] px-4 py-2 text-xs font-semibold text-white hover:bg-[#153a63] disabled:opacity-50"
-                        >
-                          {savingQ === ans.questionId ? "Saving…" : "Save Grade"}
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            disabled={savingQ === ans.questionId || aiGradingQ === ans.questionId}
+                            onClick={() => handleSaveQuestion(ans.questionId)}
+                            className="rounded-xl bg-[#0b2c4a] px-4 py-2 text-xs font-semibold text-white hover:bg-[#153a63] disabled:opacity-50"
+                          >
+                            {savingQ === ans.questionId ? "Saving…" : "Save Grade"}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={savingQ === ans.questionId || aiGradingQ === ans.questionId}
+                            onClick={() => handleAiGrade(ans.questionId)}
+                            className="rounded-xl border border-[#0b2c4a] px-4 py-2 text-xs font-semibold text-[#0b2c4a] hover:bg-[#0b2c4a]/5 disabled:opacity-50"
+                          >
+                            {aiGradingQ === ans.questionId ? "Grading…" : "AI Grade"}
+                          </button>
+                        </div>
                       </div>
                       {ans.professorComment && savingQ !== ans.questionId && (
                         <p className="text-xs text-slate-500 italic">Last comment: {ans.professorComment}</p>

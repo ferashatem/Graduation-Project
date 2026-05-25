@@ -41,6 +41,16 @@ function StudentQuizResultPage() {
     return m;
   }, [submission]);
 
+  // Build a merged question list: prefer exam.questions (has questionText), fall back to submission answers
+  const questions = useMemo(() => {
+    const examQuestions = exam?.questions ?? [];
+    if (examQuestions.length > 0) return examQuestions;
+    return (submission?.answers ?? submission?.submissionAnswers ?? []).map((a) => ({
+      id: a.questionId,
+      questionText: null,
+    }));
+  }, [exam, submission]);
+
   const isGraded   = submission?.isGraded ?? true;
   const score      = submission?.totalScore    ?? submission?.score        ?? submission?.totalGrade ?? null;
   const totalMarks = exam?.totalMarks          ?? submission?.totalMarks   ?? submission?.totalPoints ?? null;
@@ -57,8 +67,6 @@ function StudentQuizResultPage() {
       </div>
     );
   }
-
-  const questions = exam?.questions ?? [];
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -99,7 +107,6 @@ function StudentQuizResultPage() {
           <h2 className="text-sm font-semibold uppercase tracking-widest text-slate-500">Question Breakdown</h2>
           {questions.map((q, idx) => {
             const ans       = answerMap[q.id] ?? { text: "—", isCorrect: null, earned: null };
-            // isCorrect: true=correct, false=wrong, null=essay/pending
             const isCorrect = ans.isCorrect;
             const isPending = isCorrect === null;
             const bgClass   = isPending
@@ -112,7 +119,7 @@ function StudentQuizResultPage() {
                 <div className="flex items-start justify-between gap-2">
                   <p className="text-sm font-medium text-slate-800">
                     <span className="mr-2 text-xs font-semibold text-slate-400">Q{idx + 1}.</span>
-                    {q.questionText ?? q.text}
+                    {q.questionText ?? q.text ?? <span className="italic text-slate-400">Question {idx + 1}</span>}
                   </p>
                   <div className="flex items-center gap-2 shrink-0">
                     {ans.earned != null && (
