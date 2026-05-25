@@ -101,22 +101,31 @@ const exportErrorsCsv = (errors) => {
 };
 
 const exportStudentsCsv = (students) => {
-  const headers = ["#", "Full Name", "University ID", "Email", "Batch", "Group"];
+  const headers = [
+    "#", "Full Name", "University ID", "Email",
+    "Phone", "National ID", "Batch", "Group",
+    "Department", "Student Type",
+  ];
   const rows = students.map((s, i) => [
     i + 1,
     s.fullName || s.name || "",
     s.universityStudentId || s.studentId || "",
     s.universityEmail || s.email || "",
+    s.phone || "",
+    s.nationalId || "",
     s.batchCode || s.batch || "",
     s.groupCode || s.group || "",
+    s.departmentName || s.department || "",
+    s.studentType || "",
   ]);
   const csv = [headers, ...rows]
     .map((r) =>
       r.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(",")
     )
     .join("\n");
-  const blob = new Blob([csv], { type: "text/csv" });
-  triggerBlobDownload(blob, "imported_students.csv");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
+  const date = new Date().toISOString().slice(0, 10);
+  triggerBlobDownload(blob, `imported_students_${date}.csv`);
 };
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -608,6 +617,10 @@ function ImportStudentsPage() {
       } else {
         const data = await importStudents(file);
         setResult(data);
+        // Auto-download the imported students file
+        if (data?.importedStudents?.length > 0) {
+          exportStudentsCsv(data.importedStudents);
+        }
       }
     } catch (err) {
       setActionError(getErrorMessage(err));
@@ -781,12 +794,24 @@ function ImportStudentsPage() {
             <ErrorsPanel errors={result.errors} />
           )}
 
-          {/* Students table */}
+          {/* Students table + download */}
           {!noStudentsImported && result.importedStudents?.length > 0 && (
-            <ImportedStudentsTable
-              students={result.importedStudents}
-              warningsByRow={warningsByRow}
-            />
+            <>
+              <Stack direction="row" justifyContent="flex-end">
+                <Button
+                  variant="contained"
+                  startIcon={<DownloadIcon />}
+                  onClick={() => exportStudentsCsv(result.importedStudents)}
+                  color="success"
+                >
+                  Download Students File ({result.importedStudents.length})
+                </Button>
+              </Stack>
+              <ImportedStudentsTable
+                students={result.importedStudents}
+                warningsByRow={warningsByRow}
+              />
+            </>
           )}
 
           {/* Re-import action */}

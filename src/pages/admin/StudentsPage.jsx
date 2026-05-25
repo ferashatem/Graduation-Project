@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Avatar, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, InputAdornment, MenuItem, Tab, Tabs, TextField } from "@mui/material";
+import { Avatar, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, InputAdornment, MenuItem, Tab, Tabs, TextField } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import SearchIcon from "@mui/icons-material/Search";
 import LockResetIcon from "@mui/icons-material/LockReset";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import DownloadIcon from "@mui/icons-material/Download";
 import PageHeader from "../../components/common/PageHeader";
 import Loading from "../../components/common/Loading";
 import ErrorState from "../../components/common/ErrorState";
@@ -12,6 +13,29 @@ import { fetchAllDepartments } from "../../features/departments/api/departmentsA
 import { fetchBatchesByDepartment } from "../../features/batches/api/batchesApi";
 import { getErrorMessage } from "../../utils/errorHelpers";
 import { adminResetPassword } from "../../api/authApi";
+
+const exportToCsv = (rows, filename) => {
+  const headers = ["#", "Full Name", "University ID", "Email", "Department", "Batch", "Group", "Status"];
+  const data = rows.map((s, i) => [
+    i + 1,
+    s.fullName || "",
+    s.universityId || s.universityStudentId || "",
+    s.email || s.universityEmail || "",
+    s.departmentName || "",
+    s.batchName || "",
+    s.groupName || "",
+    s.isActive ? "Active" : "Inactive",
+  ]);
+  const csv = [headers, ...data]
+    .map((r) => r.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(","))
+    .join("\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+};
 
 const breadcrumbs = [{ label: "Student Affairs" }, { label: "Students" }];
 const PAGE_SIZE = 25;
@@ -64,6 +88,40 @@ function StudentsPage() {
   const [batches, setBatches] = useState([]);
   const [departmentId, setDepartmentId] = useState("");
   const [batchId, setBatchId] = useState("");
+
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = useCallback(async () => {
+    setExporting(true);
+    try {
+      // Fetch all pages with current filters (up to 5000 rows)
+      const result = await filterStudents({
+        departmentId: departmentId || undefined,
+        batchId: batchId || undefined,
+        search,
+        page: 1,
+        size: 5000,
+      });
+      const rows = result.items.map((s) => ({
+        ...s,
+        fullName: s.fullName ?? s.name ?? "",
+        email: s.universityEmail ?? s.email ?? "",
+        universityId: s.universityStudentId ?? s.universityId ?? "",
+        batchName: s.batchName ?? "—",
+        departmentName: s.departmentName ?? "—",
+        groupName: s.groupName ?? "—",
+      }));
+      const date = new Date().toISOString().slice(0, 10);
+      const label = departmentId
+        ? (departments.find((d) => d.id === departmentId)?.name ?? "filtered")
+        : "all";
+      exportToCsv(rows, `students_${label}_${date}.csv`);
+    } catch {
+      // silently fail
+    } finally {
+      setExporting(false);
+    }
+  }, [departmentId, batchId, search, departments]);
 
   const debounceRef = useRef(null);
 
@@ -231,7 +289,7 @@ function StudentsPage() {
       </Tabs>
 
       {tab === 0 && (
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <TextField
             size="small"
             placeholder="Search by name, email, code, or university ID..."
@@ -267,6 +325,17 @@ function StudentsPage() {
               ))}
             </TextField>
           )}
+          <div className="ml-auto">
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={exporting ? <CircularProgress size={14} color="inherit" /> : <DownloadIcon />}
+              onClick={handleExport}
+              disabled={exporting}
+            >
+              {exporting ? "Exporting…" : `Export${rowCount ? ` (${rowCount})` : ""}`}
+            </Button>
+          </div>
         </div>
       )}
 
