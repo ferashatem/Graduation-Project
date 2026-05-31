@@ -6,6 +6,7 @@ import {
   fetchClusters,
   fetchMyComplaints,
   fetchMyReports,
+  replyToComplaint,
 } from "../api/complaintsApi";
 
 const normalizeList = (payload) => {
@@ -52,6 +53,7 @@ export const useDoctorReports = () => {
   const [data, setData] = useState({ items: [], totalCount: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
 
   const load = useCallback(async (q = {}) => {
     setLoading(true);
@@ -66,9 +68,39 @@ export const useDoctorReports = () => {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(statusFilter ? { status: statusFilter } : {}); }, [load, statusFilter]);
 
-  return { complaints: data.items, totalCount: data.totalCount, loading, error, reload: load };
+  const reply = useCallback(async (id, replyText) => {
+    try {
+      const updated = await replyToComplaint(id, replyText);
+      setData((prev) => ({
+        ...prev,
+        items: prev.items.map((c) => (c.id === id ? { ...c, ...updated, status: "Resolved" } : c)),
+      }));
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: getErrorMessage(err) };
+    }
+  }, []);
+
+  const pendingCount = data.items.filter((c) => c.status === "Pending").length;
+
+  return { complaints: data.items, totalCount: data.totalCount, loading, error, reload: load, reply, statusFilter, setStatusFilter, pendingCount };
+};
+
+export const usePendingComplaintsCount = () => {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    fetchMyReports({ status: "Pending", pageSize: 50 })
+      .then((payload) => {
+        const { items } = normalizeList(payload);
+        setCount(items.length);
+      })
+      .catch(() => {});
+  }, []);
+
+  return count;
 };
 
 export const useAdminComplaints = () => {

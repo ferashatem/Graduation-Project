@@ -95,6 +95,7 @@ import ProfessorExamResultsPage from "../pages/professor/ProfessorExamResultsPag
 import ProfessorAttendancePage from "../pages/professor/ProfessorAttendancePage";
 import ProfessorExamAnalyticsPage from "../pages/professor/ProfessorExamAnalyticsPage";
 import ProfessorAssignmentsPage from "../pages/professor/ProfessorAssignmentsPage";
+import ProfessorGradesImportPage from "../pages/professor/ProfessorGradesImportPage";
 import StudentAssignmentsPage from "../pages/student/StudentAssignmentsPage";
 import ImportStudentsPage from "../features/students/pages/ImportStudentsPage";
 
@@ -238,6 +239,7 @@ function AppRoutes() {
           <Route path="exams/:examId/analytics" element={<ProfessorExamAnalyticsPage />} />
           <Route path="attendance" element={<ProfessorAttendancePage />} />
           <Route path="assignments" element={<ProfessorAssignmentsPage />} />
+          <Route path="grades-import" element={<ProfessorGradesImportPage />} />
           <Route path="chat" element={<ChatPage />} />
           <Route path="change-password" element={<ForceChangePassword />} />
         </Route>

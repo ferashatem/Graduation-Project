@@ -1,7 +1,44 @@
 import { useEffect, useRef, useState } from "react";
-import { HiOutlinePencilAlt, HiOutlinePlus, HiOutlineTrash, HiOutlineMenuAlt2, HiOutlineSun, HiOutlineMoon } from "react-icons/hi";
+import { HiOutlinePencilAlt, HiOutlinePlus, HiOutlineTrash, HiOutlineMenuAlt2, HiOutlineSun, HiOutlineMoon, HiCheck, HiX } from "react-icons/hi";
 import { FiArrowUp } from "react-icons/fi";
 import { useChat } from "../hooks/useChat";
+
+// Simple markdown → React renderer (bold, bullet lists, line breaks)
+function MarkdownText({ text }) {
+  if (!text) return null;
+  const lines = text.split("\n");
+  const elements = [];
+  let key = 0;
+
+  const renderInline = (str) => {
+    const parts = str.split(/(\*\*[^*]+\*\*)/g);
+    return parts.map((p, i) => {
+      if (p.startsWith("**") && p.endsWith("**")) {
+        return <strong key={i}>{p.slice(2, -2)}</strong>;
+      }
+      return p;
+    });
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const isBullet = /^(\s*[-•*]\s)/.test(line);
+    if (isBullet) {
+      const content = line.replace(/^\s*[-•*]\s/, "");
+      elements.push(
+        <div key={key++} className="flex gap-2 my-0.5">
+          <span className="mt-1 h-1.5 w-1.5 rounded-full bg-current shrink-0 opacity-60" />
+          <span>{renderInline(content)}</span>
+        </div>
+      );
+    } else if (line.trim() === "") {
+      elements.push(<div key={key++} className="h-2" />);
+    } else {
+      elements.push(<p key={key++} className="my-0.5">{renderInline(line)}</p>);
+    }
+  }
+  return <>{elements}</>;
+}
 
 const THEME_KEY = "chat-theme";
 
@@ -98,8 +135,11 @@ function ChatBubble({ msg, onSuggestionClick, onDelete }) {
     >
       <AssistantAvatar />
       <div className="flex-1 min-w-0 pt-0.5">
-        <div className="text-[15px] leading-relaxed text-[#0d0d0d] dark:text-[#ececec] whitespace-pre-wrap">
-          {text}
+        <div className="text-[15px] leading-relaxed text-[#0d0d0d] dark:text-[#ececec]">
+          <MarkdownText text={text} />
+          {msg.streaming && (
+            <span className="inline-block w-0.5 h-4 bg-current ml-0.5 animate-pulse align-middle" />
+          )}
         </div>
         {suggestions.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-3">
@@ -156,9 +196,12 @@ export default function ChatPage() {
     loadingConvs,
     loadingMsgs,
     error,
+    pendingConfirmation,
     selectConversation,
     startNewConversation,
     send,
+    confirmAction,
+    cancelAction,
     deleteMsg,
     deleteConv,
   } = useChat();
@@ -329,6 +372,29 @@ export default function ChatPage() {
           {/* Input */}
           <div className="shrink-0 pb-4 px-4">
             <div className="mx-auto max-w-3xl">
+              {pendingConfirmation && (
+                <div className="flex items-center gap-3 mb-3 px-1">
+                  <span className="text-sm text-[#0d0d0d] dark:text-[#ececec] font-medium">تأكيد التنفيذ؟</span>
+                  <button
+                    type="button"
+                    onClick={confirmAction}
+                    disabled={sending}
+                    className="flex items-center gap-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 text-sm font-semibold transition disabled:opacity-50"
+                  >
+                    <HiCheck className="h-4 w-4" />
+                    نعم، نفّذ
+                  </button>
+                  <button
+                    type="button"
+                    onClick={cancelAction}
+                    disabled={sending}
+                    className="flex items-center gap-1.5 rounded-full border border-[#e5e5e5] dark:border-[#4a4a4a] text-[#0d0d0d] dark:text-[#ececec] hover:bg-[#f4f4f4] dark:hover:bg-[#2f2f2f] px-4 py-1.5 text-sm font-semibold transition disabled:opacity-50"
+                  >
+                    <HiX className="h-4 w-4" />
+                    إلغاء
+                  </button>
+                </div>
+              )}
               <div className="flex items-end gap-2 bg-[#f4f4f4] dark:bg-[#2f2f2f] rounded-3xl px-4 py-3 shadow-sm">
                 <textarea
                   ref={textareaRef}

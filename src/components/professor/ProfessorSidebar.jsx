@@ -2,10 +2,11 @@ import { useCallback, useMemo } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   HiBookOpen, HiCalendar, HiChat, HiClipboardList,
-  HiDocumentText, HiHome, HiKey, HiLogout, HiPencilAlt, HiUserGroup,
+  HiDocumentText, HiHome, HiKey, HiLogout, HiPencilAlt, HiUserGroup, HiTable,
 } from "react-icons/hi";
 import { clearStoredSession } from "../../auth/session";
 import { resetAuthUser } from "../../auth/useAuthUser";
+import { usePendingComplaintsCount } from "../../features/complaints/hooks/useComplaints";
 import logo from "../../assets/university-logo.png";
 import fallbackAvatar from "../../assets/imgs/profile.png";
 
@@ -18,6 +19,7 @@ const resolveEmail = (profile, user) =>
 
 function ProfessorSidebar({ open = false, onClose, onNavigate, profile, user }) {
   const navigate = useNavigate();
+  const pendingCount = usePendingComplaintsCount();
 
   const navItems = useMemo(() => [
     { label: "Home",             to: "/prof",                 icon: HiHome,          end: true },
@@ -27,6 +29,7 @@ function ProfessorSidebar({ open = false, onClose, onNavigate, profile, user }) 
     { label: "Assignments",      to: "/prof/assignments",     icon: HiClipboardList          },
     { label: "Exams",            to: "/prof/exams",           icon: HiClipboardList          },
     { label: "Complaint Reports",to: "/prof/complaints",      icon: HiClipboardList          },
+    { label: "Import Grades",    to: "/prof/grades-import",   icon: HiTable                  },
     { label: "AI Assistant",     to: "/prof/chat",            icon: HiChat                   },
     { label: "Change Password",  to: "/prof/change-password", icon: HiKey                    },
   ], []);
@@ -102,6 +105,7 @@ function ProfessorSidebar({ open = false, onClose, onNavigate, profile, user }) 
           {navItems.map((item) => {
             const Icon = item.icon;
             const isAI = item.to === "/prof/chat";
+            const isComplaints = item.to === "/prof/complaints";
             return (
               <NavLink
                 key={item.to}
@@ -119,7 +123,12 @@ function ProfessorSidebar({ open = false, onClose, onNavigate, profile, user }) 
                 }
               >
                 <Icon className="h-5 w-5 shrink-0" />
-                <span>{item.label}</span>
+                <span className="flex-1">{item.label}</span>
+                {isComplaints && pendingCount > 0 && (
+                  <span className="inline-flex items-center justify-center rounded-full bg-amber-500 px-1.5 py-0.5 text-xs font-bold text-white min-w-[20px]">
+                    {pendingCount}
+                  </span>
+                )}
               </NavLink>
             );
           })}

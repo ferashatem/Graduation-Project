@@ -1,5 +1,6 @@
 import {
   Box,
+  Button,
   Chip,
   Collapse,
   IconButton,
@@ -15,24 +16,54 @@ import {
 import { useState } from "react";
 import { HiChevronDown, HiChevronUp } from "react-icons/hi";
 
-const STATUS_COLOR = { Pending: "warning", Resolved: "success", Dismissed: "default" };
-const PRIORITY_COLOR = { Normal: "default", High: "warning", Critical: "error" };
+const STATUS_COLOR = {
+  Pending: "warning",
+  UnderReview: "info",
+  Resolved: "success",
+  Dismissed: "default",
+};
+const PRIORITY_COLOR = {
+  Normal: "default",
+  High: "warning",
+  Critical: "error",
+};
 
 function AnalysisRow({ analysis }) {
-  if (!analysis) return <Typography variant="body2" color="text.secondary">Analysis pending…</Typography>;
+  if (!analysis)
+    return (
+      <Typography variant="body2" color="text.secondary">
+        Analysis pending…
+      </Typography>
+    );
   return (
     <Box className="grid gap-1 text-sm">
-      <Box><strong>Category:</strong> {analysis.category}</Box>
-      <Box><strong>Severity:</strong> {analysis.severity}</Box>
-      <Box><strong>Sentiment:</strong> {analysis.sentimentScore?.toFixed(2)}</Box>
-      {analysis.aiSummary && <Box><strong>AI Summary:</strong> {analysis.aiSummary}</Box>}
-      {analysis.suggestedAction && <Box><strong>Suggested Action:</strong> {analysis.suggestedAction}</Box>}
+      <Box>
+        <strong>Category:</strong> {analysis.category}
+      </Box>
+      <Box>
+        <strong>Severity:</strong> {analysis.severity}
+      </Box>
+      <Box>
+        <strong>Sentiment:</strong> {analysis.sentimentScore?.toFixed(2)}
+      </Box>
+      {analysis.aiSummary && (
+        <Box>
+          <strong>AI Summary:</strong> {analysis.aiSummary}
+        </Box>
+      )}
+      {analysis.suggestedAction && (
+        <Box>
+          <strong>Suggested Action:</strong> {analysis.suggestedAction}
+        </Box>
+      )}
     </Box>
   );
 }
 
-function ComplaintRow({ row, showStudent }) {
+function ComplaintRow({ row, showStudent, onReply }) {
   const [expanded, setExpanded] = useState(false);
+
+  const colSpan = showStudent ? 8 : 7;
 
   return (
     <>
@@ -44,28 +75,87 @@ function ComplaintRow({ row, showStudent }) {
         </TableCell>
         {showStudent && (
           <TableCell>
-            <Typography variant="body2" color="text.secondary" fontStyle="italic">
-              {row.student?.fullName ?? (row.studentId === "HIDDEN" ? "Anonymous" : row.studentId)}
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              fontStyle="italic"
+            >
+              {row.student?.fullName ??
+                (row.studentId === "HIDDEN" ? "Anonymous" : row.studentId)}
             </Typography>
           </TableCell>
         )}
         <TableCell>{row.title}</TableCell>
         <TableCell>{row.targetType}</TableCell>
         <TableCell>
-          <Chip label={row.status} color={STATUS_COLOR[row.status] ?? "default"} size="small" />
+          <Chip
+            label={row.status}
+            color={STATUS_COLOR[row.status] ?? "default"}
+            size="small"
+          />
         </TableCell>
         <TableCell>
-          <Chip label={row.priority} color={PRIORITY_COLOR[row.priority] ?? "default"} size="small" />
+          <Chip
+            label={row.priority}
+            color={PRIORITY_COLOR[row.priority] ?? "default"}
+            size="small"
+          />
         </TableCell>
-        <TableCell>{new Date(row.createdAt).toLocaleDateString()}</TableCell>
+        <TableCell>
+          {new Date(row.createdAt).toLocaleDateString("en-US")}
+        </TableCell>
+        {onReply && (
+          <TableCell>
+            {row.status !== "Resolved" && (
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={() => onReply(row)}
+              >
+                Reply
+              </Button>
+            )}
+          </TableCell>
+        )}
       </TableRow>
       <TableRow>
-        <TableCell colSpan={showStudent ? 7 : 6} sx={{ py: 0 }}>
+        <TableCell colSpan={colSpan} sx={{ py: 0 }}>
           <Collapse in={expanded} unmountOnExit>
             <Box sx={{ py: 2, px: 2 }}>
-              <Typography variant="body2" gutterBottom><strong>Message:</strong> {row.message}</Typography>
+              <Typography variant="body2" gutterBottom>
+                <strong>Message:</strong> {row.message}
+              </Typography>
+              {row.status === "Resolved" && row.resolutionNote && (
+                <Box
+                  sx={{
+                    mt: 1,
+                    p: 1.5,
+                    borderRadius: 1,
+                    bgcolor: "success.50",
+                    border: "1px solid",
+                    borderColor: "success.200",
+                  }}
+                >
+                  <Typography
+                    variant="body2"
+                    fontWeight={600}
+                    color="success.dark"
+                    gutterBottom
+                  >
+                    Doctor's Reply
+                  </Typography>
+                  <Typography variant="body2">{row.resolutionNote}</Typography>
+                  {row.resolvedAt && (
+                    <Typography variant="caption" color="text.secondary">
+                      {new Date(row.resolvedAt).toLocaleString("en-US")}
+                    </Typography>
+                  )}
+                </Box>
+              )}
               <Box sx={{ mt: 1 }}>
-                <Typography variant="body2" fontWeight={600} gutterBottom>AI Analysis</Typography>
+                <Typography variant="body2" fontWeight={600} gutterBottom>
+                  AI Analysis
+                </Typography>
                 <AnalysisRow analysis={row.analysis} />
               </Box>
             </Box>
@@ -76,10 +166,12 @@ function ComplaintRow({ row, showStudent }) {
   );
 }
 
-function ComplaintsTable({ rows = [], loading, showStudent = false }) {
+function ComplaintsTable({ rows = [], loading, showStudent = false, onReply }) {
   if (!loading && rows.length === 0) {
     return (
-      <Box className="py-12 text-center text-slate-500">No complaints found.</Box>
+      <Box className="py-12 text-center text-slate-500">
+        No complaints found.
+      </Box>
     );
   }
 
@@ -95,11 +187,17 @@ function ComplaintsTable({ rows = [], loading, showStudent = false }) {
             <TableCell>Status</TableCell>
             <TableCell>Priority</TableCell>
             <TableCell>Date</TableCell>
+            {onReply && <TableCell />}
           </TableRow>
         </TableHead>
         <TableBody>
           {rows.map((row) => (
-            <ComplaintRow key={row.id} row={row} showStudent={showStudent} />
+            <ComplaintRow
+              key={row.id}
+              row={row}
+              showStudent={showStudent}
+              onReply={onReply}
+            />
           ))}
         </TableBody>
       </Table>

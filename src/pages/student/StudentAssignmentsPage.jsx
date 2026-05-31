@@ -22,9 +22,10 @@ const isOverdue = (deadline) => deadline && new Date(deadline) < new Date();
 // ── Submission status badge ───────────────────────────────────────────────────
 function StatusBadge({ sub }) {
   if (!sub) return <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">Not submitted</span>;
-  if (sub.isGraded) return (
+  const graded = sub.status === "Graded" || sub.grade != null;
+  if (graded) return (
     <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-      Graded · {sub.score ?? "—"} pts
+      Graded · {sub.grade ?? "—"} pts
     </span>
   );
   return <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">Pending Review</span>;
@@ -127,10 +128,10 @@ function AssignmentCard({ assignment }) {
                 <HiCheckCircle className="h-4 w-4" />
                 Submitted {fmtDate(sub.submittedAt)}
               </div>
-              {sub.isGraded && (
+              {(sub.status === "Graded" || sub.grade != null) && (
                 <p className="text-xs text-emerald-600">
-                  Score: <span className="font-bold">{sub.score}</span>
-                  {sub.feedback && <span> · {sub.feedback}</span>}
+                  Score: <span className="font-bold">{sub.grade}</span> / {assignment.maxScore ?? "—"} pts
+                  {sub.feedback && <span className="block mt-0.5 text-slate-600">{sub.feedback}</span>}
                 </p>
               )}
             </div>

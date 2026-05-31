@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Avatar, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, InputAdornment, MenuItem, Tab, Tabs, TextField } from "@mui/material";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
+import { Avatar, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, InputAdornment, MenuItem, Switch, Tab, Tabs, TextField } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import SearchIcon from "@mui/icons-material/Search";
 import LockResetIcon from "@mui/icons-material/LockReset";
@@ -11,30 +13,32 @@ import ErrorState from "../../components/common/ErrorState";
 import { filterStudents, fetchStrugglingStudents } from "../../features/students/api/studentsApi";
 import { fetchAllDepartments } from "../../features/departments/api/departmentsApi";
 import { fetchBatchesByDepartment } from "../../features/batches/api/batchesApi";
+import { fetchColleges } from "../../features/colleges/api/collegesApi";
+import { fetchGroupsByBatch } from "../../features/groups/api/groupsApi";
 import { getErrorMessage } from "../../utils/errorHelpers";
 import { adminResetPassword } from "../../api/authApi";
 
-const exportToCsv = (rows, filename) => {
-  const headers = ["#", "Full Name", "University ID", "Email", "Department", "Batch", "Group", "Status"];
-  const data = rows.map((s, i) => [
-    i + 1,
-    s.fullName || "",
-    s.universityId || s.universityStudentId || "",
-    s.email || s.universityEmail || "",
-    s.departmentName || "",
-    s.batchName || "",
-    s.groupName || "",
-    s.isActive ? "Active" : "Inactive",
-  ]);
-  const csv = [headers, ...data]
-    .map((r) => r.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(","))
-    .join("\n");
-  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click();
-  document.body.removeChild(a); URL.revokeObjectURL(url);
+const exportToXlsx = (rows, filename) => {
+  const ws = XLSX.utils.json_to_sheet(
+    rows.map((s, i) => ({
+      "#": i + 1,
+      "الاسم": s.fullName || "",
+      "الرقم الجامعي": s.universityId || s.universityStudentId || "",
+      "الإيميل الجامعي": s.email || s.universityEmail || "",
+      "الكلية": s.collegeName || "",
+      "القسم": s.departmentName || "",
+      "الدفعة": s.batchName || "",
+      "المجموعة": s.groupName || "",
+      "الحالة": s.isActive ? "نشط" : "غير نشط",
+    }))
+  );
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Students");
+  const buf = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+  saveAs(
+    new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
+    filename
+  );
 };
 
 const breadcrumbs = [{ label: "Student Affairs" }, { label: "Students" }];
@@ -84,23 +88,30 @@ function StudentsPage() {
   const [rowCount, setRowCount] = useState(0);
 
   // Filter state
+  const [colleges, setColleges] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [batches, setBatches] = useState([]);
+  const [groups, setGroups] = useState([]);
+  const [collegeId, setCollegeId] = useState("");
   const [departmentId, setDepartmentId] = useState("");
   const [batchId, setBatchId] = useState("");
+  const [groupId, setGroupId] = useState("");
+  const [activeOnly, setActiveOnly] = useState(false);
 
   const [exporting, setExporting] = useState(false);
 
   const handleExport = useCallback(async () => {
     setExporting(true);
     try {
-      // Fetch all pages with current filters (up to 5000 rows)
       const result = await filterStudents({
+        collegeId: collegeId || undefined,
         departmentId: departmentId || undefined,
         batchId: batchId || undefined,
+        groupId: groupId || undefined,
+        isActive: activeOnly ? true : undefined,
         search,
         page: 1,
-        size: 5000,
+        size: 500,
       });
       const rows = result.items.map((s) => ({
         ...s,
@@ -115,18 +126,19 @@ function StudentsPage() {
       const label = departmentId
         ? (departments.find((d) => d.id === departmentId)?.name ?? "filtered")
         : "all";
-      exportToCsv(rows, `students_${label}_${date}.csv`);
+      exportToXlsx(rows, `students_${label}_${date}.xlsx`);
     } catch {
       // silently fail
     } finally {
       setExporting(false);
     }
-  }, [departmentId, batchId, search, departments]);
+  }, [collegeId, departmentId, batchId, groupId, activeOnly, search, departments]);
 
   const debounceRef = useRef(null);
 
-  // Load departments once
+  // Load colleges and departments once
   useEffect(() => {
+    fetchColleges().then((data) => setColleges(Array.isArray(data) ? data : [])).catch(() => {});
     fetchAllDepartments().then(setDepartments).catch(() => {});
   }, []);
 
@@ -134,6 +146,8 @@ function StudentsPage() {
     setDepartmentId(id);
     setBatchId("");
     setBatches([]);
+    setGroupId("");
+    setGroups([]);
     setPage(0);
     if (!id) return;
     const dept = departments.find((d) => d.id === id);
@@ -141,6 +155,15 @@ function StudentsPage() {
       fetchBatchesByDepartment(dept.id).then(setBatches).catch(() => {});
     }
   }, [departments]);
+
+  const handleBatchChange = useCallback(async (id) => {
+    setBatchId(id);
+    setGroupId("");
+    setGroups([]);
+    setPage(0);
+    if (!id) return;
+    fetchGroupsByBatch(id).then((data) => setGroups(Array.isArray(data) ? data : [])).catch(() => {});
+  }, []);
 
   const loadStruggling = useCallback(async (pg = 0) => {
     setStrugglingLoading(true);
@@ -185,18 +208,29 @@ function StudentsPage() {
     }
   }, []);
 
-  // Reload whenever page / dept / batch changes immediately
+  const buildParams = useCallback((pg = page) => ({
+    collegeId: collegeId || undefined,
+    departmentId: departmentId || undefined,
+    batchId: batchId || undefined,
+    groupId: groupId || undefined,
+    isActive: activeOnly ? true : undefined,
+    search,
+    page: pg + 1,
+    size: PAGE_SIZE,
+  }), [collegeId, departmentId, batchId, groupId, activeOnly, search, page]);
+
+  // Reload whenever page / filters change immediately (not search — that's debounced)
   useEffect(() => {
-    load({ departmentId: departmentId || undefined, batchId: batchId || undefined, search, page: page + 1, size: PAGE_SIZE });
+    load(buildParams());
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, departmentId, batchId]);
+  }, [page, collegeId, departmentId, batchId, groupId, activeOnly]);
 
   // Debounce search input — 300 ms
   useEffect(() => {
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       setPage(0);
-      load({ departmentId: departmentId || undefined, batchId: batchId || undefined, search, page: 1, size: PAGE_SIZE });
+      load({ ...buildParams(0) });
     }, 300);
     return () => clearTimeout(debounceRef.current);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -302,11 +336,20 @@ function StudentsPage() {
                 </InputAdornment>
               ),
             }}
-            sx={{ width: 340 }}
+            sx={{ width: 300 }}
           />
           <TextField
+            select size="small" label="College" value={collegeId}
+            onChange={(e) => { setCollegeId(e.target.value); setPage(0); }} sx={{ width: 180 }}
+          >
+            <MenuItem value="">All colleges</MenuItem>
+            {colleges.map((c) => (
+              <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
+            ))}
+          </TextField>
+          <TextField
             select size="small" label="Department" value={departmentId}
-            onChange={(e) => handleDeptChange(e.target.value)} sx={{ width: 200 }}
+            onChange={(e) => handleDeptChange(e.target.value)} sx={{ width: 180 }}
           >
             <MenuItem value="">All departments</MenuItem>
             {departments.map((d) => (
@@ -316,8 +359,8 @@ function StudentsPage() {
           {batches.length > 0 && (
             <TextField
               select size="small" label="Batch" value={batchId}
-              onChange={(e) => { setBatchId(e.target.value); setPage(0); }}
-              sx={{ width: 180 }}
+              onChange={(e) => handleBatchChange(e.target.value)}
+              sx={{ width: 160 }}
             >
               <MenuItem value="">All batches</MenuItem>
               {batches.map((b) => (
@@ -325,6 +368,29 @@ function StudentsPage() {
               ))}
             </TextField>
           )}
+          {groups.length > 0 && (
+            <TextField
+              select size="small" label="Group" value={groupId}
+              onChange={(e) => { setGroupId(e.target.value); setPage(0); }}
+              sx={{ width: 130 }}
+            >
+              <MenuItem value="">All groups</MenuItem>
+              {groups.map((g) => (
+                <MenuItem key={g.id} value={g.id}>{g.name}</MenuItem>
+              ))}
+            </TextField>
+          )}
+          <FormControlLabel
+            control={
+              <Switch
+                size="small"
+                checked={activeOnly}
+                onChange={(e) => { setActiveOnly(e.target.checked); setPage(0); }}
+              />
+            }
+            label="Active only"
+            sx={{ ml: 0 }}
+          />
           <div className="ml-auto">
             <Button
               variant="outlined"
@@ -333,7 +399,7 @@ function StudentsPage() {
               onClick={handleExport}
               disabled={exporting}
             >
-              {exporting ? "Exporting…" : `Export${rowCount ? ` (${rowCount})` : ""}`}
+              {exporting ? "Exporting…" : `Export Excel${rowCount ? ` (${rowCount})` : ""}`}
             </Button>
           </div>
         </div>
@@ -387,7 +453,7 @@ function StudentsPage() {
 
       {tab === 0 && (
         <>
-          {error && !loading ? <ErrorState message={error} onRetry={() => load({ departmentId, batchId, search, page: page + 1, size: PAGE_SIZE })} /> : null}
+          {error && !loading ? <ErrorState message={error} onRetry={() => load(buildParams())} /> : null}
           {loading && students.length === 0 ? (
             <Loading label="Loading students..." />
           ) : (

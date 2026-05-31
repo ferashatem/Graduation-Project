@@ -38,9 +38,8 @@ import ImportDropzone from "../components/ImportDropzone";
 import ImportHelpDialog from "../components/ImportHelpDialog";
 import {
   downloadImportTemplate,
-  downloadStudentCredentials,
+  exportCredentialsXlsx,
   importStudents,
-  parseSummaryHeader,
   triggerBlobDownload,
 } from "../api/studentsImportApi";
 import { getErrorMessage } from "../../../utils/errorHelpers";
@@ -583,8 +582,6 @@ function ImportStudentsPage() {
   const [file, setFile] = useState(null);
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState(null);
-  const [downloadMode, setDownloadMode] = useState(false);
-  const [downloadSummary, setDownloadSummary] = useState(null);
   const [actionError, setActionError] = useState("");
   const [helpOpen, setHelpOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -601,33 +598,16 @@ function ImportStudentsPage() {
     setImporting(true);
     setActionError("");
     setResult(null);
-    setDownloadSummary(null);
 
     try {
-      if (downloadMode) {
-        const res = await downloadStudentCredentials(file);
-        if (!res.ok) {
-          setActionError(res.message);
-        } else {
-          const filename = `credentials_${new Date().toISOString().slice(0, 10)}.xlsx`;
-          triggerBlobDownload(res.blob, filename);
-          const parsed = parseSummaryHeader(res.summary);
-          setDownloadSummary(parsed);
-        }
-      } else {
-        const data = await importStudents(file);
-        setResult(data);
-        // Auto-download the imported students file
-        if (data?.importedStudents?.length > 0) {
-          exportStudentsCsv(data.importedStudents);
-        }
-      }
+      const data = await importStudents(file);
+      setResult(data);
     } catch (err) {
       setActionError(getErrorMessage(err));
     } finally {
       setImporting(false);
     }
-  }, [file, downloadMode]);
+  }, [file]);
 
   const handleCopyPassword = useCallback(async () => {
     if (!result?.temporaryPassword) return;
@@ -643,7 +623,6 @@ function ImportStudentsPage() {
   const handleReset = useCallback(() => {
     setFile(null);
     setResult(null);
-    setDownloadSummary(null);
     setActionError("");
     setCopied(false);
   }, []);
@@ -657,6 +636,7 @@ function ImportStudentsPage() {
   }, []);
 
   const noStudentsImported = result && (result.imported ?? 0) === 0;
+  const importedStudents = result?.importedCredentials ?? result?.importedStudents ?? [];
 
   return (
     <div className="space-y-6">
@@ -671,7 +651,7 @@ function ImportStudentsPage() {
       />
 
       {/* ── Upload form — hidden after successful import ── */}
-      {!result && !downloadSummary && (
+      {!result && (
         <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
           {/* Step 1 */}
           <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1.5 }}>
@@ -693,47 +673,18 @@ function ImportStudentsPage() {
 
           <Divider sx={{ my: 3 }} />
 
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            alignItems={{ xs: "stretch", sm: "center" }}
-            justifyContent="space-between"
-            spacing={2}
-          >
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={downloadMode}
-                  onChange={(e) => setDownloadMode(e.target.checked)}
-                  disabled={importing}
-                />
-              }
-              label={
-                <Typography variant="body2">
-                  Download credentials Excel after import
-                </Typography>
-              }
-            />
-            <Stack direction="row" spacing={1.5} justifyContent="flex-end">
-              <Button
-                variant="outlined"
-                onClick={handleReset}
-                disabled={importing || !file}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="contained"
-                onClick={handleImport}
-                disabled={importing || !file}
-                startIcon={
-                  importing ? (
-                    <CircularProgress size={16} color="inherit" />
-                  ) : null
-                }
-              >
-                {importing ? "Importing…" : "Import Students →"}
-              </Button>
-            </Stack>
+          <Stack direction="row" spacing={1.5} justifyContent="flex-end">
+            <Button variant="outlined" onClick={handleReset} disabled={importing || !file}>
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              onClick={handleImport}
+              disabled={importing || !file}
+              startIcon={importing ? <CircularProgress size={16} color="inherit" /> : null}
+            >
+              {importing ? "Importing…" : "Import Students →"}
+            </Button>
           </Stack>
 
           {importing && (
@@ -748,24 +699,7 @@ function ImportStudentsPage() {
         </Paper>
       )}
 
-      {/* ── Download-mode result ── */}
-      {downloadSummary && (
-        <Alert
-          severity="success"
-          action={
-            <Button size="small" onClick={handleReset}>
-              Import Another
-            </Button>
-          }
-        >
-          {downloadSummary.imported ?? 0} students imported ·{" "}
-          {downloadSummary.skipped ?? 0} skipped ·{" "}
-          {downloadSummary.warnings ?? 0} warnings — Credentials file downloaded
-          automatically.
-        </Alert>
-      )}
-
-      {/* ── JSON import result ── */}
+      {/* ── Import result ── */}
       {result && (
         <Stack spacing={2.5}>
           {/* Summary banner */}
@@ -795,20 +729,20 @@ function ImportStudentsPage() {
           )}
 
           {/* Students table + download */}
-          {!noStudentsImported && result.importedStudents?.length > 0 && (
+          {!noStudentsImported && importedStudents.length > 0 && (
             <>
               <Stack direction="row" justifyContent="flex-end">
                 <Button
                   variant="contained"
                   startIcon={<DownloadIcon />}
-                  onClick={() => exportStudentsCsv(result.importedStudents)}
+                  onClick={() => exportCredentialsXlsx(result)}
                   color="success"
                 >
-                  Download Students File ({result.importedStudents.length})
+                  تحميل ملف البيانات ({importedStudents.length}) — Excel
                 </Button>
               </Stack>
               <ImportedStudentsTable
-                students={result.importedStudents}
+                students={importedStudents}
                 warningsByRow={warningsByRow}
               />
             </>

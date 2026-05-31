@@ -39,6 +39,12 @@ export const fetchDoctorOptions = async () => {
   return Array.isArray(payload) ? payload : [];
 };
 
+// Doctor: reply to a complaint
+export const replyToComplaint = async (id, reply) => {
+  const res = await apiClient.put(`/Complaints/${id}/reply`, { reply });
+  return unwrap(res);
+};
+
 // Admin/Doctor: get complaint clusters
 export const fetchClusters = async ({ targetType, targetId } = {}) => {
   const res = await apiClient.get("/Complaints/clusters", {

@@ -78,7 +78,7 @@ const formatCreatedAt = (timestamp) => {
     return timestamp.toDate().toLocaleDateString("en-US");
   }
   if (typeof timestamp.seconds === "number") {
-    return new Date(timestamp.seconds * 1000).toLocaleDateString();
+    return new Date(timestamp.seconds * 1000).toLocaleDateString("en-US");
   }
   return "N/A";
 };

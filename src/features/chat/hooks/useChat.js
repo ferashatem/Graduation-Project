@@ -6,6 +6,7 @@ import {
   fetchConversations,
   fetchMessages,
   sendMessage,
+  sendMessageStream,
 } from "../api/chatApi";
 
 export function useChat() {
@@ -16,6 +17,7 @@ export function useChat() {
   const [loadingConvs, setLoadingConvs] = useState(true);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const [error, setError] = useState(null);
+  const [pendingConfirmation, setPendingConfirmation] = useState(false);
   const activeRef = useRef(activeConversationId);
   activeRef.current = activeConversationId;
 
@@ -31,14 +33,13 @@ export function useChat() {
     }
   }, []);
 
-  useEffect(() => {
-    loadConversations();
-  }, [loadConversations]);
+  useEffect(() => { loadConversations(); }, [loadConversations]);
 
   const selectConversation = useCallback(async (id) => {
     if (id === activeRef.current) return;
     setActiveConversationId(id);
     setMessages([]);
+    setPendingConfirmation(false);
     try {
       setLoadingMsgs(true);
       const data = await fetchMessages(id);
@@ -57,6 +58,7 @@ export function useChat() {
       setConversations((prev) => [newConv, ...prev]);
       setActiveConversationId(newConv.id);
       setMessages([]);
+      setPendingConfirmation(false);
       return newConv;
     } catch (e) {
       setError(e?.response?.data?.message ?? e?.message ?? "Failed to create conversation.");
@@ -69,48 +71,117 @@ export function useChat() {
     if (!trimmed || sending) return;
 
     let convId = activeRef.current;
-
     if (!convId) {
       const conv = await startNewConversation();
       if (!conv) return;
       convId = conv.id;
     }
 
-    const optimisticUser = { id: `u-${Date.now()}`, role: "user", content: trimmed, createdAt: new Date().toISOString() };
+    const optimisticUser = {
+      id: `u-${Date.now()}`,
+      role: "user",
+      content: trimmed,
+      createdAt: new Date().toISOString(),
+    };
     setMessages((prev) => [...prev, optimisticUser]);
+    setPendingConfirmation(false);
     setSending(true);
     setError(null);
 
+    const aiMsgId = `a-${Date.now()}`;
+    const aiPlaceholder = {
+      id: aiMsgId,
+      role: "assistant",
+      content: "",
+      suggestions: [],
+      createdAt: new Date().toISOString(),
+      streaming: true,
+    };
+    setMessages((prev) => [...prev, aiPlaceholder]);
+
+    let streamWorked = false;
+
     try {
-      const result = await sendMessage(convId, trimmed);
-      // FastAPI returns `response`, .NET may wrap it as `content` or `aiResponse`
-      const responseText =
-        result?.content ??
-        result?.response ??
-        result?.aiResponse ??
-        result?.message ??
-        "No response.";
-      const aiMessage = {
-        id: result?.id ?? `a-${Date.now()}`,
-        role: result?.sender ?? "assistant",
-        content: responseText,
-        suggestions: result?.suggestions ?? [],
-        createdAt: result?.sentAt ?? result?.createdAt ?? new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, aiMessage]);
-    } catch (e) {
-      setError(e?.response?.data?.message ?? e?.message ?? "Failed to send message.");
-      setMessages((prev) => prev.filter((m) => m.id !== optimisticUser.id));
-    } finally {
-      setSending(false);
+      await sendMessageStream(convId, trimmed, {
+        onToken: (chunk) => {
+          streamWorked = true;
+          setMessages((prev) =>
+            prev.map((m) => m.id === aiMsgId ? { ...m, content: m.content + chunk } : m)
+          );
+        },
+        onMeta: (meta) => {
+          setMessages((prev) =>
+            prev.map((m) => {
+              if (m.id !== aiMsgId) return m;
+              const updated = { ...m, streaming: false };
+              if (meta.suggestions) updated.suggestions = meta.suggestions;
+              if (meta.conversation_id && !activeRef.current) {
+                setActiveConversationId(meta.conversation_id);
+              }
+              return updated;
+            })
+          );
+        },
+        onDone: () => {
+          setMessages((prev) =>
+            prev.map((m) => {
+              if (m.id !== aiMsgId) return m;
+              const updated = { ...m, streaming: false };
+              const txt = (m.content ?? "").toLowerCase();
+              if (txt.includes("نعم") && txt.includes("لا") && (txt.includes("تأكيد") || txt.includes("تحب") || txt.includes("ردّ"))) {
+                setPendingConfirmation(true);
+              }
+              return updated;
+            })
+          );
+          setSending(false);
+        },
+        onError: async () => {
+          // stream failed — fall back to regular endpoint
+          await fallbackSend(convId, trimmed, aiMsgId);
+        },
+      });
+    } catch {
+      await fallbackSend(convId, trimmed, aiMsgId);
+    }
+
+    async function fallbackSend(cId, text, msgId) {
+      try {
+        const result = await sendMessage(cId, text);
+        const responseText =
+          result?.content ?? result?.response ?? result?.aiResponse ?? result?.message ?? "No response.";
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === msgId
+              ? { ...m, content: responseText, suggestions: result?.suggestions ?? [], streaming: false }
+              : m
+          )
+        );
+        const txt = responseText.toLowerCase();
+        if (txt.includes("نعم") && txt.includes("لا") && (txt.includes("تأكيد") || txt.includes("تحب") || txt.includes("ردّ"))) {
+          setPendingConfirmation(true);
+        }
+      } catch (e) {
+        const errMsg = e?.response?.data?.message ?? e?.message ?? "Failed to send message.";
+        setMessages((prev) =>
+          prev.map((m) => m.id === msgId ? { ...m, content: errMsg, streaming: false } : m)
+        );
+        setError(errMsg);
+      } finally {
+        setSending(false);
+      }
     }
   }, [sending, startNewConversation]);
+
+  const confirmAction = useCallback(() => { send("نعم"); }, [send]);
+  const cancelAction = useCallback(() => { send("لا"); setPendingConfirmation(false); }, [send]);
 
   const deleteConv = useCallback(async (conversationId) => {
     setConversations((prev) => prev.filter((c) => c.id !== conversationId));
     if (activeRef.current === conversationId) {
       setActiveConversationId(null);
       setMessages([]);
+      setPendingConfirmation(false);
     }
     try {
       await deleteConversation(conversationId);
@@ -136,9 +207,12 @@ export function useChat() {
     loadingConvs,
     loadingMsgs,
     error,
+    pendingConfirmation,
     selectConversation,
     startNewConversation,
     send,
+    confirmAction,
+    cancelAction,
     deleteMsg,
     deleteConv,
   };

@@ -10,37 +10,32 @@ const formatTimestamp = (value) => {
     return value.toDate().toLocaleString("en-US");
   }
   if (value instanceof Date) {
-    return value.toLocaleString();
+    return value.toLocaleString("en-US");
   }
   return String(value);
 };
 
-function CourseRowActions({
-  row,
-  onEdit,
-  onDelete,
-  onAssignStaff,
-}) {
+function CourseRowActions({ row, onEdit, onDelete, onAssignStaff }) {
   const handleEdit = useCallback(
     (event) => {
       event.stopPropagation();
       onEdit(row);
     },
-    [onEdit, row]
+    [onEdit, row],
   );
   const handleDelete = useCallback(
     (event) => {
       event.stopPropagation();
       onDelete(row);
     },
-    [onDelete, row]
+    [onDelete, row],
   );
   const handleAssignStaff = useCallback(
     (event) => {
       event.stopPropagation();
       onAssignStaff(row);
     },
-    [onAssignStaff, row]
+    [onAssignStaff, row],
   );
 
   return (
@@ -80,7 +75,12 @@ function CoursesTable({
         minWidth: 180,
         valueFormatter: ({ value }) => formatTimestamp(value),
       },
-      { field: "description", headerName: "Description", flex: 1.5, minWidth: 200 },
+      {
+        field: "description",
+        headerName: "Description",
+        flex: 1.5,
+        minWidth: 200,
+      },
       {
         field: "actions",
         headerName: "Actions",
@@ -97,7 +97,7 @@ function CoursesTable({
         ),
       },
     ],
-    [onAssignStaff, onDelete, onEdit]
+    [onAssignStaff, onDelete, onEdit],
   );
 
   return (

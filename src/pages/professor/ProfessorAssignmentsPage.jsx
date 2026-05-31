@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   HiPlus, HiTrash, HiPencil,
-  HiCheckCircle, HiClock, HiSparkles, HiRefresh,
+  HiCheckCircle, HiClock, HiSparkles, HiRefresh, HiDocumentDownload,
 } from "react-icons/hi";
 import PageHeader from "../../components/common/PageHeader";
 import Loading from "../../components/common/Loading";
@@ -35,7 +35,7 @@ function GradeModal({ sub, onClose, onGraded }) {
     if (isNaN(s) || s < 0) return setErr("Enter a valid score.");
     setSaving(true); setErr("");
     try {
-      await gradeSubmission(sub.id, { score: s, feedback: feedback.trim() || null });
+      await gradeSubmission(sub.id, { submissionId: sub.id, grade: s, feedback: feedback.trim() || null });
       onGraded(sub.id, s, feedback.trim());
       onClose();
     } catch (e) {
@@ -130,11 +130,25 @@ function SubmissionsPanel({ assignmentId, onClose }) {
           )}
           {subs.map((sub) => (
             <div key={sub.id} className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3 gap-3">
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-slate-800 truncate">{sub.studentName ?? "Student"}</p>
                 <p className="text-xs text-slate-400">{fmtDate(sub.submittedAt)}</p>
+                {sub.textAnswer && (
+                  <p className="mt-1 text-xs text-slate-600 line-clamp-2 whitespace-pre-wrap">{sub.textAnswer}</p>
+                )}
               </div>
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+                {sub.fileUrl && (
+                  <a
+                    href={sub.fileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+                  >
+                    <HiDocumentDownload className="h-3.5 w-3.5" />
+                    View File
+                  </a>
+                )}
                 {sub.isGraded ? (
                   <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
                     {sub.score ?? "—"} pts
@@ -183,7 +197,7 @@ function CreateForm({ offeringId, onCreated }) {
         subjectOfferingId: offeringId,
         title: title.trim(),
         description: description.trim() || null,
-        deadline: deadline || null,
+        deadline: deadline ? new Date(deadline).toISOString() : null,
         maxScore: maxScore ? Number(maxScore) : null,
       };
       const result = await createAssignment(dto);
