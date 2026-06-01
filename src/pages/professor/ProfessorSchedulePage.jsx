@@ -84,17 +84,18 @@ function WeekGrid({ entries }) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {byDay.map((day) => (
-        <div key={day.number} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-          <h3 className="mb-3 text-sm font-bold text-slate-700 uppercase tracking-wide">
-            {day.label}
-          </h3>
+        <div key={day.number} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-100">
+          <h3 className="mb-3 text-sm font-bold text-slate-700 uppercase tracking-widest">{day.label}</h3>
           {day.slots.length === 0 ? (
-            <p className="text-xs text-slate-400">No classes</p>
+            <div className="flex flex-col items-center justify-center py-6 text-slate-300">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <p className="text-xs text-slate-400">No classes</p>
+            </div>
           ) : (
             <div className="space-y-2">
-              {day.slots.map((e) => (
-                <ScheduleCard key={e.id} entry={e} />
-              ))}
+              {day.slots.map((e) => <ScheduleCard key={e.id} entry={e} />)}
             </div>
           )}
         </div>
@@ -128,17 +129,20 @@ function ProfessorSchedulePage() {
   const todayLabel = DAYS.find((d) => d.number === todayNumber)?.label ?? "";
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 md:p-8">
-      <PageHeader title="My Teaching Schedule" />
+    <div className="space-y-5">
+      <div>
+        <h1 className="text-2xl font-bold text-slate-800">My Teaching Schedule</h1>
+        <p className="text-sm text-slate-400 mt-0.5">View your weekly class timetable</p>
+      </div>
 
-      <div className="mb-6 flex gap-2">
+      <div className="flex gap-2">
         <button
           type="button"
           onClick={() => setMode("today")}
-          className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
+          className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
             mode === "today"
-              ? "bg-green-600 text-white shadow"
-              : "bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100"
+              ? "bg-[#0b2c4a] text-white shadow"
+              : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
           }`}
         >
           Today ({todayLabel})
@@ -146,10 +150,10 @@ function ProfessorSchedulePage() {
         <button
           type="button"
           onClick={() => setMode("week")}
-          className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
+          className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
             mode === "week"
-              ? "bg-green-600 text-white shadow"
-              : "bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100"
+              ? "bg-[#0b2c4a] text-white shadow"
+              : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
           }`}
         >
           Full Week

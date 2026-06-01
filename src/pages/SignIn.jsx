@@ -18,11 +18,26 @@ function redirectByRole(role, navigate) {
   navigate(getRoleHomePath(role), { replace: true });
 }
 
+function EyeIcon({ open }) {
+  return open ? (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+    </svg>
+  ) : (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+    </svg>
+  );
+}
+
 function SignIn() {
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loginError, setLoginError] = useState("");
 
@@ -40,7 +55,6 @@ function SignIn() {
         });
 
         const json = await res.json();
-
         const authPayload = json?.data ?? json;
 
         if (!res.ok || !authPayload?.token) {
@@ -79,134 +93,245 @@ function SignIn() {
   );
 
   return (
-    <section className="relative min-h-screen w-full overflow-hidden bg-gradient-to-br from-[#f7f1e6] via-[#edf4ff] to-[#c7d7ff] text-[#0b2c4a]">
-      <div className="pointer-events-none absolute -top-28 -left-20 h-80 w-80 rounded-full bg-[#103c6b]/15 blur-3xl" />
-      <div className="pointer-events-none absolute top-20 right-0 h-[26rem] w-[26rem] translate-x-1/2 rounded-full bg-[#ffcf70]/35 blur-3xl" />
-      <div className="pointer-events-none absolute bottom-0 left-1/3 h-72 w-72 -translate-x-1/2 rounded-full bg-[#7fb0ff]/35 blur-3xl" />
-
-      <div className="relative z-10 grid min-h-screen grid-cols-1 gap-10 px-6 py-10 lg:grid-cols-[1.1fr_0.9fr] lg:px-16 lg:py-16">
-        <div className="flex flex-col justify-center gap-8">
-          <div className="inline-flex w-fit items-center gap-3 rounded-full bg-white/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-[#0b2c4a] shadow-sm">
-            <span className="h-2.5 w-2.5 rounded-full bg-[#0b2c4a]" />
-            College Portal
-          </div>
-
-          <div className="max-w-xl">
-            <h1 className="text-4xl font-semibold leading-tight tracking-tight text-[#0b2c4a] lg:text-5xl lg:leading-tight font-['Palatino_Linotype','Book_Antiqua','Palatino','serif']">
-              beni Suef National University
-            </h1>
-            <p className="mt-4 text-base text-[#1d3557]/80 lg:text-lg">
-              Sign in to reach student services, faculty resources, and campus
-              announcements in one secure space.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-4 rounded-2xl bg-white/70 p-4 shadow-sm ring-1 ring-white/60">
-            <div className="h-14 w-14 rounded-2xl bg-white p-2 shadow-sm">
-              <img
-                src={BigLogo}
-                alt="beni Suef National University logo"
-                className="h-full w-full object-contain"
-              />
-            </div>
-            <div className="text-sm text-[#1d3557]/70">
-              <p className="text-base font-semibold text-[#0b2c4a]">
-                Official College Access
-              </p>
-              <p>Use your university email to enter the portal.</p>
-            </div>
-          </div>
+    <div className="min-h-screen flex">
+      {/* ── Left Panel ── */}
+      <div
+        className="hidden lg:flex lg:w-[55%] xl:w-[60%] flex-col relative overflow-hidden"
+        style={{
+          background: "linear-gradient(135deg, #0b2c4a 0%, #1a4a6b 40%, #0d6b8a 100%)",
+        }}
+      >
+        {/* Building silhouette background */}
+        <div className="absolute inset-0 opacity-10">
+          <svg viewBox="0 0 800 600" className="w-full h-full" preserveAspectRatio="xMidYMid slice">
+            <rect x="50" y="200" width="120" height="400" fill="white" />
+            <rect x="60" y="150" width="100" height="60" fill="white" />
+            <rect x="200" y="280" width="80" height="320" fill="white" />
+            <rect x="320" y="180" width="160" height="420" fill="white" />
+            <rect x="340" y="120" width="120" height="70" fill="white" />
+            <rect x="510" y="240" width="100" height="360" fill="white" />
+            <rect x="640" y="300" width="90" height="300" fill="white" />
+            <rect x="30" y="220" width="20" height="380" fill="white" />
+            <rect x="180" y="220" width="20" height="380" fill="white" />
+            {/* Windows */}
+            {[70,90,110,130].map(x => [220,260,300,340,380,420,460].map(y => (
+              <rect key={`${x}-${y}`} x={x} y={y} width="12" height="16" fill="white" opacity="0.8" />
+            )))}
+            {[330,360,390,420,450].map(x => [200,240,280,320,360,400,440,480].map(y => (
+              <rect key={`${x}-${y}`} x={x} y={y} width="14" height="18" fill="white" opacity="0.8" />
+            )))}
+          </svg>
         </div>
 
-        <div className="flex items-center justify-center">
-          <div className="w-full max-w-md rounded-3xl bg-white/85 p-8 shadow-2xl ring-1 ring-white/60 backdrop-blur">
-            <div className="flex flex-col items-center text-center">
-              <div className="h-24 w-24 rounded-full bg-[#0b2c4a] p-[3px] shadow-lg">
-                <div className="h-full w-full rounded-full bg-white p-3">
-                  <img
-                    src={BigLogo}
-                    alt="beni Suef National University logo"
-                    className="h-full w-full object-contain"
-                  />
+        {/* Gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#0b2c4a]/80" />
+
+        {/* Content */}
+        <div className="relative z-10 flex flex-col h-full p-10 xl:p-14">
+          {/* Top: Logo + University Name */}
+          <div className="flex items-center gap-3 mb-auto">
+            <img src={BigLogo} alt="University Logo" className="h-12 w-12 object-contain" />
+            <div>
+              <p className="text-white font-bold text-lg leading-tight">Beni-Suef</p>
+              <p className="text-white font-bold text-lg leading-tight">National University</p>
+            </div>
+          </div>
+
+          {/* Middle: Main heading */}
+          <div className="mt-auto mb-8">
+            <h1 className="text-4xl xl:text-5xl font-bold text-white leading-tight mb-3">
+              Beni-Suef<br />National University
+            </h1>
+            <p className="text-[#4dd8e8] text-xl font-semibold mb-4">Your Gateway to Excellence</p>
+            <p className="text-white/70 text-sm leading-relaxed max-w-sm">
+              Sign in to access student services, faculty resources,
+              and campus announcements in one secure space.
+            </p>
+
+            <div className="mt-6 flex items-center gap-3 bg-white/10 rounded-2xl px-4 py-3 max-w-xs">
+              <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-white font-semibold text-sm">Official College Access</p>
+                <p className="text-white/60 text-xs">Use your university email to enter the portal.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom: Feature strip */}
+          <div className="grid grid-cols-3 gap-4 border-t border-white/15 pt-6">
+            {[
+              { icon: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z", title: "Secure Access", desc: "Your data is protected with advanced security." },
+              { icon: "M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10", title: "All Services", desc: "Access all university services in one place." },
+              { icon: "M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9", title: "Stay Updated", desc: "Get the latest announcements and important updates." },
+            ].map((f) => (
+              <div key={f.title}>
+                <div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center mb-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={f.icon} />
+                  </svg>
                 </div>
+                <p className="text-white text-xs font-semibold">{f.title}</p>
+                <p className="text-white/50 text-[11px] mt-0.5 leading-snug">{f.desc}</p>
               </div>
-              <h2 className="mt-5 text-2xl font-semibold text-[#0b2c4a] font-['Palatino_Linotype','Book_Antiqua','Palatino','serif']">
-                Welcome Back
-              </h2>
-              <p className="mt-2 text-sm text-[#1d3557]/70">
-                Sign in to continue to the college portal.
-              </p>
-            </div>
-
-            <form className="mt-8 flex flex-col gap-5" onSubmit={handleSubmit}>
-              <div>
-                <label
-                  htmlFor="email"
-                  className="text-xs font-semibold uppercase tracking-[0.2em] text-[#1d3557]/70"
-                >
-                  Email
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  placeholder="name@bnu.edu.eg"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  autoComplete="email"
-                  className="mt-2 w-full rounded-2xl border border-[#0b2c4a]/15 bg-white/90 px-4 py-3 text-sm text-[#0b2c4a] shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
-                  required
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="password"
-                  className="text-xs font-semibold uppercase tracking-[0.2em] text-[#1d3557]/70"
-                >
-                  Password
-                </label>
-                <input
-                  id="password"
-                  type="password"
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="current-password"
-                  className="mt-2 w-full rounded-2xl border border-[#0b2c4a]/15 bg-white/90 px-4 py-3 text-sm text-[#0b2c4a] shadow-sm outline-none transition focus:border-[#0b2c4a]/40 focus:ring-4 focus:ring-[#0b2c4a]/10"
-                  required
-                />
-              </div>
-
-              {loginError ? (
-                <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-700 ring-1 ring-red-200">
-                  {loginError}
-                </p>
-              ) : null}
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="mt-2 flex items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-[#0b2c4a] via-[#1d5fa3] to-[#0b2c4a] px-6 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-white shadow-lg transition hover:translate-y-[-1px] hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                {loading ? (
-                  <>
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/70 border-t-white" />
-                    Signing In
-                  </>
-                ) : (
-                  "Sign In"
-                )}
-              </button>
-            </form>
-
-            <div className="mt-6 rounded-2xl bg-[#0b2c4a]/5 px-4 py-3 text-xs text-[#1d3557]/70">
-              Use your official university credentials. For support, contact the
-              IT helpdesk.
-            </div>
+            ))}
           </div>
         </div>
       </div>
-    </section>
+
+      {/* ── Right Panel ── */}
+      <div className="flex-1 flex items-center justify-center bg-[#f0f4f8] px-6 py-10">
+        <div className="w-full max-w-md">
+          <div className="bg-white rounded-3xl shadow-xl p-8">
+            {/* Logo */}
+            <div className="flex flex-col items-center mb-7">
+              <div className="w-20 h-20 rounded-full border-4 border-[#0b2c4a] p-1 mb-4">
+                <div className="w-full h-full rounded-full bg-white flex items-center justify-center p-1">
+                  <img src={BigLogo} alt="University Logo" className="h-full w-full object-contain" />
+                </div>
+              </div>
+              <h2 className="text-2xl font-bold text-[#0b2c4a]">Welcome Back</h2>
+              <p className="text-slate-500 text-sm mt-1">Sign in to continue to the college portal.</p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Email */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">
+                  Email
+                </label>
+                <div className="relative">
+                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="name@university.edu"
+                    autoComplete="email"
+                    required
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-800 outline-none transition focus:border-[#0b2c4a]/40 focus:ring-2 focus:ring-[#0b2c4a]/10 focus:bg-white"
+                  />
+                </div>
+              </div>
+
+              {/* Password */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">
+                  Password
+                </label>
+                <div className="relative">
+                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                  </div>
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    autoComplete="current-password"
+                    required
+                    className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-800 outline-none transition focus:border-[#0b2c4a]/40 focus:ring-2 focus:ring-[#0b2c4a]/10 focus:bg-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((s) => !s)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    <EyeIcon open={showPassword} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Remember me + Forgot Password */}
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="w-4 h-4 rounded border-slate-300 text-[#0b2c4a] accent-[#0b2c4a]"
+                  />
+                  <span className="text-sm text-slate-600">Remember me</span>
+                </label>
+                <button type="button" className="text-sm text-[#1d5fa3] font-medium hover:underline">
+                  Forgot Password?
+                </button>
+              </div>
+
+              {loginError && (
+                <div className="rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-700 ring-1 ring-red-200">
+                  {loginError}
+                </div>
+              )}
+
+              {/* Sign In Button */}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 rounded-xl bg-[#0b2c4a] text-white font-bold text-sm uppercase tracking-widest transition hover:bg-[#153a63] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <>
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                    Signing In
+                  </>
+                ) : "SIGN IN"}
+              </button>
+
+              {/* OR Divider */}
+              <div className="flex items-center gap-3 my-1">
+                <div className="flex-1 h-px bg-slate-200" />
+                <span className="text-xs text-slate-400 font-medium">OR</span>
+                <div className="flex-1 h-px bg-slate-200" />
+              </div>
+
+              {/* Microsoft Button */}
+              <button
+                type="button"
+                className="w-full py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 flex items-center justify-center gap-3 transition hover:bg-slate-50 hover:border-slate-300"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 21 21">
+                  <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+                  <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+                  <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+                  <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+                </svg>
+                Sign in with Microsoft
+              </button>
+            </form>
+
+            {/* Footer note */}
+            <div className="mt-5 flex items-start gap-2.5 rounded-xl bg-slate-50 px-4 py-3">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Use your official university credentials.<br />
+                For support, contact the IT helpdesk.
+              </p>
+            </div>
+          </div>
+
+          <p className="text-center text-xs text-slate-400 mt-6">
+            © 2024 Beni-Suef National University. All rights reserved.
+          </p>
+          <div className="flex justify-center gap-4 mt-2">
+            {["Privacy Policy", "Terms & Conditions", "Help Center"].map((t) => (
+              <button key={t} type="button" className="text-xs text-slate-400 hover:text-slate-600 transition">{t}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

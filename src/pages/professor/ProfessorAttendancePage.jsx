@@ -63,12 +63,22 @@ function ProfessorAttendancePage() {
   if (offerErr)  return <ErrorState message={offerErr} />;
 
   return (
-    <div className="space-y-8">
-      <PageHeader title="Attendance Sessions" />
+    <div className="space-y-5">
+      <div>
+        <h1 className="text-2xl font-bold text-slate-800">Attendance Sessions</h1>
+        <p className="text-sm text-slate-400 mt-0.5">Create sessions and track student attendance</p>
+      </div>
 
       {/* Create session form */}
-      <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200 space-y-5 max-w-lg">
-        <h2 className="text-sm font-bold text-slate-700">Create New Session</h2>
+      <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100 space-y-5 max-w-lg">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <h2 className="text-base font-bold text-slate-800">Create New Session</h2>
+        </div>
 
         <form onSubmit={handleCreate} className="space-y-4">
           <div>
@@ -156,13 +166,29 @@ function ProfessorAttendancePage() {
       )}
 
       {/* Guidance */}
-      <div className="rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200 max-w-lg">
-        <p className="text-xs font-semibold text-slate-600 mb-2">How it works</p>
-        <ol className="list-decimal list-inside space-y-1 text-xs text-slate-500">
-          <li>Select the subject offering and create a session.</li>
-          <li>Share the generated Session ID with your students (on the board or verbally).</li>
-          <li>Students go to Attendance → Check-In and paste the Session ID.</li>
-          <li>View student attendance reports from the Admin panel.</li>
+      <div className="rounded-2xl bg-white p-5 ring-1 ring-slate-100 max-w-lg shadow-sm">
+        <div className="flex items-center gap-2.5 mb-3">
+          <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            </svg>
+          </div>
+          <p className="text-sm font-bold text-slate-700">How it works</p>
+        </div>
+        <ol className="space-y-2">
+          {[
+            "Select the subject offering and create a session.",
+            "Share the generated Session ID with your students (on the board or verbally).",
+            "Students go to Attendance → Check-in and paste the Session ID.",
+            "View student attendance reports from the Admin panel.",
+          ].map((step, i) => (
+            <li key={i} className="flex items-start gap-2.5 text-sm text-slate-500">
+              <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-500 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                {i + 1}
+              </span>
+              {step}
+            </li>
+          ))}
         </ol>
       </div>
     </div>
