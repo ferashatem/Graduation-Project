@@ -406,6 +406,83 @@ function FlashcardsTab() {
           </div>
         </form>
       </div>
+
+      {/* All Decks */}
+      <DeckListPanel />
+    </div>
+  );
+}
+
+// ── Deck List Panel ───────────────────────────────────────────────────────────
+function DeckListPanel() {
+  const [decks,       setDecks]       = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [openDeckId,  setOpenDeckId]  = useState(null);
+  const [deckCards,   setDeckCards]   = useState([]);
+  const [deckLoading, setDeckLoading] = useState(false);
+
+  useEffect(() => {
+    fetchAllDecks()
+      .then((d) => setDecks(Array.isArray(d) ? d : d?.items ?? []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const openDeck = (deckId) => {
+    if (openDeckId === deckId) { setOpenDeckId(null); return; }
+    setOpenDeckId(deckId);
+    setDeckLoading(true);
+    fetchDeck(deckId)
+      .then((d) => setDeckCards(d?.cards ?? d?.flashcards ?? (Array.isArray(d) ? d : [])))
+      .catch(() => setDeckCards([]))
+      .finally(() => setDeckLoading(false));
+  };
+
+  if (loading) return <TabLoader label="Loading decks…" />;
+  if (decks.length === 0) return null;
+
+  return (
+    <div className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-100 overflow-hidden">
+      <div className="px-5 py-3 border-b border-slate-100">
+        <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500">My Flashcard Decks</h3>
+      </div>
+      <div className="divide-y divide-slate-100">
+        {decks.map((deck, i) => (
+          <div key={deck.id ?? i}>
+            <button
+              type="button"
+              onClick={() => openDeck(deck.id)}
+              className="w-full flex items-center justify-between gap-3 px-5 py-3 hover:bg-slate-50 transition"
+            >
+              <div className="text-left min-w-0">
+                <p className="text-sm font-semibold text-slate-800 truncate">{deck.topicName ?? deck.title ?? "Deck"}</p>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {deck.cardCount ?? deck.totalCards ?? ""} cards
+                  {deck.difficulty ? ` · ${deck.difficulty}` : ""}
+                  {deck.createdAt ? ` · ${new Date(deck.createdAt).toLocaleDateString()}` : ""}
+                </p>
+              </div>
+              <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 text-slate-300 shrink-0 transition-transform ${openDeckId === deck.id ? "rotate-90" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+            {openDeckId === deck.id && (
+              <div className="bg-slate-50 px-5 pb-4 space-y-2">
+                {deckLoading && <p className="text-xs text-slate-400 py-2">Loading cards…</p>}
+                {!deckLoading && deckCards.map((c, ci) => (
+                  <div key={c.id ?? ci} className="rounded-xl bg-white p-3 ring-1 ring-slate-100">
+                    <p className="text-xs font-semibold text-slate-700">{c.front ?? c.question ?? c.frontText}</p>
+                    <p className="text-xs text-slate-400 mt-1 border-t border-slate-100 pt-1">{c.back ?? c.answer ?? c.backText}</p>
+                  </div>
+                ))}
+                {!deckLoading && deckCards.length === 0 && (
+                  <p className="text-xs text-slate-400 py-2">No cards in this deck.</p>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -550,8 +627,8 @@ function StudySessionTab() {
   }
 
   return (
-    <div className="max-w-lg mx-auto space-y-5">
-      <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+    <div className="space-y-5">
+    <div className="max-w-lg mx-auto rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -621,6 +698,71 @@ function StudySessionTab() {
             {starting ? "Starting…" : "Start Session"}
           </button>
         </form>
+      </div>
+
+      {/* Session History */}
+      <SessionHistoryPanel />
+    </div>
+  );
+}
+
+// ── Session History Panel ─────────────────────────────────────────────────────
+const fmtDate = (s) => {
+  if (!s) return "";
+  try { return new Date(s).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); }
+  catch { return s; }
+};
+
+function SessionHistoryPanel() {
+  const [sessions, setSessions] = useState([]);
+  const [loading,  setLoading]  = useState(true);
+
+  useEffect(() => {
+    fetchSessionHistory()
+      .then((d) => setSessions(Array.isArray(d) ? d : d?.items ?? []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <TabLoader label="Loading sessions…" />;
+  if (sessions.length === 0) return (
+    <div className="rounded-2xl bg-white p-6 text-center ring-1 ring-slate-200">
+      <p className="text-sm text-slate-400">No sessions yet. Start your first study session!</p>
+    </div>
+  );
+
+  return (
+    <div className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-100 overflow-hidden">
+      <div className="px-5 py-3 border-b border-slate-100">
+        <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500">Session History</h3>
+      </div>
+      <div className="divide-y divide-slate-100">
+        {sessions.slice(0, 10).map((s, i) => {
+          const total   = s.totalQuestions ?? 0;
+          const correct = s.correctAnswers ?? 0;
+          const pct     = total > 0 ? Math.round((correct / total) * 100) : null;
+          return (
+            <div key={s.id ?? i} className="flex items-center justify-between gap-3 px-5 py-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-slate-800 truncate">{s.topicName ?? "Session"}</p>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {s.sessionType ?? ""}
+                  {s.durationMinutes ? ` · ${s.durationMinutes} min` : ""}
+                  {s.startedAt ? ` · ${fmtDate(s.startedAt)}` : ""}
+                </p>
+              </div>
+              {pct != null && (
+                <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${
+                  pct >= 80 ? "bg-emerald-100 text-emerald-700" :
+                  pct >= 60 ? "bg-blue-100 text-blue-700" :
+                  "bg-red-100 text-red-700"
+                }`}>
+                  {pct}%
+                </span>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -739,6 +881,150 @@ function TabError({ message }) {
   );
 }
 
+// ── Profile Tab ───────────────────────────────────────────────────────────────
+const LEARNING_STYLES = ["Visual", "Auditory", "ReadWrite", "Kinesthetic", "Practical", "Mixed"];
+const GOALS = ["Graduation", "HighGPA", "SkillDevelopment", "ExamPrep", "GeneralLearning"];
+
+function ProfileTab() {
+  const [profile,  setProfile]  = useState(null);
+  const [loading,  setLoading]  = useState(true);
+  const [saving,   setSaving]   = useState(false);
+  const [saved,    setSaved]    = useState(false);
+  const [err,      setErr]      = useState("");
+  const [form,     setForm]     = useState({ learningStyle: "", goal: "", preferredLanguage: "" });
+
+  useEffect(() => {
+    fetchCompanionProfile()
+      .then((d) => {
+        setProfile(d);
+        setForm({
+          learningStyle:     d?.learningStyle     ?? "",
+          goal:              d?.goal              ?? "",
+          preferredLanguage: d?.preferredLanguage ?? "",
+        });
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const setF = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    setSaving(true); setSaved(false); setErr("");
+    try {
+      const updated = await patchCompanionProfile(form);
+      setProfile(updated);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch {
+      setErr("Failed to save profile. Try again.");
+    } finally { setSaving(false); }
+  };
+
+  if (loading) return <TabLoader label="Loading profile…" />;
+
+  return (
+    <div className="max-w-lg mx-auto space-y-5">
+      {/* Stats */}
+      {profile && (
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: "Total Sessions", value: profile.totalSessions ?? "—" },
+            { label: "Streak Days",    value: `${profile.currentStreakDays ?? 0} 🔥` },
+            { label: "Engagement",     value: profile.engagementScore != null ? `${profile.engagementScore}/100` : "—" },
+          ].map((s) => (
+            <div key={s.label} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-100 text-center">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{s.label}</p>
+              <p className="mt-1.5 text-xl font-bold text-slate-800">{s.value}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Edit form */}
+      <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+        <h3 className="text-sm font-bold text-slate-800 mb-4">Learning Preferences</h3>
+        <form onSubmit={handleSave} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-2">Learning Style</label>
+            <div className="flex flex-wrap gap-2">
+              {LEARNING_STYLES.map((s) => (
+                <button
+                  key={s} type="button"
+                  onClick={() => setF("learningStyle", s)}
+                  className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition ${
+                    form.learningStyle === s
+                      ? "bg-violet-600 text-white"
+                      : "border border-slate-200 text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-2">Goal</label>
+            <div className="flex flex-wrap gap-2">
+              {GOALS.map((g) => (
+                <button
+                  key={g} type="button"
+                  onClick={() => setF("goal", g)}
+                  className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition ${
+                    form.goal === g
+                      ? "bg-blue-600 text-white"
+                      : "border border-slate-200 text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  {g.replace(/([A-Z])/g, " $1").trim()}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Preferred Language</label>
+            <select
+              value={form.preferredLanguage}
+              onChange={(e) => setF("preferredLanguage", e.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-violet-300"
+            >
+              <option value="">Not specified</option>
+              <option value="en">English</option>
+              <option value="ar">Arabic (العربية)</option>
+            </select>
+          </div>
+          {err   && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-xs text-red-700 ring-1 ring-red-200">{err}</p>}
+          {saved && <p className="rounded-xl bg-emerald-50 px-4 py-2.5 text-xs text-emerald-700 ring-1 ring-emerald-200">Profile saved successfully!</p>}
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex items-center gap-2 rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-50 transition"
+            >
+              {saving ? "Saving…" : "Save Changes"}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Weak subjects */}
+      {profile?.weakSubjects?.length > 0 && (
+        <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+          <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3">Areas to Improve</h3>
+          <div className="flex flex-wrap gap-2">
+            {profile.weakSubjects.map((s, i) => (
+              <span key={i} className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700">
+                {s.subjectName ?? s.name ?? s}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 function StudentCompanionPage() {
   const [activeTab, setActiveTab] = useState(0);
@@ -773,6 +1059,7 @@ function StudentCompanionPage() {
       {activeTab === 1 && <FlashcardsTab />}
       {activeTab === 2 && <StudySessionTab />}
       {activeTab === 3 && <InsightsTab />}
+      {activeTab === 4 && <ProfileTab />}
     </div>
   );
 }

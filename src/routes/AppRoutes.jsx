@@ -97,6 +97,7 @@ import ProfessorExamAnalyticsPage from "../pages/professor/ProfessorExamAnalytic
 import ProfessorAssignmentsPage from "../pages/professor/ProfessorAssignmentsPage";
 import ProfessorGradesImportPage from "../pages/professor/ProfessorGradesImportPage";
 import TeachingIntelligencePage from "../pages/professor/TeachingIntelligencePage";
+import ProfessorCompanionPage from "../pages/professor/ProfessorCompanionPage";
 import ProfessorNotificationsPage from "../pages/professor/ProfessorNotificationsPage";
 import StudentAssignmentsPage from "../pages/student/StudentAssignmentsPage";
 import StudentNotificationsPage from "../pages/student/StudentNotificationsPage";
@@ -245,6 +246,7 @@ function AppRoutes() {
           <Route path="assignments" element={<ProfessorAssignmentsPage />} />
           <Route path="grades-import" element={<ProfessorGradesImportPage />} />
           <Route path="teaching-intelligence" element={<TeachingIntelligencePage />} />
+          <Route path="companion" element={<ProfessorCompanionPage />} />
           <Route path="notifications" element={<ProfessorNotificationsPage />} />
           <Route path="chat" element={<ChatPage />} />
           <Route path="change-password" element={<ForceChangePassword />} />

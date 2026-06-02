@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import {
   HiBookOpen, HiCalendar, HiChat, HiClipboardList,
   HiHome, HiKey, HiLogout, HiUserGroup, HiTable,
-  HiLightningBolt, HiBell,
+  HiLightningBolt, HiBell, HiSparkles,
 } from "react-icons/hi";
 import { clearStoredSession } from "../../auth/session";
 import { resetAuthUser } from "../../auth/useAuthUser";
@@ -30,6 +30,7 @@ function ProfessorSidebar({ open = false, onClose, onNavigate, profile, user }) 
     { label: "Assignments",          to: "/prof/assignments",              icon: HiClipboardList             },
     { label: "Exams",                to: "/prof/exams",                    icon: HiClipboardList             },
     { label: "Teaching Intelligence",to: "/prof/teaching-intelligence",    icon: HiLightningBolt             },
+    { label: "AI Class Companion",   to: "/prof/companion",               icon: HiSparkles                  },
     { label: "Complaint Reports",    to: "/prof/complaints",               icon: HiClipboardList             },
     { label: "Import Grades",        to: "/prof/grades-import",            icon: HiTable                     },
     { label: "Notifications",        to: "/prof/notifications",            icon: HiBell                      },
