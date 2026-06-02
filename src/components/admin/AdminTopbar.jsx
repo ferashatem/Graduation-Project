@@ -1,7 +1,9 @@
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { HiMenu } from "react-icons/hi";
 import fallbackAvatar from "../../assets/imgs/profile.png";
 import NotificationDropdown from "../shared/NotificationDropdown";
+import LanguageSwitcher from "../common/LanguageSwitcher";
 
 const getStoredName  = () => localStorage.getItem("userName")  || "";
 const getStoredEmail = () => localStorage.getItem("userEmail") || "";
@@ -14,13 +16,14 @@ const resolveEmail = (profile, user) =>
   profile?.email || profile?.Email || user?.email || getStoredEmail() || "";
 
 function AdminTopbar({ title, profile, user, onMenuClick, role = "admin" }) {
+  const { t } = useTranslation();
   const viewModel = useMemo(() => {
     const name      = resolveName(profile, user);
     const email     = resolveEmail(profile, user);
     const photoURL  = profile?.photoURL || profile?.PhotoURL || user?.photoURL || fallbackAvatar;
-    const roleLabel = role === "super_admin" ? "Super Admin" : "Admin";
+    const roleLabel = role === "super_admin" ? t("adminNav.roleSuperAdmin") : t("adminNav.roleAdmin");
     return { name, email, photoURL, roleLabel };
-  }, [profile, role, user]);
+  }, [profile, role, user, t]);
 
   return (
     <header
@@ -43,7 +46,7 @@ function AdminTopbar({ title, profile, user, onMenuClick, role = "admin" }) {
             border: "1px solid #e2e8f0",
             color: "#64748b",
           }}
-          aria-label="Open menu"
+          aria-label={t("common.menu", "Open menu")}
         >
           <HiMenu className="h-5 w-5" />
         </button>
@@ -52,8 +55,9 @@ function AdminTopbar({ title, profile, user, onMenuClick, role = "admin" }) {
         </div>
       </div>
 
-      {/* Right: bell + user */}
+      {/* Right: language + bell + user */}
       <div className="flex items-center gap-3">
+        <LanguageSwitcher />
         <NotificationDropdown />
 
         {/* User pill */}

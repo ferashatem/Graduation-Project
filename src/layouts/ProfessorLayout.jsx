@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import ProfessorSidebar from "../components/professor/ProfessorSidebar";
 import ProfessorTopbar from "../components/professor/ProfessorTopbar";
 import { NotificationProvider } from "../context/NotificationContext";
@@ -7,22 +8,23 @@ import { useAuthUser } from "../auth/useAuthUser";
 
 function ProfessorLayout() {
   const location = useLocation();
+  const { t } = useTranslation();
   const { user, profile, authLoading } = useAuthUser();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const pageTitle = useMemo(() => {
     const path = location.pathname;
-    if (path.startsWith("/prof/courses/")) return "Course Details";
-    if (path.startsWith("/prof/courses")) return "Courses";
-    if (path.startsWith("/prof/quizzes/") && path.endsWith("/results")) return "Quiz Results";
-    if (path.startsWith("/prof/quizzes")) return "Quizzes";
-    if (path.includes("/prof/exams/") && path.endsWith("/analytics")) return "Exam Analytics";
-    if (path.includes("/prof/exams/") && path.endsWith("/results")) return "Exam Results";
-    if (path.startsWith("/prof/exams")) return "My Exams";
-    if (path.startsWith("/prof/chat")) return "AI Assistant";
-    if (path === "/prof" || path === "/prof/") return "Professor Home";
-    return "Professor";
-  }, [location.pathname]);
+    if (path.startsWith("/prof/courses/")) return t("profNav.courseDetails");
+    if (path.startsWith("/prof/courses")) return t("profNav.courses");
+    if (path.startsWith("/prof/quizzes/") && path.endsWith("/results")) return t("profNav.quizResults");
+    if (path.startsWith("/prof/quizzes")) return t("profNav.quizzes");
+    if (path.includes("/prof/exams/") && path.endsWith("/analytics")) return t("profNav.examAnalytics");
+    if (path.includes("/prof/exams/") && path.endsWith("/results")) return t("profNav.examResults");
+    if (path.startsWith("/prof/exams")) return t("profNav.myExams");
+    if (path.startsWith("/prof/chat")) return t("profNav.aiAssistant");
+    if (path === "/prof" || path === "/prof/") return t("profNav.professorHome");
+    return t("profNav.role");
+  }, [location.pathname, t]);
 
   const handleMenuClick = useCallback(() => setSidebarOpen((p) => !p), []);
   const handleCloseSidebar = useCallback(() => setSidebarOpen(false), []);

@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   HiAcademicCap, HiBookOpen, HiCalendar, HiChat, HiClipboardList,
   HiDocumentText, HiHome, HiKey, HiLogout, HiPencilAlt, HiChartBar, HiMap,
@@ -19,23 +20,24 @@ const resolveEmail = (profile, user) =>
 
 function StudentSidebar({ open = false, onClose, onNavigate, profile, user }) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const navItems = useMemo(() => [
-    { label: "Home",            to: "/student",                    icon: HiHome,         end: true },
-    { label: "My Courses",      to: "/student/courses",            icon: HiBookOpen              },
-    { label: "My Schedule",     to: "/student/schedule",           icon: HiCalendar              },
-    { label: "My Grades",       to: "/student/grades",             icon: HiAcademicCap           },
-    { label: "Academic Status", to: "/student/academic-status",    icon: HiChartBar              },
-    { label: "My Roadmap",      to: "/student/roadmap",            icon: HiMap                   },
-    { label: "Attendance",      to: "/student/attendance",         icon: HiClipboardList         },
-    { label: "Assignments",     to: "/student/assignments",        icon: HiDocumentText          },
-    { label: "Quizzes",         to: "/student/quizzes",            icon: HiPencilAlt             },
-    { label: "My Complaints",   to: "/student/complaints",         icon: HiClipboardList         },
-    { label: "Notifications",   to: "/student/notifications",      icon: HiBell                  },
-    { label: "AI Companion",    to: "/student/companion",          icon: HiSparkles              },
-    { label: "AI Assistant",    to: "/student/chat",               icon: HiChat                  },
-    { label: "Change Password", to: "/student/change-password",    icon: HiKey                   },
-  ], []);
+    { label: t("studentNav.home"),           to: "/student",                 icon: HiHome,         end: true },
+    { label: t("studentNav.myCourses"),      to: "/student/courses",         icon: HiBookOpen              },
+    { label: t("studentNav.mySchedule"),     to: "/student/schedule",        icon: HiCalendar              },
+    { label: t("studentNav.myGrades"),       to: "/student/grades",          icon: HiAcademicCap           },
+    { label: t("studentNav.academicStatus"), to: "/student/academic-status", icon: HiChartBar              },
+    { label: t("studentNav.myRoadmap"),      to: "/student/roadmap",         icon: HiMap                   },
+    { label: t("studentNav.attendance"),     to: "/student/attendance",      icon: HiClipboardList         },
+    { label: t("studentNav.assignments"),    to: "/student/assignments",     icon: HiDocumentText          },
+    { label: t("studentNav.quizzes"),        to: "/student/quizzes",         icon: HiPencilAlt             },
+    { label: t("studentNav.myComplaints"),   to: "/student/complaints",      icon: HiClipboardList         },
+    { label: t("studentNav.notifications"),  to: "/student/notifications",   icon: HiBell                  },
+    { label: t("studentNav.aiCompanion"),    to: "/student/companion",       icon: HiSparkles              },
+    { label: t("studentNav.aiAssistant"),    to: "/student/chat",            icon: HiChat                  },
+    { label: t("studentNav.changePassword"), to: "/student/change-password", icon: HiKey                   },
+  ], [t]);
 
   const handleNavigate = useCallback(() => {
     if (onNavigate) { onNavigate(); return; }
@@ -74,7 +76,7 @@ function StudentSidebar({ open = false, onClose, onNavigate, profile, user }) {
           <div className="min-w-0">
             <p className="text-xs font-bold uppercase tracking-[0.18em]"
               style={{ color: "rgba(255,255,255,0.35)" }}>
-              Student
+              {t("studentNav.role")}
             </p>
             <p className="truncate text-sm font-bold" style={{ color: "#fff" }}>
               UniSys
@@ -144,7 +146,7 @@ function StudentSidebar({ open = false, onClose, onNavigate, profile, user }) {
             }}
           >
             <HiLogout className="h-4 w-4" />
-            Logout
+            {t("studentNav.logout")}
           </button>
         </div>
       </aside>

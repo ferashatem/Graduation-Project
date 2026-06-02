@@ -158,8 +158,8 @@ function AppRoutes() {
 
           {/* ── Doctors / Staff ── */}
           <Route path="doctors" element={<DoctorsPage />} />
-          <Route path="register-doctor" element={<RegisterDoctorPage />} />
-          <Route path="create-admin" element={<CreateAdminUser />} />
+          <Route path="register-doctor" element={<Navigate to="/admin/doctors" replace />} />
+          <Route path="create-admin" element={<Navigate to="/admin/admins" replace />} />
 
           {/* ── Regulations ── */}
           <Route path="regulations" element={<RegulationsPage />} />

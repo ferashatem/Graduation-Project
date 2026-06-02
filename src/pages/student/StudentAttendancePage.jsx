@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import PageHeader from "../../components/common/PageHeader";
 import Loading from "../../components/common/Loading";
 import { checkIn, getMyAttendanceReport } from "../../api/attendanceApi";
@@ -12,17 +13,26 @@ const STATUS_STYLE = {
   Excused:  "bg-blue-100 text-blue-700 ring-blue-200",
 };
 
+const STATUS_KEYS = {
+  Present: "studentAttendance.present",
+  Absent:  "studentAttendance.absent",
+  Late:    "studentAttendance.late",
+  Excused: "studentAttendance.excused",
+};
+
 function StatusBadge({ status }) {
+  const { t } = useTranslation();
   const cls = STATUS_STYLE[status] ?? "bg-slate-100 text-slate-600 ring-slate-200";
   return (
     <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${cls}`}>
-      {status ?? "—"}
+      {status ? (STATUS_KEYS[status] ? t(STATUS_KEYS[status]) : status) : "—"}
     </span>
   );
 }
 
 // ── Attendance report per subject ─────────────────────────────────────────────
 function SubjectReport({ subject }) {
+  const { t } = useTranslation();
   const records = subject.records ?? subject.sessions ?? [];
   const total   = records.length;
   const present = records.filter((r) => r.status === "Present").length;
@@ -33,7 +43,7 @@ function SubjectReport({ subject }) {
     <div className="rounded-2xl bg-white p-5 ring-1 ring-slate-200 shadow-sm space-y-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="font-semibold text-slate-800">{subject.subjectName ?? subject.name ?? "Subject"}</p>
+          <p className="font-semibold text-slate-800">{subject.subjectName ?? subject.name ?? t("studentAttendance.subject")}</p>
           {subject.subjectCode && <p className="text-xs text-slate-400">{subject.subjectCode}</p>}
         </div>
         {pct != null && (
@@ -53,9 +63,9 @@ function SubjectReport({ subject }) {
       )}
 
       <p className="text-xs text-slate-500">
-        {present} / {total} sessions attended
+        {t("studentAttendance.sessionsAttended", { present, total })}
         {pct != null && pct < 75 && (
-          <span className="ml-2 text-red-500 font-semibold">⚠ Below 75% threshold</span>
+          <span className="ml-2 text-red-500 font-semibold">{t("studentAttendance.belowThreshold")}</span>
         )}
       </p>
 
@@ -67,7 +77,7 @@ function SubjectReport({ subject }) {
               <span className="text-slate-600">
                 {r.date ?? r.sessionDate
                   ? new Date(r.date ?? r.sessionDate).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
-                  : `Session ${i + 1}`}
+                  : t("studentAttendance.session", { n: i + 1 })}
               </span>
               {r.notes && <span className="text-slate-400 mx-2 truncate max-w-[120px]">{r.notes}</span>}
               <StatusBadge status={r.status} />
@@ -81,6 +91,7 @@ function SubjectReport({ subject }) {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 function StudentAttendancePage() {
+  const { t } = useTranslation();
   const [sessionId,   setSessionId]   = useState("");
   const [checkInLoad, setCheckInLoad] = useState(false);
   const [checkInResult, setCheckInResult] = useState(null);
@@ -95,9 +106,9 @@ function StudentAttendancePage() {
     if (!userId) { setReportLoad(false); return; }
     getMyAttendanceReport(userId)
       .then((data) => setReport(data))
-      .catch((err) => setReportError(getErrorMessage(err, "Could not load attendance report.")))
+      .catch((err) => setReportError(getErrorMessage(err, t("studentAttendance.couldNotLoad"))))
       .finally(() => setReportLoad(false));
-  }, []);
+  }, [t]);
 
   const handleCheckIn = useCallback(async (e) => {
     e.preventDefault();
@@ -107,7 +118,7 @@ function StudentAttendancePage() {
     setCheckInResult(null);
     try {
       await checkIn(id);
-      setCheckInResult({ ok: true, message: "Attendance recorded successfully!" });
+      setCheckInResult({ ok: true, message: t("studentAttendance.recordedSuccess") });
       setSessionId("");
       // refresh report
       const userId = localStorage.getItem("userId");
@@ -115,12 +126,12 @@ function StudentAttendancePage() {
         getMyAttendanceReport(userId).then(setReport).catch(() => {});
       }
     } catch (err) {
-      const msg = getErrorMessage(err, "Failed to record attendance.");
+      const msg = getErrorMessage(err, t("studentAttendance.failedRecord"));
       setCheckInResult({ ok: false, message: msg });
     } finally {
       setCheckInLoad(false);
     }
-  }, [sessionId]);
+  }, [sessionId, t]);
 
   const subjects = Array.isArray(report)
     ? report
@@ -128,15 +139,15 @@ function StudentAttendancePage() {
 
   return (
     <div className="space-y-8">
-      <PageHeader title="Attendance" />
+      <PageHeader title={t("studentAttendance.title")} />
 
       {/* ── Check-In Card ── */}
       <div className="max-w-md">
         <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200 space-y-5">
           <div>
-            <p className="text-sm font-semibold text-slate-700">Check-In to Session</p>
+            <p className="text-sm font-semibold text-slate-700">{t("studentAttendance.checkInToSession")}</p>
             <p className="text-xs text-slate-400 mt-0.5">
-              Enter the Session ID provided by your doctor to mark your attendance.
+              {t("studentAttendance.checkInHint")}
             </p>
           </div>
 
@@ -145,7 +156,7 @@ function StudentAttendancePage() {
               type="text"
               value={sessionId}
               onChange={(e) => setSessionId(e.target.value)}
-              placeholder="Paste session ID here…"
+              placeholder={t("studentAttendance.pasteSessionId")}
               className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
             />
             <button
@@ -153,7 +164,7 @@ function StudentAttendancePage() {
               disabled={checkInLoad || !sessionId.trim()}
               className="w-full rounded-xl bg-[#0b2c4a] px-4 py-3 text-sm font-semibold text-white hover:bg-[#153a63] disabled:opacity-50 transition"
             >
-              {checkInLoad ? "Recording…" : "Check In"}
+              {checkInLoad ? t("studentAttendance.recording") : t("studentAttendance.checkIn")}
             </button>
           </form>
 
@@ -168,15 +179,15 @@ function StudentAttendancePage() {
           )}
         </div>
         <p className="mt-4 text-xs text-slate-400 text-center">
-          You can only check in once per session. Contact your doctor if you have issues.
+          {t("studentAttendance.onceHint")}
         </p>
       </div>
 
       {/* ── Attendance Report ── */}
       <div className="space-y-4">
-        <h2 className="text-sm font-bold uppercase tracking-widest text-slate-500">My Attendance Report</h2>
+        <h2 className="text-sm font-bold uppercase tracking-widest text-slate-500">{t("studentAttendance.myReport")}</h2>
 
-        {reportLoad && <Loading label="Loading attendance report…" />}
+        {reportLoad && <Loading label={t("studentAttendance.loadingReport")} />}
 
         {!reportLoad && reportError && (
           <div className="rounded-2xl bg-red-50 p-4 text-sm text-red-700 ring-1 ring-red-200">
@@ -186,7 +197,7 @@ function StudentAttendancePage() {
 
         {!reportLoad && !reportError && subjects.length === 0 && (
           <div className="rounded-2xl bg-white p-8 text-center ring-1 ring-slate-200">
-            <p className="text-sm text-slate-500">No attendance records found yet.</p>
+            <p className="text-sm text-slate-500">{t("studentAttendance.noRecords")}</p>
           </div>
         )}
 

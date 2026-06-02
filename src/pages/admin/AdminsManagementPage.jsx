@@ -4,9 +4,10 @@ import {
   DialogContent, DialogTitle, IconButton, Paper, Table, TableBody,
   TableCell, TableContainer, TableHead, TableRow, TextField, Typography,
 } from "@mui/material";
-import { HiCheck, HiPencil, HiTrash, HiX } from "react-icons/hi";
+import { HiCheck, HiPencil, HiPlus, HiTrash, HiX } from "react-icons/hi";
 import PageHeader from "../../components/common/PageHeader";
 import {
+  createAdmin,
   fetchAllAdmins,
   updateAdmin,
   deleteAdmin,
@@ -16,6 +17,77 @@ import {
 import { getErrorMessage } from "../../utils/errorHelpers";
 
 const breadcrumbs = [{ label: "Admins Management" }];
+
+function CreateAdminDialog({ open, onClose, onCreated }) {
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      setFullName("");
+      setEmail("");
+      setPassword("");
+      setError("");
+    }
+  }, [open]);
+
+  const handleCreate = async () => {
+    if (!fullName.trim() || !email.trim() || !password.trim()) {
+      setError("Full name, email, and password are required.");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    try {
+      const created = await createAdmin({ fullName, email, password });
+      onCreated(created);
+      onClose();
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>Add Admin</DialogTitle>
+      <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 2 }}>
+        {error && <Alert severity="error">{error}</Alert>}
+        <TextField
+          label="Full Name"
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+          fullWidth
+          autoFocus
+        />
+        <TextField
+          label="Email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          fullWidth
+        />
+        <TextField
+          label="Password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          fullWidth
+        />
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} disabled={saving}>Cancel</Button>
+        <Button variant="contained" onClick={handleCreate} disabled={saving}>
+          {saving ? "Creating…" : "Create"}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
 
 function EditAdminDialog({ admin, open, onClose, onSaved }) {
   const [fullName, setFullName] = useState("");
@@ -32,7 +104,8 @@ function EditAdminDialog({ admin, open, onClose, onSaved }) {
   }, [open, admin]);
 
   const handleSave = async () => {
-    setSaving(true); setError("");
+    setSaving(true);
+    setError("");
     try {
       await updateAdmin(admin.id, { fullName, email });
       onSaved({ ...admin, fullName, email });
@@ -66,10 +139,12 @@ function AdminsManagementPage() {
   const [admins, setAdmins] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
 
   const load = useCallback(async () => {
-    setLoading(true); setError("");
+    setLoading(true);
+    setError("");
     try {
       const data = await fetchAllAdmins();
       setAdmins(Array.isArray(data) ? data : [data]);
@@ -109,7 +184,17 @@ function AdminsManagementPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Admins Management" breadcrumbs={breadcrumbs} />
+      <div className="flex items-center justify-between">
+        <PageHeader title="Admins Management" breadcrumbs={breadcrumbs} />
+        <Button
+          variant="contained"
+          startIcon={<HiPlus />}
+          onClick={() => setCreateOpen(true)}
+          sx={{ borderRadius: 2, textTransform: "none", fontWeight: 600 }}
+        >
+          Add Admin
+        </Button>
+      </div>
 
       {loading && (
         <Box className="flex justify-center py-16"><CircularProgress /></Box>
@@ -152,9 +237,12 @@ function AdminsManagementPage() {
                       <IconButton size="small" onClick={() => setEditTarget(admin)} title="Edit">
                         <HiPencil />
                       </IconButton>
-                      <IconButton size="small" onClick={() => handleToggle(admin)}
+                      <IconButton
+                        size="small"
+                        onClick={() => handleToggle(admin)}
                         title={admin.isActive ? "Deactivate" : "Activate"}
-                        color={admin.isActive ? "warning" : "success"}>
+                        color={admin.isActive ? "warning" : "success"}
+                      >
                         {admin.isActive ? <HiX /> : <HiCheck />}
                       </IconButton>
                       <IconButton size="small" onClick={() => handleDelete(admin)} title="Delete" color="error">
@@ -173,6 +261,14 @@ function AdminsManagementPage() {
           </Table>
         </TableContainer>
       )}
+
+      <CreateAdminDialog
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={(newAdmin) => {
+          setAdmins((prev) => [newAdmin, ...prev]);
+        }}
+      />
 
       <EditAdminDialog
         admin={editTarget}

@@ -1,6 +1,12 @@
 import { createTheme } from "@mui/material/styles";
 
-const theme = createTheme({
+// Cairo for Arabic, Montserrat for Latin. Both are loaded in index.html.
+const FONT_AR = '"Cairo", system-ui, sans-serif';
+const FONT_EN = '"Montserrat", system-ui, sans-serif';
+
+export const buildTheme = (dir = "ltr") =>
+  createTheme({
+  direction: dir,
   palette: {
     primary: {
       main: "#0b2c4a",
@@ -23,7 +29,7 @@ const theme = createTheme({
     },
   },
   typography: {
-    fontFamily: "Montserrat, system-ui, sans-serif",
+    fontFamily: dir === "rtl" ? FONT_AR : FONT_EN,
     fontWeightRegular: 500,
   },
   shape: {
@@ -114,4 +120,6 @@ const theme = createTheme({
   },
 });
 
+// Backward-compatible default export (LTR) for any direct importers.
+const theme = buildTheme("ltr");
 export default theme;

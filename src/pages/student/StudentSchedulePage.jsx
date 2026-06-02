@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import PageHeader from "../../components/common/PageHeader";
 import Loading from "../../components/common/Loading";
 import ErrorState from "../../components/common/ErrorState";
@@ -10,15 +11,22 @@ import {
 } from "../../api/scheduleApi";
 import { getErrorMessage } from "../../utils/errorHelpers";
 
+// `label` is the backend day code (kept for matching); `key` is the i18n key for display.
 const DAYS = [
-  { label: "Sun", number: 0 },
-  { label: "Mon", number: 1 },
-  { label: "Tue", number: 2 },
-  { label: "Wed", number: 3 },
-  { label: "Thu", number: 4 },
-  { label: "Fri", number: 5 },
-  { label: "Sat", number: 6 },
+  { label: "Sun", key: "studentSchedule.daySun", number: 0 },
+  { label: "Mon", key: "studentSchedule.dayMon", number: 1 },
+  { label: "Tue", key: "studentSchedule.dayTue", number: 2 },
+  { label: "Wed", key: "studentSchedule.dayWed", number: 3 },
+  { label: "Thu", key: "studentSchedule.dayThu", number: 4 },
+  { label: "Fri", key: "studentSchedule.dayFri", number: 5 },
+  { label: "Sat", key: "studentSchedule.daySat", number: 6 },
 ];
+
+const TYPE_KEYS = {
+  Lecture: "studentSchedule.lecture",
+  Section: "studentSchedule.section",
+  Lab: "studentSchedule.lab",
+};
 
 const TYPE_STYLES = {
   Lecture: "bg-blue-100 text-blue-800 border-blue-300",
@@ -33,8 +41,10 @@ const TYPE_DOT = {
 };
 
 function ScheduleCard({ entry }) {
+  const { t } = useTranslation();
   const typeStyle = TYPE_STYLES[entry.type] || "bg-slate-100 text-slate-800 border-slate-300";
   const dot = TYPE_DOT[entry.type] || "bg-slate-400";
+  const typeLabel = TYPE_KEYS[entry.type] ? t(TYPE_KEYS[entry.type]) : entry.type;
 
   return (
     <div className={`rounded-2xl border p-4 shadow-sm ${typeStyle}`}>
@@ -51,7 +61,7 @@ function ScheduleCard({ entry }) {
           )}
         </div>
         <span className={`mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium bg-white/60 border`}>
-          {entry.type}
+          {typeLabel}
         </span>
       </div>
       <div className="mt-3 flex items-center gap-3 text-xs">
@@ -65,7 +75,7 @@ function ScheduleCard({ entry }) {
       {entry.isNow && (
         <div className="mt-2 flex items-center gap-1.5">
           <span className={`h-2 w-2 rounded-full animate-pulse ${dot}`} />
-          <span className="text-xs font-semibold">HAPPENING NOW</span>
+          <span className="text-xs font-semibold">{t("studentSchedule.happeningNow")}</span>
         </div>
       )}
     </div>
@@ -73,6 +83,7 @@ function ScheduleCard({ entry }) {
 }
 
 function WeekGrid({ entries }) {
+  const { t } = useTranslation();
   const byDay = DAYS.map((d) => ({
     ...d,
     slots: entries
@@ -85,10 +96,10 @@ function WeekGrid({ entries }) {
       {byDay.map((day) => (
         <div key={day.number} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
           <h3 className="mb-3 text-sm font-bold text-slate-700 uppercase tracking-wide">
-            {day.label}
+            {t(day.key)}
           </h3>
           {day.slots.length === 0 ? (
-            <p className="text-xs text-slate-400">No classes</p>
+            <p className="text-xs text-slate-400">{t("studentSchedule.noClasses")}</p>
           ) : (
             <div className="space-y-2">
               {day.slots.map((e) => (
@@ -103,6 +114,7 @@ function WeekGrid({ entries }) {
 }
 
 function StudentSchedulePage() {
+  const { t } = useTranslation();
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -119,7 +131,7 @@ function StudentSchedulePage() {
         batchIdRef.current = await fetchStudentBatchId();
       }
       const batchId = batchIdRef.current;
-      if (!batchId) throw new Error("Could not determine your batch. Contact your administrator.");
+      if (!batchId) throw new Error(t("studentSchedule.couldNotDetermineBatch"));
 
       if (mode === "today") {
         const data = await fetchBatchToday(batchId);
@@ -132,11 +144,11 @@ function StudentSchedulePage() {
         setEntries(Array.isArray(data) ? data : []);
       }
     } catch (err) {
-      setError(getErrorMessage(err, "Failed to load schedule."));
+      setError(getErrorMessage(err, t("studentSchedule.failed")));
     } finally {
       setLoading(false);
     }
-  }, [mode, selectedDay]);
+  }, [mode, selectedDay, t]);
 
   useEffect(() => {
     loadSchedule();
@@ -146,7 +158,7 @@ function StudentSchedulePage() {
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8">
-      <PageHeader title="My Schedule" />
+      <PageHeader title={t("studentSchedule.title")} />
 
       {/* Mode switcher */}
       <div className="mb-6 flex flex-wrap gap-2">
@@ -159,7 +171,7 @@ function StudentSchedulePage() {
               : "bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100"
           }`}
         >
-          Today
+          {t("studentSchedule.today")}
         </button>
         <button
           type="button"
@@ -170,7 +182,7 @@ function StudentSchedulePage() {
               : "bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100"
           }`}
         >
-          Full Week
+          {t("studentSchedule.fullWeek")}
         </button>
         {/* Day switcher pills */}
         {DAYS.map((d) => (
@@ -186,12 +198,12 @@ function StudentSchedulePage() {
                 : "bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100"
             }`}
           >
-            {d.label}
+            {t(d.key)}
           </button>
         ))}
       </div>
 
-      {loading && <Loading label="Loading schedule…" />}
+      {loading && <Loading label={t("studentSchedule.loading")} />}
       {!loading && error && <ErrorState message={error} onRetry={loadSchedule} />}
       {!loading && !error && (
         <>
@@ -201,7 +213,7 @@ function StudentSchedulePage() {
             <div className="space-y-3 max-w-xl">
               {entries.length === 0 ? (
                 <div className="rounded-2xl bg-white p-8 text-center ring-1 ring-slate-200">
-                  <p className="text-slate-500">No classes scheduled.</p>
+                  <p className="text-slate-500">{t("studentSchedule.noClassesScheduled")}</p>
                 </div>
               ) : (
                 entries.map((e) => <ScheduleCard key={e.id} entry={e} />)

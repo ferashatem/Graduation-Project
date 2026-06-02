@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useOutletContext } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { fetchStudentDashboard } from "../../api/analyticsApi";
 
 function StatCard({ label, value, sub, color, icon }) {
@@ -19,16 +20,17 @@ function StatCard({ label, value, sub, color, icon }) {
 }
 
 const QUICK_LINKS = [
-  { to: "/student/courses",    label: "My Courses",    desc: "Materials & enrollment",    bg: "bg-blue-50",    text: "text-blue-600" },
-  { to: "/student/grades",     label: "My Grades",     desc: "View your marks & GPA",     bg: "bg-emerald-50", text: "text-emerald-600" },
-  { to: "/student/attendance", label: "Attendance",    desc: "Check-in & report",         bg: "bg-amber-50",   text: "text-amber-600" },
-  { to: "/student/assignments",label: "Assignments",   desc: "Submit your work",          bg: "bg-violet-50",  text: "text-violet-600" },
-  { to: "/student/quizzes",    label: "Quizzes",       desc: "Upcoming & past exams",     bg: "bg-sky-50",     text: "text-sky-600" },
-  { to: "/student/roadmap",    label: "Roadmap",       desc: "Academic progress map",     bg: "bg-rose-50",    text: "text-rose-600" },
+  { to: "/student/courses",    labelKey: "studentHome.qlCourses",     descKey: "studentHome.qlCoursesDesc",     bg: "bg-blue-50",    text: "text-blue-600" },
+  { to: "/student/grades",     labelKey: "studentHome.qlGrades",      descKey: "studentHome.qlGradesDesc",      bg: "bg-emerald-50", text: "text-emerald-600" },
+  { to: "/student/attendance", labelKey: "studentHome.qlAttendance",  descKey: "studentHome.qlAttendanceDesc",  bg: "bg-amber-50",   text: "text-amber-600" },
+  { to: "/student/assignments",labelKey: "studentHome.qlAssignments", descKey: "studentHome.qlAssignmentsDesc", bg: "bg-violet-50",  text: "text-violet-600" },
+  { to: "/student/quizzes",    labelKey: "studentHome.qlQuizzes",     descKey: "studentHome.qlQuizzesDesc",     bg: "bg-sky-50",     text: "text-sky-600" },
+  { to: "/student/roadmap",    labelKey: "studentHome.qlRoadmap",     descKey: "studentHome.qlRoadmapDesc",     bg: "bg-rose-50",    text: "text-rose-600" },
 ];
 
 function StudentHome() {
   const { user, profile } = useOutletContext() || {};
+  const { t } = useTranslation();
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading]     = useState(true);
 
@@ -52,10 +54,10 @@ function StudentHome() {
     <div className="space-y-6">
       {/* Welcome banner */}
       <div className="rounded-2xl bg-gradient-to-r from-[#0b2c4a] to-[#1a5fa3] p-6 text-white shadow-sm">
-        <h1 className="text-2xl font-bold">Welcome back, {name} 👋</h1>
+        <h1 className="text-2xl font-bold">{t("studentHome.welcomeBack", { name })}</h1>
         <p className="mt-1 text-sm text-white/60">
-          {profile?.universityStudentId ? `ID: ${profile.universityStudentId}` : ""}
-          {profile?.year ? ` · Year ${profile.year}` : ""}
+          {profile?.universityStudentId ? t("studentHome.id", { id: profile.universityStudentId }) : ""}
+          {profile?.year ? ` · ${t("studentHome.year", { year: profile.year })}` : ""}
           {profile?.collegeName ? ` · ${profile.collegeName}` : ""}
         </p>
       </div>
@@ -64,9 +66,9 @@ function StudentHome() {
       {!loading && (
         <div className="grid gap-4 sm:grid-cols-3">
           <StatCard
-            label="Current GPA"
+            label={t("studentHome.currentGpa")}
             value={gpa != null ? gpa.toFixed(2) : "—"}
-            sub="out of 4.0"
+            sub={t("studentHome.outOf")}
             color="#0b2c4a"
             icon={(c) => (
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke={c}>
@@ -75,9 +77,9 @@ function StudentHome() {
             )}
           />
           <StatCard
-            label="Enrolled Courses"
+            label={t("studentHome.enrolledCourses")}
             value={courses ?? "—"}
-            sub="this semester"
+            sub={t("studentHome.thisSemester")}
             color="#059669"
             icon={(c) => (
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke={c}>
@@ -86,9 +88,9 @@ function StudentHome() {
             )}
           />
           <StatCard
-            label="Attendance"
+            label={t("studentHome.attendance")}
             value={attendance != null ? `${Math.round(attendance)}%` : "—"}
-            sub={attendance != null && attendance < 75 ? "⚠ Below 75% threshold" : "overall average"}
+            sub={attendance != null && attendance < 75 ? t("studentHome.belowThreshold") : t("studentHome.overallAverage")}
             color={attendance != null && attendance < 75 ? "#ef4444" : "#7c3aed"}
             icon={(c) => (
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke={c}>
@@ -103,15 +105,15 @@ function StudentHome() {
       {!loading && dashboard?.subjectDetails?.length > 0 && (
         <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500">My Subjects</h2>
-            <Link to="/student/courses" className="text-xs font-semibold text-blue-600 hover:underline">View all →</Link>
+            <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500">{t("studentHome.mySubjects")}</h2>
+            <Link to="/student/courses" className="text-xs font-semibold text-blue-600 hover:underline">{t("studentHome.viewAll")}</Link>
           </div>
           <div className="space-y-2">
             {dashboard.subjectDetails.slice(0, 5).map((s, i) => (
               <div key={s.subjectId ?? i} className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
                 <div>
-                  <p className="text-sm font-semibold text-slate-800">{s.subjectName ?? "Subject"}</p>
-                  <p className="text-xs text-slate-400">{s.subjectCode ?? ""}{s.doctorName ? ` · Dr. ${s.doctorName}` : ""}</p>
+                  <p className="text-sm font-semibold text-slate-800">{s.subjectName ?? t("studentHome.subject")}</p>
+                  <p className="text-xs text-slate-400">{s.subjectCode ?? ""}{s.doctorName ? ` · ${s.doctorName}` : ""}</p>
                 </div>
                 {s.attendancePercentage != null && (
                   <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
@@ -128,7 +130,7 @@ function StudentHome() {
 
       {/* Quick links */}
       <div>
-        <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-400">Quick Access</h2>
+        <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-400">{t("studentHome.quickAccess")}</h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {QUICK_LINKS.map((item) => (
             <Link
@@ -144,8 +146,8 @@ function StudentHome() {
                  item.to === "/student/quizzes"     ? "🧪" : "🗺️"}
               </div>
               <div>
-                <p className={`text-sm font-bold ${item.text}`}>{item.label}</p>
-                <p className="text-xs text-slate-500">{item.desc}</p>
+                <p className={`text-sm font-bold ${item.text}`}>{t(item.labelKey)}</p>
+                <p className="text-xs text-slate-500">{t(item.descKey)}</p>
               </div>
             </Link>
           ))}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { fetchMySubjects } from "../../features/professor/api/professorBackendApi";
 import { fetchDoctorDashboard } from "../../api/analyticsApi";
 import Loading from "../../components/common/Loading";
@@ -23,6 +24,7 @@ function StatCard({ label, value, color = "#1a5fa3" }) {
 
 function ProfessorHome() {
   const { user, profile, profileLoading } = useOutletContext() || {};
+  const { t } = useTranslation();
 
   const [subjects, setSubjects] = useState([]);
   const [analytics, setAnalytics] = useState(null);
@@ -47,7 +49,7 @@ function ProfessorHome() {
         setSubjects(subjectsData);
         setAnalytics(analyticsData);
       })
-      .catch((e) => { if (active) setError(e?.response?.data?.message ?? e?.message ?? "Failed to load."); })
+      .catch((e) => { if (active) setError(e?.response?.data?.message ?? e?.message ?? t("profHome.failed")); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [doctorCode, profileLoading, refreshKey]);

@@ -3,12 +3,14 @@
 import { useCallback, useState } from "react";
 import "../assets/styles/styles.css";
 import { useNavigate } from "react-router-dom";
+import { Trans, useTranslation } from "react-i18next";
 import {
   clearStoredSession,
   getRoleHomePath,
   persistAuthSession,
 } from "../auth/session";
 import { refreshAuthUser, resetAuthUser } from "../auth/useAuthUser";
+import LanguageSwitcher from "../components/common/LanguageSwitcher";
 
 import BigLogo from "../assets/university-logo.png";
 
@@ -33,6 +35,7 @@ function EyeIcon({ open }) {
 
 function SignIn() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -64,7 +67,7 @@ function SignIn() {
               : null) ||
             json?.errors?.[0] ||
             json?.message ||
-            "Invalid email or password.";
+            t("signin.invalidCredentials");
           throw new Error(errMsg);
         }
 
@@ -84,12 +87,12 @@ function SignIn() {
 
         redirectByRole(session?.role, navigate);
       } catch (err) {
-        setLoginError(err.message || "Login failed. Please try again.");
+        setLoginError(err.message || t("signin.loginFailed"));
       } finally {
         setLoading(false);
       }
     },
-    [email, password, navigate],
+    [email, password, navigate, t],
   );
 
   return (
@@ -132,20 +135,19 @@ function SignIn() {
           <div className="flex items-center gap-3 mb-auto">
             <img src={BigLogo} alt="University Logo" className="h-12 w-12 object-contain" />
             <div>
-              <p className="text-white font-bold text-lg leading-tight">Beni-Suef</p>
-              <p className="text-white font-bold text-lg leading-tight">National University</p>
+              <p className="text-white font-bold text-lg leading-tight">{t("signin.uniName1")}</p>
+              <p className="text-white font-bold text-lg leading-tight">{t("signin.uniName2")}</p>
             </div>
           </div>
 
           {/* Middle: Main heading */}
           <div className="mt-auto mb-8">
             <h1 className="text-4xl xl:text-5xl font-bold text-white leading-tight mb-3">
-              Beni-Suef<br />National University
+              <Trans i18nKey="signin.uniFull" components={{ br: <br /> }} />
             </h1>
-            <p className="text-[#4dd8e8] text-xl font-semibold mb-4">Your Gateway to Excellence</p>
+            <p className="text-[#4dd8e8] text-xl font-semibold mb-4">{t("signin.tagline")}</p>
             <p className="text-white/70 text-sm leading-relaxed max-w-sm">
-              Sign in to access student services, faculty resources,
-              and campus announcements in one secure space.
+              {t("signin.intro")}
             </p>
 
             <div className="mt-6 flex items-center gap-3 bg-white/10 rounded-2xl px-4 py-3 max-w-xs">
@@ -155,8 +157,8 @@ function SignIn() {
                 </svg>
               </div>
               <div>
-                <p className="text-white font-semibold text-sm">Official College Access</p>
-                <p className="text-white/60 text-xs">Use your university email to enter the portal.</p>
+                <p className="text-white font-semibold text-sm">{t("signin.officialAccess")}</p>
+                <p className="text-white/60 text-xs">{t("signin.officialAccessDesc")}</p>
               </div>
             </div>
           </div>
@@ -164,9 +166,9 @@ function SignIn() {
           {/* Bottom: Feature strip */}
           <div className="grid grid-cols-3 gap-4 border-t border-white/15 pt-6">
             {[
-              { icon: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z", title: "Secure Access", desc: "Your data is protected with advanced security." },
-              { icon: "M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10", title: "All Services", desc: "Access all university services in one place." },
-              { icon: "M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9", title: "Stay Updated", desc: "Get the latest announcements and important updates." },
+              { icon: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z", title: t("signin.featSecureTitle"), desc: t("signin.featSecureDesc") },
+              { icon: "M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10", title: t("signin.featServicesTitle"), desc: t("signin.featServicesDesc") },
+              { icon: "M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9", title: t("signin.featUpdatesTitle"), desc: t("signin.featUpdatesDesc") },
             ].map((f) => (
               <div key={f.title}>
                 <div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center mb-2">
@@ -183,7 +185,10 @@ function SignIn() {
       </div>
 
       {/* ── Right Panel ── */}
-      <div className="flex-1 flex items-center justify-center bg-[#f0f4f8] px-6 py-10">
+      <div className="flex-1 flex flex-col items-center justify-center bg-[#f0f4f8] px-6 py-10">
+        <div className="w-full max-w-md flex justify-end mb-2">
+          <LanguageSwitcher variant="text" />
+        </div>
         <div className="w-full max-w-md">
           <div className="bg-white rounded-3xl shadow-xl p-8">
             {/* Logo */}
@@ -193,15 +198,15 @@ function SignIn() {
                   <img src={BigLogo} alt="University Logo" className="h-full w-full object-contain" />
                 </div>
               </div>
-              <h2 className="text-2xl font-bold text-[#0b2c4a]">Welcome Back</h2>
-              <p className="text-slate-500 text-sm mt-1">Sign in to continue to the college portal.</p>
+              <h2 className="text-2xl font-bold text-[#0b2c4a]">{t("signin.welcomeBack")}</h2>
+              <p className="text-slate-500 text-sm mt-1">{t("signin.subtitle")}</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Email */}
               <div>
                 <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">
-                  Email
+                  {t("signin.email")}
                 </label>
                 <div className="relative">
                   <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
@@ -213,7 +218,7 @@ function SignIn() {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="name@university.edu"
+                    placeholder={t("signin.emailPlaceholder")}
                     autoComplete="email"
                     required
                     className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-800 outline-none transition focus:border-[#0b2c4a]/40 focus:ring-2 focus:ring-[#0b2c4a]/10 focus:bg-white"
@@ -224,7 +229,7 @@ function SignIn() {
               {/* Password */}
               <div>
                 <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">
-                  Password
+                  {t("signin.password")}
                 </label>
                 <div className="relative">
                   <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
@@ -260,10 +265,10 @@ function SignIn() {
                     onChange={(e) => setRememberMe(e.target.checked)}
                     className="w-4 h-4 rounded border-slate-300 text-[#0b2c4a] accent-[#0b2c4a]"
                   />
-                  <span className="text-sm text-slate-600">Remember me</span>
+                  <span className="text-sm text-slate-600">{t("signin.rememberMe")}</span>
                 </label>
                 <button type="button" className="text-sm text-[#1d5fa3] font-medium hover:underline">
-                  Forgot Password?
+                  {t("signin.forgotPassword")}
                 </button>
               </div>
 
@@ -282,15 +287,15 @@ function SignIn() {
                 {loading ? (
                   <>
                     <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                    Signing In
+                    {t("signin.signingIn")}
                   </>
-                ) : "SIGN IN"}
+                ) : t("signin.signInBtn")}
               </button>
 
               {/* OR Divider */}
               <div className="flex items-center gap-3 my-1">
                 <div className="flex-1 h-px bg-slate-200" />
-                <span className="text-xs text-slate-400 font-medium">OR</span>
+                <span className="text-xs text-slate-400 font-medium">{t("signin.or")}</span>
                 <div className="flex-1 h-px bg-slate-200" />
               </div>
 
@@ -305,7 +310,7 @@ function SignIn() {
                   <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
                   <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
                 </svg>
-                Sign in with Microsoft
+                {t("signin.signInMicrosoft")}
               </button>
             </form>
 
@@ -315,18 +320,17 @@ function SignIn() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
               </svg>
               <p className="text-xs text-slate-500 leading-relaxed">
-                Use your official university credentials.<br />
-                For support, contact the IT helpdesk.
+                <Trans i18nKey="signin.footerNote" components={{ br: <br /> }} />
               </p>
             </div>
           </div>
 
           <p className="text-center text-xs text-slate-400 mt-6">
-            © 2024 Beni-Suef National University. All rights reserved.
+            {t("signin.copyright")}
           </p>
           <div className="flex justify-center gap-4 mt-2">
-            {["Privacy Policy", "Terms & Conditions", "Help Center"].map((t) => (
-              <button key={t} type="button" className="text-xs text-slate-400 hover:text-slate-600 transition">{t}</button>
+            {[t("signin.privacyPolicy"), t("signin.termsConditions"), t("signin.helpCenter")].map((label) => (
+              <button key={label} type="button" className="text-xs text-slate-400 hover:text-slate-600 transition">{label}</button>
             ))}
           </div>
         </div>

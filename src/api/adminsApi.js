@@ -1,5 +1,10 @@
 import apiClient from "./apiClient";
 
+export const createAdmin = async (dto) => {
+  const res = await apiClient.post("/admins", dto);
+  return res.data;
+};
+
 export const fetchAllAdmins = async () => {
   const res = await apiClient.get("/admins");
   return res.data;

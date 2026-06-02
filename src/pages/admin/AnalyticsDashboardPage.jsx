@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Alert,
   Box,
@@ -38,8 +39,6 @@ import {
   fetchDepartmentComparison,
 } from "../../api/analyticsApi";
 import { getErrorMessage } from "../../utils/errorHelpers";
-
-const breadcrumbs = [{ label: "Analytics Dashboard" }];
 
 function StatCard({ icon: Icon, label, value, color = "#2d5be3" }) {
   return (
@@ -88,6 +87,8 @@ function AnalyticsDashboardPage() {
   const [deptComparison, setDeptComparison] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const { t } = useTranslation();
+  const breadcrumbs = [{ label: t("analytics.title") }];
 
   useEffect(() => {
     async function load() {
@@ -131,56 +132,56 @@ function AnalyticsDashboardPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Analytics Dashboard" breadcrumbs={breadcrumbs} />
+      <PageHeader title={t("analytics.title")} breadcrumbs={breadcrumbs} />
 
       {/* Summary Cards */}
       <Grid container spacing={2}>
         <Grid item xs={6} sm={4} md={3}>
-          <StatCard icon={HiUserGroup} label="Total Students" value={summary?.totalStudents} color="#2d5be3" />
+          <StatCard icon={HiUserGroup} label={t("analytics.totalStudents")} value={summary?.totalStudents} color="#2d5be3" />
         </Grid>
         <Grid item xs={6} sm={4} md={3}>
-          <StatCard icon={HiAcademicCap} label="Total Doctors" value={summary?.totalDoctors} color="#7c3aed" />
+          <StatCard icon={HiAcademicCap} label={t("analytics.totalDoctors")} value={summary?.totalDoctors} color="#7c3aed" />
         </Grid>
         <Grid item xs={6} sm={4} md={3}>
-          <StatCard icon={HiBookOpen} label="Offerings" value={summary?.totalOfferings} color="#0891b2" />
+          <StatCard icon={HiBookOpen} label={t("analytics.offerings")} value={summary?.totalOfferings} color="#0891b2" />
         </Grid>
         <Grid item xs={6} sm={4} md={3}>
-          <StatCard icon={HiClipboardList} label="Enrollments" value={summary?.totalEnrollments} color="#059669" />
+          <StatCard icon={HiClipboardList} label={t("analytics.enrollments")} value={summary?.totalEnrollments} color="#059669" />
         </Grid>
         <Grid item xs={6} sm={4} md={3}>
-          <StatCard icon={HiLibrary} label="Colleges" value={summary?.totalColleges} color="#d97706" />
+          <StatCard icon={HiLibrary} label={t("analytics.colleges")} value={summary?.totalColleges} color="#d97706" />
         </Grid>
         <Grid item xs={6} sm={4} md={3}>
-          <StatCard icon={HiCollection} label="Departments" value={summary?.totalDepartments} color="#dc2626" />
+          <StatCard icon={HiCollection} label={t("analytics.departments")} value={summary?.totalDepartments} color="#dc2626" />
         </Grid>
         <Grid item xs={6} sm={4} md={3}>
-          <StatCard icon={HiUsers} label="Batches" value={summary?.totalBatches} color="#0f766e" />
+          <StatCard icon={HiUsers} label={t("analytics.batches")} value={summary?.totalBatches} color="#0f766e" />
         </Grid>
         {adminDash && (
           <>
             <Grid item xs={6} sm={4} md={3}>
-              <StatCard icon={HiTrendingUp} label="Avg GPA" value={adminDash.avgGpa} color="#7c3aed" />
+              <StatCard icon={HiTrendingUp} label={t("analytics.avgGpa")} value={adminDash.avgGpa} color="#7c3aed" />
             </Grid>
             <Grid item xs={6} sm={4} md={3}>
-              <StatCard icon={HiShieldExclamation} label="At-Risk Students" value={adminDash.atRiskCount} color="#dc2626" />
+              <StatCard icon={HiShieldExclamation} label={t("analytics.atRiskStudents")} value={adminDash.atRiskCount} color="#dc2626" />
             </Grid>
             <Grid item xs={6} sm={4} md={3}>
-              <StatCard icon={HiAcademicCap} label="Pass Rate %" value={adminDash.passRate != null ? `${adminDash.passRate}%` : null} color="#059669" />
+              <StatCard icon={HiAcademicCap} label={t("analytics.passRate")} value={adminDash.passRate != null ? `${adminDash.passRate}%` : null} color="#059669" />
             </Grid>
           </>
         )}
       </Grid>
 
       {/* Students by Department */}
-      <SectionTitle>Students by Department</SectionTitle>
+      <SectionTitle>{t("analytics.studentsByDepartment")}</SectionTitle>
       <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3 }}>
         <Table size="small">
           <TableHead>
             <TableRow sx={{ bgcolor: "slate.50" }}>
-              <TableCell><strong>Department</strong></TableCell>
-              <TableCell><strong>College</strong></TableCell>
-              <TableCell align="right"><strong>Students</strong></TableCell>
-              <TableCell align="right"><strong>Doctors</strong></TableCell>
+              <TableCell><strong>{t("analytics.department")}</strong></TableCell>
+              <TableCell><strong>{t("analytics.college")}</strong></TableCell>
+              <TableCell align="right"><strong>{t("analytics.students")}</strong></TableCell>
+              <TableCell align="right"><strong>{t("analytics.doctors")}</strong></TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -198,7 +199,7 @@ function AnalyticsDashboardPage() {
             ))}
             {deptStats.length === 0 && (
               <TableRow>
-                <TableCell colSpan={4} align="center">No data</TableCell>
+                <TableCell colSpan={4} align="center">{t("analytics.noData")}</TableCell>
               </TableRow>
             )}
           </TableBody>
@@ -206,16 +207,16 @@ function AnalyticsDashboardPage() {
       </TableContainer>
 
       {/* Top Enrolled Subjects */}
-      <SectionTitle>Top 10 Enrolled Subjects</SectionTitle>
+      <SectionTitle>{t("analytics.topEnrolledSubjects")}</SectionTitle>
       <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3 }}>
         <Table size="small">
           <TableHead>
             <TableRow>
               <TableCell><strong>#</strong></TableCell>
-              <TableCell><strong>Subject</strong></TableCell>
-              <TableCell><strong>Code</strong></TableCell>
-              <TableCell align="right"><strong>Offerings</strong></TableCell>
-              <TableCell align="right"><strong>Enrolled</strong></TableCell>
+              <TableCell><strong>{t("analytics.subject")}</strong></TableCell>
+              <TableCell><strong>{t("analytics.code")}</strong></TableCell>
+              <TableCell align="right"><strong>{t("analytics.offerings")}</strong></TableCell>
+              <TableCell align="right"><strong>{t("analytics.enrolled")}</strong></TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -232,7 +233,7 @@ function AnalyticsDashboardPage() {
             ))}
             {topSubjects.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} align="center">No data</TableCell>
+                <TableCell colSpan={5} align="center">{t("analytics.noData")}</TableCell>
               </TableRow>
             )}
           </TableBody>
@@ -240,15 +241,15 @@ function AnalyticsDashboardPage() {
       </TableContainer>
 
       {/* Doctor Workload */}
-      <SectionTitle>Doctor Workload</SectionTitle>
+      <SectionTitle>{t("analytics.doctorWorkload")}</SectionTitle>
       <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3 }}>
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell><strong>Doctor</strong></TableCell>
-              <TableCell><strong>Department</strong></TableCell>
-              <TableCell align="right"><strong>Offerings</strong></TableCell>
-              <TableCell align="right"><strong>Total Students</strong></TableCell>
+              <TableCell><strong>{t("analytics.doctor")}</strong></TableCell>
+              <TableCell><strong>{t("analytics.department")}</strong></TableCell>
+              <TableCell align="right"><strong>{t("analytics.offerings")}</strong></TableCell>
+              <TableCell align="right"><strong>{t("analytics.totalStudentsCol")}</strong></TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -264,7 +265,7 @@ function AnalyticsDashboardPage() {
             ))}
             {doctorWorkload.length === 0 && (
               <TableRow>
-                <TableCell colSpan={4} align="center">No data</TableCell>
+                <TableCell colSpan={4} align="center">{t("analytics.noData")}</TableCell>
               </TableRow>
             )}
           </TableBody>
@@ -274,16 +275,16 @@ function AnalyticsDashboardPage() {
       {/* Department Comparison */}
       {deptComparison.length > 0 && (
         <>
-          <SectionTitle>Department Performance Comparison</SectionTitle>
+          <SectionTitle>{t("analytics.deptComparison")}</SectionTitle>
           <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3 }}>
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell><strong>Department</strong></TableCell>
-                  <TableCell align="right"><strong>Avg GPA</strong></TableCell>
-                  <TableCell align="right"><strong>Pass Rate %</strong></TableCell>
-                  <TableCell align="right"><strong>Attendance %</strong></TableCell>
-                  <TableCell align="right"><strong>Students</strong></TableCell>
+                  <TableCell><strong>{t("analytics.department")}</strong></TableCell>
+                  <TableCell align="right"><strong>{t("analytics.avgGpa")}</strong></TableCell>
+                  <TableCell align="right"><strong>{t("analytics.passRate")}</strong></TableCell>
+                  <TableCell align="right"><strong>{t("analytics.attendanceRate")}</strong></TableCell>
+                  <TableCell align="right"><strong>{t("analytics.students")}</strong></TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -309,17 +310,17 @@ function AnalyticsDashboardPage() {
       {/* At-Risk Students */}
       {atRisk.length > 0 && (
         <>
-          <SectionTitle>At-Risk Students</SectionTitle>
+          <SectionTitle>{t("analytics.atRiskStudents")}</SectionTitle>
           <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3, mb: 4 }}>
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell><strong>Student</strong></TableCell>
-                  <TableCell><strong>Department</strong></TableCell>
-                  <TableCell align="right"><strong>GPA</strong></TableCell>
-                  <TableCell align="right"><strong>Attendance %</strong></TableCell>
-                  <TableCell align="right"><strong>Failing</strong></TableCell>
-                  <TableCell><strong>Risk</strong></TableCell>
+                  <TableCell><strong>{t("analytics.students")}</strong></TableCell>
+                  <TableCell><strong>{t("analytics.department")}</strong></TableCell>
+                  <TableCell align="right"><strong>{t("analytics.gpa")}</strong></TableCell>
+                  <TableCell align="right"><strong>{t("analytics.attendanceRate")}</strong></TableCell>
+                  <TableCell align="right"><strong>{t("analytics.failing")}</strong></TableCell>
+                  <TableCell><strong>{t("analytics.risk")}</strong></TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -337,7 +338,7 @@ function AnalyticsDashboardPage() {
                     <TableCell align="right">{row.failingSubjects}</TableCell>
                     <TableCell>
                       <Chip
-                        label={row.riskLevel}
+                        label={row.riskLevel === "High" ? t("analytics.riskHigh") : t("analytics.riskMedium")}
                         size="small"
                         color={row.riskLevel === "High" ? "error" : "warning"}
                       />

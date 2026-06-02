@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   HiHome,
   HiAcademicCap,
@@ -36,91 +37,109 @@ const resolveName = (profile, user) =>
 const resolveEmail = (profile, user) =>
   profile?.email || profile?.Email || user?.email || getStoredEmail() || "";
 
+// Section/item labels are i18n keys (under the "adminNav" namespace), resolved at render.
 const ADMIN_SECTIONS = [
   {
-    id: "structure", label: "Structure Management", icon: HiLibrary,
+    id: "structure", label: "adminNav.secStructure", icon: HiLibrary,
     items: [
-      { label: "Colleges & Structure", to: "/admin/colleges",    icon: HiAcademicCap },
+      { label: "adminNav.collegesStructure", to: "/admin/colleges",    icon: HiAcademicCap },
     ],
   },
   {
-    id: "academic", label: "Academic Affairs", icon: HiCalendar,
+    id: "academic", label: "adminNav.secAcademic", icon: HiCalendar,
     items: [
-      { label: "Regulations", to: "/admin/regulations", icon: HiDocumentText },
+      { label: "adminNav.regulations", to: "/admin/regulations", icon: HiDocumentText },
     ],
   },
   {
-    id: "subjects", label: "Subjects & Registration", icon: HiBookOpen,
+    id: "subjects", label: "adminNav.secSubjects", icon: HiBookOpen,
     items: [
-      { label: "Subjects",    to: "/admin/subjects",     icon: HiBookOpen      },
-      { label: "Enrollments", to: "/admin/enrollments",  icon: HiClipboardList },
+      { label: "adminNav.subjects",    to: "/admin/subjects",     icon: HiBookOpen      },
+      { label: "adminNav.enrollments", to: "/admin/enrollments",  icon: HiClipboardList },
     ],
   },
   {
-    id: "students", label: "Student Affairs", icon: HiUserGroup,
+    id: "students", label: "adminNav.secStudents", icon: HiUserGroup,
     items: [
-      { label: "All Students",        to: "/admin/students",         icon: HiUsers      },
-      { label: "Register Student",    to: "/admin/register-student", icon: HiPlusCircle },
-      { label: "Import Students",     to: "/admin/import-students",  icon: HiUpload     },
-      { label: "Bulk Import (Legacy)",to: "/admin/bulk-import-users",icon: HiUpload     },
-      { label: "Academic Import",     to: "/admin/academic-import",  icon: HiUpload     },
+      { label: "adminNav.allStudents", to: "/admin/students", icon: HiUsers },
     ],
   },
   {
-    id: "staff", label: "Staff Affairs", icon: HiUsers,
+    id: "staff", label: "adminNav.secStaff", icon: HiUsers,
     items: [
-      { label: "Doctors",         to: "/admin/doctors",         icon: HiAcademicCap },
-      { label: "Register Doctor", to: "/admin/register-doctor", icon: HiPlusCircle  },
-      { label: "Create Admin",    to: "/admin/create-admin",    icon: HiUsers       },
-      { label: "Manage Admins",   to: "/admin/admins",          icon: HiCog         },
+      { label: "adminNav.doctors", to: "/admin/doctors", icon: HiAcademicCap },
     ],
   },
   {
-    id: "schedule", label: "Timetable", icon: HiCalendar,
+    id: "schedule", label: "adminNav.secSchedule", icon: HiCalendar,
     items: [
-      { label: "Schedule Manager", to: "/admin/schedule", icon: HiCalendar },
+      { label: "adminNav.scheduleManager", to: "/admin/schedule", icon: HiCalendar },
     ],
   },
   {
-    id: "complaints", label: "Complaints", icon: HiClipboardList,
+    id: "complaints", label: "adminNav.secComplaints", icon: HiClipboardList,
     items: [
-      { label: "All Complaints", to: "/admin/complaints", icon: HiClipboardList },
+      { label: "adminNav.allComplaints", to: "/admin/complaints", icon: HiClipboardList },
     ],
   },
   {
-    id: "analytics", label: "Analytics & Reports", icon: HiChartBar,
+    id: "analytics", label: "adminNav.secAnalytics", icon: HiChartBar,
     items: [
-      { label: "Analytics Dashboard", to: "/admin/analytics",     icon: HiChartBar      },
-      { label: "Send Notifications",  to: "/admin/notifications", icon: HiBell          },
-      { label: "Audit Logs",          to: "/admin/audit-logs",    icon: HiClipboardList },
+      { label: "adminNav.analyticsDashboard", to: "/admin/analytics",     icon: HiChartBar      },
+      { label: "adminNav.sendNotifications",  to: "/admin/notifications", icon: HiBell          },
+      { label: "adminNav.auditLogs",          to: "/admin/audit-logs",    icon: HiClipboardList },
     ],
   },
   {
-    id: "settings", label: "Settings & Reports", icon: HiCog,
+    id: "settings", label: "adminNav.secSettings", icon: HiCog,
     items: [
-      { label: "Change Password",  to: "/admin/change-password",  icon: HiCog           },
+      { label: "adminNav.changePassword",  to: "/admin/change-password",  icon: HiCog           },
     ],
   },
 ];
 
 const SUPER_ADMIN_SECTIONS = [
   {
-    id: "users", label: "User Management", icon: HiUsers,
+    id: "users", label: "adminNav.secUsers", icon: HiUsers,
     items: [
-      { label: "Create Admin", to: "/super_admin/create-admin",    icon: HiUsers  },
-      { label: "Bulk Import",  to: "/super_admin/bulk-import-users",icon: HiUpload },
+      { label: "adminNav.createAdmin", to: "/super_admin/create-admin",    icon: HiUsers  },
+      { label: "adminNav.bulkImport",  to: "/super_admin/bulk-import-users",icon: HiUpload },
     ],
   },
 ];
 
+const navLinkClass = ({ isActive }) =>
+  `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition border-l-[2px] ${
+    isActive
+      ? "bg-[#2e86ab]/15 text-white border-[#2e86ab]"
+      : "text-white/60 hover:bg-white/[0.06] hover:text-white/90 border-transparent"
+  }`;
+
 // ── Section ──────────────────────────────────────────────────────────────────
 function NavSection({ section, onNavigate, defaultOpen = false }) {
   const [open, setOpen] = useState(defaultOpen);
+  const { t } = useTranslation();
   const Icon = section.icon;
+
+  // Single-item section → render directly as a NavLink (no dropdown)
+  if (section.items.length === 1) {
+    const item = section.items[0];
+    const ItemIcon = item.icon;
+    return (
+      <NavLink
+        to={item.to}
+        end={item.end !== false}
+        onClick={onNavigate}
+        className={navLinkClass}
+      >
+        <ItemIcon className="h-4 w-4 shrink-0" />
+        <span>{t(item.label)}</span>
+      </NavLink>
+    );
+  }
 
   return (
     <div>
-      {/* Section header */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -128,7 +147,7 @@ function NavSection({ section, onNavigate, defaultOpen = false }) {
         style={{ color: "rgba(255,255,255,0.35)" }}
       >
         <Icon className="h-3.5 w-3.5 shrink-0" />
-        <span className="flex-1 text-left">{section.label}</span>
+        <span className="flex-1 text-start">{t(section.label)}</span>
         {open
           ? <HiChevronDown className="h-3 w-3" />
           : <HiChevronRight className="h-3 w-3" />}
@@ -144,16 +163,10 @@ function NavSection({ section, onNavigate, defaultOpen = false }) {
                 to={item.to}
                 end={item.end !== false}
                 onClick={onNavigate}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition border-l-[2px] ${
-                    isActive
-                      ? "bg-[#2e86ab]/15 text-white border-[#2e86ab]"
-                      : "text-white/60 hover:bg-white/[0.06] hover:text-white/90 border-transparent"
-                  }`
-                }
+                className={navLinkClass}
               >
                 <ItemIcon className="h-4 w-4 shrink-0" />
-                <span>{item.label}</span>
+                <span>{t(item.label)}</span>
               </NavLink>
             );
           })}
@@ -166,6 +179,7 @@ function NavSection({ section, onNavigate, defaultOpen = false }) {
 // ── AdminSidebar ──────────────────────────────────────────────────────────────
 function AdminSidebar({ open = false, onClose, onNavigate, profile, user, role = "admin" }) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const sections = useMemo(
     () => (role === "super_admin" ? SUPER_ADMIN_SECTIONS : ADMIN_SECTIONS),
@@ -191,7 +205,7 @@ function AdminSidebar({ open = false, onClose, onNavigate, profile, user, role =
   const displayName = useMemo(() => resolveName(profile, user), [profile, user]);
   const email       = useMemo(() => resolveEmail(profile, user), [profile, user]);
   const avatarUrl   = profile?.photoURL || profile?.PhotoURL || user?.photoURL || fallbackAvatar;
-  const roleLabel   = role === "super_admin" ? "Super Admin" : "Admin";
+  const roleLabel   = role === "super_admin" ? t("adminNav.roleSuperAdmin") : t("adminNav.roleAdmin");
   const homeLink    = role === "super_admin" ? "/super_admin/home" : "/admin/home";
 
   return (
@@ -238,7 +252,7 @@ function AdminSidebar({ open = false, onClose, onNavigate, profile, user, role =
             }
           >
             <HiHome className="h-5 w-5 shrink-0" />
-            <span>Home</span>
+            <span>{t("adminNav.home")}</span>
           </NavLink>
         </div>
 
@@ -290,7 +304,7 @@ function AdminSidebar({ open = false, onClose, onNavigate, profile, user, role =
               }
             >
               <HiChat className="h-5 w-5 shrink-0" />
-              <span>AI Assistant</span>
+              <span>{t("adminNav.aiAssistant")}</span>
             </NavLink>
           </div>
         )}
@@ -308,7 +322,7 @@ function AdminSidebar({ open = false, onClose, onNavigate, profile, user, role =
             }}
           >
             <HiLogout className="h-4 w-4" />
-            Logout
+            {t("adminNav.logout")}
           </button>
         </div>
       </aside>

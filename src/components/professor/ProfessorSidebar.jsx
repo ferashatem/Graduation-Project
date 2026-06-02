@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   HiBookOpen, HiCalendar, HiChat, HiClipboardList,
   HiHome, HiKey, HiLogout, HiUserGroup, HiTable,
@@ -20,23 +21,24 @@ const resolveEmail = (profile, user) =>
 
 function ProfessorSidebar({ open = false, onClose, onNavigate, profile, user }) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const pendingCount = usePendingComplaintsCount();
 
   const navItems = useMemo(() => [
-    { label: "Home",                 to: "/prof",                          icon: HiHome,           end: true },
-    { label: "Courses",              to: "/prof/courses",                  icon: HiBookOpen                  },
-    { label: "My Schedule",          to: "/prof/schedule",                 icon: HiCalendar                  },
-    { label: "Attendance",           to: "/prof/attendance",               icon: HiUserGroup                 },
-    { label: "Assignments",          to: "/prof/assignments",              icon: HiClipboardList             },
-    { label: "Exams",                to: "/prof/exams",                    icon: HiClipboardList             },
-    { label: "Teaching Intelligence",to: "/prof/teaching-intelligence",    icon: HiLightningBolt             },
-    { label: "AI Class Companion",   to: "/prof/companion",               icon: HiSparkles                  },
-    { label: "Complaint Reports",    to: "/prof/complaints",               icon: HiClipboardList             },
-    { label: "Import Grades",        to: "/prof/grades-import",            icon: HiTable                     },
-    { label: "Notifications",        to: "/prof/notifications",            icon: HiBell                      },
-    { label: "AI Assistant",         to: "/prof/chat",                     icon: HiChat                      },
-    { label: "Change Password",      to: "/prof/change-password",          icon: HiKey                       },
-  ], []);
+    { label: t("profNav.home"),                 to: "/prof",                       icon: HiHome,           end: true },
+    { label: t("profNav.courses"),              to: "/prof/courses",               icon: HiBookOpen                  },
+    { label: t("profNav.mySchedule"),           to: "/prof/schedule",              icon: HiCalendar                  },
+    { label: t("profNav.attendance"),           to: "/prof/attendance",            icon: HiUserGroup                 },
+    { label: t("profNav.assignments"),          to: "/prof/assignments",           icon: HiClipboardList             },
+    { label: t("profNav.exams"),                to: "/prof/exams",                 icon: HiClipboardList             },
+    { label: t("profNav.teachingIntelligence"), to: "/prof/teaching-intelligence", icon: HiLightningBolt             },
+    { label: t("profNav.aiCompanion"),          to: "/prof/companion",             icon: HiSparkles                  },
+    { label: t("profNav.complaintReports"),     to: "/prof/complaints",            icon: HiClipboardList             },
+    { label: t("profNav.importGrades"),         to: "/prof/grades-import",         icon: HiTable                     },
+    { label: t("profNav.notifications"),        to: "/prof/notifications",         icon: HiBell                      },
+    { label: t("profNav.aiAssistant"),          to: "/prof/chat",                  icon: HiChat                      },
+    { label: t("profNav.changePassword"),       to: "/prof/change-password",       icon: HiKey                       },
+  ], [t]);
 
   const handleNavigate = useCallback(() => {
     if (onNavigate) { onNavigate(); return; }
@@ -71,7 +73,7 @@ function ProfessorSidebar({ open = false, onClose, onNavigate, profile, user }) 
             <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#4dd8e8] border-2 border-[#112240]" />
           </div>
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">Professor</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">{t("profNav.role")}</p>
             <p className="text-sm font-bold text-white">UniSys</p>
           </div>
         </div>
@@ -132,7 +134,7 @@ function ProfessorSidebar({ open = false, onClose, onNavigate, profile, user }) 
             className="flex w-full items-center gap-2.5 rounded-xl px-4 py-2.5 text-sm font-semibold text-white/50 transition hover:bg-white/08 hover:text-white/80"
           >
             <HiLogout className="h-4 w-4" />
-            <span>Logout</span>
+            <span>{t("profNav.logout")}</span>
             <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>

@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useAuthUser } from "../auth/useAuthUser";
 import StudentSidebar from "../components/student/StudentSidebar";
 import StudentTopbar from "../components/student/StudentTopbar";
@@ -8,6 +9,7 @@ import { NotificationProvider } from "../context/NotificationContext";
 function StudentLayout() {
   const { user, profile: meProfile, authLoading } = useAuthUser();
   const location = useLocation();
+  const { t } = useTranslation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Prefer the rich /auth/me profile; fall back to a shim built from user fields.
@@ -23,14 +25,14 @@ function StudentLayout() {
 
   const pageTitle = useMemo(() => {
     const path = location.pathname;
-    if (path.startsWith("/student/courses")) return "My Courses";
-    if (path.includes("/student/quizzes/") && path.endsWith("/result")) return "Quiz Result";
-    if (path.includes("/student/quizzes/")) return "Take Quiz";
-    if (path.startsWith("/student/quizzes")) return "Quizzes";
-    if (path.startsWith("/student/complaints")) return "My Complaints";
-    if (path === "/student" || path === "/student/") return "Home";
-    return "Student";
-  }, [location.pathname]);
+    if (path.startsWith("/student/courses")) return t("studentNav.myCourses");
+    if (path.includes("/student/quizzes/") && path.endsWith("/result")) return t("studentNav.quizResult");
+    if (path.includes("/student/quizzes/")) return t("studentNav.takeQuiz");
+    if (path.startsWith("/student/quizzes")) return t("studentNav.quizzes");
+    if (path.startsWith("/student/complaints")) return t("studentNav.myComplaints");
+    if (path === "/student" || path === "/student/") return t("studentNav.home");
+    return t("studentNav.role");
+  }, [location.pathname, t]);
 
   const handleMenuClick   = useCallback(() => setSidebarOpen((p) => !p), []);
   const handleCloseSidebar = useCallback(() => setSidebarOpen(false), []);
