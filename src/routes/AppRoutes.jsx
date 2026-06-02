@@ -96,7 +96,11 @@ import ProfessorAttendancePage from "../pages/professor/ProfessorAttendancePage"
 import ProfessorExamAnalyticsPage from "../pages/professor/ProfessorExamAnalyticsPage";
 import ProfessorAssignmentsPage from "../pages/professor/ProfessorAssignmentsPage";
 import ProfessorGradesImportPage from "../pages/professor/ProfessorGradesImportPage";
+import TeachingIntelligencePage from "../pages/professor/TeachingIntelligencePage";
+import ProfessorNotificationsPage from "../pages/professor/ProfessorNotificationsPage";
 import StudentAssignmentsPage from "../pages/student/StudentAssignmentsPage";
+import StudentNotificationsPage from "../pages/student/StudentNotificationsPage";
+import StudentCompanionPage from "../pages/student/StudentCompanionPage";
 import ImportStudentsPage from "../features/students/pages/ImportStudentsPage";
 
 function AppRoutes() {
@@ -240,6 +244,8 @@ function AppRoutes() {
           <Route path="attendance" element={<ProfessorAttendancePage />} />
           <Route path="assignments" element={<ProfessorAssignmentsPage />} />
           <Route path="grades-import" element={<ProfessorGradesImportPage />} />
+          <Route path="teaching-intelligence" element={<TeachingIntelligencePage />} />
+          <Route path="notifications" element={<ProfessorNotificationsPage />} />
           <Route path="chat" element={<ChatPage />} />
           <Route path="change-password" element={<ForceChangePassword />} />
         </Route>
@@ -295,6 +301,8 @@ function AppRoutes() {
           <Route path="academic-status" element={<StudentAcademicStatusPage />} />
           <Route path="roadmap" element={<StudentRoadmapPage />} />
           <Route path="complaints" element={<StudentComplaintsPage />} />
+          <Route path="notifications" element={<StudentNotificationsPage />} />
+          <Route path="companion" element={<StudentCompanionPage />} />
           <Route path="chat" element={<ChatPage />} />
           <Route path="change-password" element={<ForceChangePassword />} />
         </Route>

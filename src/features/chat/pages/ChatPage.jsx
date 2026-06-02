@@ -325,7 +325,7 @@ export default function ChatPage() {
   }, [input]);
 
   const handleSend = async (overrideText) => {
-    const text = overrideText ?? input;
+    const text = typeof overrideText === "string" ? overrideText : input;
     if (!text.trim() || sending) return;
     setInput("");
     await send(text);
@@ -569,7 +569,7 @@ export default function ChatPage() {
                 />
                 <button
                   type="button"
-                  onClick={handleSend}
+                  onClick={() => handleSend()}
                   disabled={sending || !input.trim()}
                   className="shrink-0 h-9 w-9 rounded-xl bg-violet-600 text-white flex items-center justify-center transition hover:bg-violet-700 disabled:bg-slate-200 disabled:cursor-not-allowed"
                 >

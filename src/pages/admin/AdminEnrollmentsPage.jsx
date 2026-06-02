@@ -9,6 +9,8 @@ import PageHeader from "../../components/common/PageHeader";
 import Loading from "../../components/common/Loading";
 import apiClient from "../../api/apiClient";
 import { fetchOfferingsBySemester } from "../../features/subjectOfferings/api/subjectOfferingsApi";
+import { fetchAllYears } from "../../features/years/api/yearsApi";
+import { fetchSemestersByYear } from "../../features/semesters/api/semestersApi";
 import { getErrorMessage } from "../../utils/errorHelpers";
 
 const breadcrumbs = [{ label: "Subjects & Registration" }, { label: "Enrollments" }];
@@ -237,10 +239,18 @@ function AdminEnrollmentsPage() {
   const [error,        setError]        = useState("");
 
   useEffect(() => {
-    apiClient.get("/semesters")
-      .then((res) => {
-        const p = res.data?.data ?? res.data;
-        setSemesters(Array.isArray(p) ? p : p?.items ?? []);
+    fetchAllYears()
+      .then(async (years) => {
+        const results = await Promise.all(
+          years.map((y) => fetchSemestersByYear(y.id).catch(() => []))
+        );
+        const all = results.flat().map((s, _, arr) => {
+          const year = years.find((y) =>
+            arr.some((x) => x.academicYearId === y.id && x.id === s.id)
+          );
+          return { ...s, yearName: year?.name ?? "" };
+        });
+        setSemesters(all);
       })
       .catch(() => {});
   }, []);
@@ -266,7 +276,10 @@ function AdminEnrollmentsPage() {
         >
           <MenuItem value="">— Choose a semester —</MenuItem>
           {semesters.map((s) => (
-            <MenuItem key={s.id} value={s.id}>{s.name ?? s.semesterName ?? s.id}</MenuItem>
+            <MenuItem key={s.id} value={s.id}>
+              {s.name ?? s.semesterName ?? s.id}
+              {s.yearName ? ` — ${s.yearName}` : ""}
+            </MenuItem>
           ))}
         </TextField>
       </div>

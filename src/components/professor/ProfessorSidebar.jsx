@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import {
   HiBookOpen, HiCalendar, HiChat, HiClipboardList,
   HiHome, HiKey, HiLogout, HiUserGroup, HiTable,
+  HiLightningBolt, HiBell,
 } from "react-icons/hi";
 import { clearStoredSession } from "../../auth/session";
 import { resetAuthUser } from "../../auth/useAuthUser";
@@ -22,16 +23,18 @@ function ProfessorSidebar({ open = false, onClose, onNavigate, profile, user }) 
   const pendingCount = usePendingComplaintsCount();
 
   const navItems = useMemo(() => [
-    { label: "Home",              to: "/prof",                 icon: HiHome,         end: true },
-    { label: "Courses",           to: "/prof/courses",         icon: HiBookOpen              },
-    { label: "My Schedule",       to: "/prof/schedule",        icon: HiCalendar              },
-    { label: "Attendance",        to: "/prof/attendance",      icon: HiUserGroup             },
-    { label: "Assignments",       to: "/prof/assignments",     icon: HiClipboardList         },
-    { label: "Exams",             to: "/prof/exams",           icon: HiClipboardList         },
-    { label: "Complaint Reports", to: "/prof/complaints",      icon: HiClipboardList         },
-    { label: "Import Grades",     to: "/prof/grades-import",   icon: HiTable                 },
-    { label: "AI Assistant",      to: "/prof/chat",            icon: HiChat                  },
-    { label: "Change Password",   to: "/prof/change-password", icon: HiKey                   },
+    { label: "Home",                 to: "/prof",                          icon: HiHome,           end: true },
+    { label: "Courses",              to: "/prof/courses",                  icon: HiBookOpen                  },
+    { label: "My Schedule",          to: "/prof/schedule",                 icon: HiCalendar                  },
+    { label: "Attendance",           to: "/prof/attendance",               icon: HiUserGroup                 },
+    { label: "Assignments",          to: "/prof/assignments",              icon: HiClipboardList             },
+    { label: "Exams",                to: "/prof/exams",                    icon: HiClipboardList             },
+    { label: "Teaching Intelligence",to: "/prof/teaching-intelligence",    icon: HiLightningBolt             },
+    { label: "Complaint Reports",    to: "/prof/complaints",               icon: HiClipboardList             },
+    { label: "Import Grades",        to: "/prof/grades-import",            icon: HiTable                     },
+    { label: "Notifications",        to: "/prof/notifications",            icon: HiBell                      },
+    { label: "AI Assistant",         to: "/prof/chat",                     icon: HiChat                      },
+    { label: "Change Password",      to: "/prof/change-password",          icon: HiKey                       },
   ], []);
 
   const handleNavigate = useCallback(() => {

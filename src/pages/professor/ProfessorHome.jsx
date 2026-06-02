@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { fetchMySubjects } from "../../features/professor/api/professorBackendApi";
+import { fetchDoctorDashboard } from "../../api/analyticsApi";
 import Loading from "../../components/common/Loading";
 import ErrorState from "../../components/common/ErrorState";
 
@@ -24,6 +25,7 @@ function ProfessorHome() {
   const { user, profile, profileLoading } = useOutletContext() || {};
 
   const [subjects, setSubjects] = useState([]);
+  const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedTerm, setSelectedTerm] = useState("");
@@ -36,9 +38,16 @@ function ProfessorHome() {
     let active = true;
     setLoading(true);
     setError("");
-    fetchMySubjects(doctorCode)
-      .then((data) => { if (active) setSubjects(data); })
-      .catch((e) => { if (active) setError(e?.response?.data?.message ?? e?.message ?? "Failed to load subjects."); })
+    Promise.all([
+      fetchMySubjects(doctorCode),
+      fetchDoctorDashboard().catch(() => null),
+    ])
+      .then(([subjectsData, analyticsData]) => {
+        if (!active) return;
+        setSubjects(subjectsData);
+        setAnalytics(analyticsData);
+      })
+      .catch((e) => { if (active) setError(e?.response?.data?.message ?? e?.message ?? "Failed to load."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [doctorCode, profileLoading, refreshKey]);
@@ -57,11 +66,6 @@ function ProfessorHome() {
   useEffect(() => {
     if (selectedTerm && !termOptions.includes(selectedTerm)) setSelectedTerm("");
   }, [selectedTerm, termOptions]);
-
-  const filteredSubjects = useMemo(
-    () => (selectedTerm ? subjects.filter((s) => (s.term ?? s.termName ?? s.semesterName) === selectedTerm) : subjects),
-    [subjects, selectedTerm]
-  );
 
   const recentSubjects = useMemo(() => subjects.slice(0, 5), [subjects]);
   const handleRetry = useCallback(() => setRefreshKey((k) => k + 1), []);
@@ -129,12 +133,26 @@ function ProfessorHome() {
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <StatCard label="Total Assigned Subjects" value={subjects.length} color="#1a5fa3" />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          label={selectedTerm ? `Subjects in ${selectedTerm}` : "Subjects in All Terms"}
-          value={filteredSubjects.length}
+          label="Total Courses"
+          value={analytics?.offeringCount ?? subjects.length}
+          color="#1a5fa3"
+        />
+        <StatCard
+          label="Total Students"
+          value={analytics?.totalStudents ?? "—"}
           color="#059669"
+        />
+        <StatCard
+          label="Pending Reviews"
+          value={analytics?.submissionsToGrade ?? "—"}
+          color="#d97706"
+        />
+        <StatCard
+          label="Avg Grade"
+          value={analytics?.averageGrade != null ? `${analytics.averageGrade.toFixed(1)}%` : "—"}
+          color="#7c3aed"
         />
       </div>
 

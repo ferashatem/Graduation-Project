@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import {
   HiAcademicCap, HiBookOpen, HiCalendar, HiChat, HiClipboardList,
   HiDocumentText, HiHome, HiKey, HiLogout, HiPencilAlt, HiChartBar, HiMap,
+  HiBell, HiSparkles,
 } from "react-icons/hi";
 import { clearStoredSession } from "../../auth/session";
 import { resetAuthUser } from "../../auth/useAuthUser";
@@ -30,6 +31,8 @@ function StudentSidebar({ open = false, onClose, onNavigate, profile, user }) {
     { label: "Assignments",     to: "/student/assignments",        icon: HiDocumentText          },
     { label: "Quizzes",         to: "/student/quizzes",            icon: HiPencilAlt             },
     { label: "My Complaints",   to: "/student/complaints",         icon: HiClipboardList         },
+    { label: "Notifications",   to: "/student/notifications",      icon: HiBell                  },
+    { label: "AI Companion",    to: "/student/companion",          icon: HiSparkles              },
     { label: "AI Assistant",    to: "/student/chat",               icon: HiChat                  },
     { label: "Change Password", to: "/student/change-password",    icon: HiKey                   },
   ], []);

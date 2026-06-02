@@ -168,12 +168,12 @@ function CourseMaterialsSection({ course }) {
                 <Button size="small" variant="outlined" onClick={() => handleViewPdf(m.id)}>
                   Download
                 </Button>
-                <Button size="small" variant="outlined" color="secondary"
+                {/* <Button size="small" variant="outlined" color="secondary"
                   onClick={() => handleIndex(m.id)}
                   disabled={indexingId === m.id}
                   startIcon={indexingId === m.id ? <CircularProgress size={12} /> : <HiDatabase style={{ fontSize: 14 }} />}>
-                  {indexingId === m.id ? "Indexing…" : "Index for AI"}
-                </Button>
+                  {/* {indexingId === m.id ? "Indexing…" : "Index for AI"} */}
+                {/* </Button> */}
                 <Button size="small" color="error" onClick={() => setConfirmState({ open: true, material: m })}>
                   Delete
                 </Button>
