@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { HiChevronDown, HiChevronUp } from "react-icons/hi";
 import { fetchMySubjects } from "../../features/professor/api/professorBackendApi";
 import PageHeader from "../../components/common/PageHeader";
@@ -18,6 +19,7 @@ function Row({ label, value }) {
 }
 
 function AddMaterialTrigger({ professorUid, course }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -26,7 +28,7 @@ function AddMaterialTrigger({ professorUid, course }) {
         onClick={() => setOpen(true)}
         className="rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-700"
       >
-        + Upload
+        {t("profCourses.upload")}
       </button>
       <AddMaterialModal
         open={open}
@@ -39,10 +41,11 @@ function AddMaterialTrigger({ professorUid, course }) {
 }
 
 function CourseCard({ subject, professorUid }) {
+  const { t } = useTranslation();
   const [materialsOpen, setMaterialsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const name = subject.subjectName ?? subject.name ?? subject.courseName ?? "Untitled";
+  const name = subject.subjectName ?? subject.name ?? subject.courseName ?? t("profCourses.untitled");
   const code = subject.subjectCode ?? subject.code ?? "-";
   const term = subject.term ?? subject.termName ?? subject.semesterName ?? "-";
   const yearLevel = subject.yearLevel ?? subject.year ?? null;
@@ -67,7 +70,7 @@ function CourseCard({ subject, professorUid }) {
           <div className="flex-1 min-w-0">
             <h3 className="text-base font-bold text-slate-800 leading-tight">{name}</h3>
             {code !== "-" && (
-              <p className="text-xs font-semibold text-emerald-600 mt-0.5">Code: {code}</p>
+              <p className="text-xs font-semibold text-emerald-600 mt-0.5">{t("profCourses.code", { code })}</p>
             )}
           </div>
           <div className="relative">
@@ -85,10 +88,10 @@ function CourseCard({ subject, professorUid }) {
 
         {/* Details */}
         <div className="mt-4 space-y-2 text-sm border-t border-slate-50 pt-4">
-          <Row label="Term" value={term} />
-          {yearLevel && <Row label="Year" value={`Year ${yearLevel}`} />}
-          {creditHours && <Row label="Credit Hours" value={creditHours} />}
-          {departmentName && <Row label="Department" value={departmentName} />}
+          <Row label={t("profCourses.term")} value={term} />
+          {yearLevel && <Row label={t("profCourses.year")} value={t("profCourses.yearLevel", { level: yearLevel })} />}
+          {creditHours && <Row label={t("profCourses.creditHours")} value={creditHours} />}
+          {departmentName && <Row label={t("profCourses.department")} value={departmentName} />}
         </div>
 
         {/* Footer buttons */}
@@ -97,7 +100,7 @@ function CourseCard({ subject, professorUid }) {
             <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
-            Professor
+            {t("profCourses.professor")}
           </span>
           <button
             type="button"
@@ -105,7 +108,7 @@ function CourseCard({ subject, professorUid }) {
             className="flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 ml-auto"
           >
             {materialsOpen ? <HiChevronUp className="h-4 w-4" /> : <HiChevronDown className="h-4 w-4" />}
-            Materials
+            {t("profCourses.materials")}
           </button>
         </div>
       </div>
@@ -113,7 +116,7 @@ function CourseCard({ subject, professorUid }) {
       {materialsOpen && (
         <div className="border-t border-slate-100 bg-slate-50 px-5 py-4">
           <div className="mb-3 flex items-center justify-between">
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Course Materials</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{t("profCourses.courseMaterials")}</p>
             <AddMaterialTrigger professorUid={professorUid} course={courseForMaterials} />
           </div>
           <CourseMaterialsSection professorId={professorUid} course={courseForMaterials} />
@@ -125,6 +128,7 @@ function CourseCard({ subject, professorUid }) {
 
 function ProfessorCoursesPage() {
   const { user, profile, profileLoading } = useOutletContext() || {};
+  const { t } = useTranslation();
 
   const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -142,7 +146,7 @@ function ProfessorCoursesPage() {
 
     fetchMySubjects(doctorCode)
       .then((data) => { if (active) setSubjects(data); })
-      .catch((e) => { if (active) setError(e?.response?.data?.message ?? e?.message ?? "Failed to load subjects."); })
+      .catch((e) => { if (active) setError(e?.response?.data?.message ?? e?.message ?? t("profCourses.failed")); })
       .finally(() => { if (active) setLoading(false); });
 
     return () => { active = false; };
@@ -150,13 +154,13 @@ function ProfessorCoursesPage() {
 
   const handleRetry = useCallback(() => setRefreshKey((k) => k + 1), []);
 
-  if (profileLoading || loading) return <Loading label="Loading courses..." />;
+  if (profileLoading || loading) return <Loading label={t("profCourses.loading")} />;
 
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-slate-800">Courses</h1>
-        <p className="text-sm text-slate-400 mt-0.5">Your assigned subjects this semester</p>
+        <h1 className="text-2xl font-bold text-slate-800">{t("profCourses.title")}</h1>
+        <p className="text-sm text-slate-400 mt-0.5">{t("profCourses.subtitle")}</p>
       </div>
 
       {error ? <ErrorState message={error} onRetry={handleRetry} /> : null}
@@ -164,7 +168,7 @@ function ProfessorCoursesPage() {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {subjects.length === 0 ? (
           <div className="rounded-2xl bg-white p-6 text-sm text-slate-500 shadow-sm ring-1 ring-slate-200">
-            No subjects assigned yet.
+            {t("profCourses.noSubjects")}
           </div>
         ) : (
           subjects.map((s, i) => (

@@ -55,10 +55,10 @@ function ProfessorHome() {
   }, [doctorCode, profileLoading, refreshKey]);
 
   const profileSummary = useMemo(() => ({
-    name: profile?.fullName ?? profile?.Full_Name ?? profile?.name ?? profile?.displayName ?? "Professor",
+    name: profile?.fullName ?? profile?.Full_Name ?? profile?.name ?? profile?.displayName ?? t("profHome.role"),
     email: profile?.email ?? profile?.Email ?? "—",
     college: profile?.collegeName ?? profile?.college ?? profile?.collegeCode ?? "—",
-  }), [profile]);
+  }), [profile, t]);
 
   const termOptions = useMemo(() => {
     const terms = subjects.map((s) => s.term ?? s.termName ?? s.semesterName).filter(Boolean);
@@ -72,14 +72,14 @@ function ProfessorHome() {
   const recentSubjects = useMemo(() => subjects.slice(0, 5), [subjects]);
   const handleRetry = useCallback(() => setRefreshKey((k) => k + 1), []);
 
-  if (profileLoading || loading) return <Loading label="Loading professor dashboard..." />;
+  if (profileLoading || loading) return <Loading label={t("profHome.loading")} />;
 
   return (
     <div className="space-y-5">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-800">Professor Home</h1>
-        <p className="text-sm text-slate-400 mt-0.5">Welcome back, {profileSummary.name}</p>
+        <h1 className="text-2xl font-bold text-slate-800">{t("profHome.title")}</h1>
+        <p className="text-sm text-slate-400 mt-0.5">{t("profHome.welcomeBack", { name: profileSummary.name })}</p>
       </div>
 
       {error ? <ErrorState message={error} onRetry={handleRetry} /> : null}
@@ -101,11 +101,11 @@ function ProfessorHome() {
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                   </svg>
-                  College: {profileSummary.college}
+                  {t("profHome.college", { college: profileSummary.college })}
                 </span>
               </div>
               <p className="text-sm text-slate-400 mt-0.5">{profileSummary.email}</p>
-              <p className="text-xs text-slate-400 mt-0.5">Professor</p>
+              <p className="text-xs text-slate-400 mt-0.5">{t("profHome.role")}</p>
             </div>
           </div>
         </div>
@@ -116,7 +116,7 @@ function ProfessorHome() {
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
-            <p className="text-sm font-semibold text-slate-700">Current term</p>
+            <p className="text-sm font-semibold text-slate-700">{t("profHome.currentTerm")}</p>
           </div>
           <div className="relative">
             <select
@@ -124,8 +124,8 @@ function ProfessorHome() {
               onChange={(e) => setSelectedTerm(e.target.value)}
               className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 pr-8 text-sm text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
             >
-              <option value="">All terms</option>
-              {termOptions.map((t) => <option key={t} value={t}>{t}</option>)}
+              <option value="">{t("profHome.allTerms")}</option>
+              {termOptions.map((term) => <option key={term} value={term}>{term}</option>)}
             </select>
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -137,22 +137,22 @@ function ProfessorHome() {
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          label="Total Courses"
+          label={t("profHome.totalCourses")}
           value={analytics?.offeringCount ?? subjects.length}
           color="#1a5fa3"
         />
         <StatCard
-          label="Total Students"
+          label={t("profHome.totalStudents")}
           value={analytics?.totalStudents ?? "—"}
           color="#059669"
         />
         <StatCard
-          label="Pending Reviews"
+          label={t("profHome.pendingReviews")}
           value={analytics?.submissionsToGrade ?? "—"}
           color="#d97706"
         />
         <StatCard
-          label="Avg Grade"
+          label={t("profHome.avgGrade")}
           value={analytics?.averageGrade != null ? `${analytics.averageGrade.toFixed(1)}%` : "—"}
           color="#7c3aed"
         />
@@ -162,10 +162,10 @@ function ProfessorHome() {
       <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500">
-            Recent Assigned Subjects
+            {t("profHome.recentSubjects")}
           </h3>
           <button type="button" className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:underline">
-            View All
+            {t("profHome.viewAll")}
             <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
@@ -173,7 +173,7 @@ function ProfessorHome() {
         </div>
 
         {recentSubjects.length === 0 ? (
-          <p className="text-sm text-slate-400 py-4 text-center">No subjects assigned yet.</p>
+          <p className="text-sm text-slate-400 py-4 text-center">{t("profHome.noSubjects")}</p>
         ) : (
           <div className="space-y-2">
             {recentSubjects.map((s, i) => (
@@ -189,9 +189,9 @@ function ProfessorHome() {
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-slate-800">
-                      {s.subjectName ?? s.name ?? s.courseName ?? "Untitled"}
+                      {s.subjectName ?? s.name ?? s.courseName ?? t("profHome.untitled")}
                     </p>
-                    <p className="text-xs text-slate-400">Code: {s.subjectCode ?? s.code ?? "-"}</p>
+                    <p className="text-xs text-slate-400">{t("profHome.code", { code: s.subjectCode ?? s.code ?? "-" })}</p>
                   </div>
                 </div>
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">

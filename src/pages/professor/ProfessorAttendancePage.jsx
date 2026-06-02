@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import PageHeader from "../../components/common/PageHeader";
 import Loading from "../../components/common/Loading";
 import ErrorState from "../../components/common/ErrorState";
@@ -7,6 +8,7 @@ import { getErrorMessage } from "../../utils/errorHelpers";
 import { fetchMySubjects } from "../../features/professor/api/professorBackendApi";
 
 function CopyButton({ text }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const handle = () => {
     navigator.clipboard.writeText(text).then(() => {
@@ -20,12 +22,13 @@ function CopyButton({ text }) {
       onClick={handle}
       className="rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-200 transition"
     >
-      {copied ? "Copied!" : "Copy"}
+      {copied ? t("profAttendance.copied") : t("profAttendance.copy")}
     </button>
   );
 }
 
 function ProfessorAttendancePage() {
+  const { t } = useTranslation();
   const [offerings, setOfferings]   = useState([]);
   const [offerLoad, setOfferLoad]   = useState(true);
   const [offerErr, setOfferErr]     = useState("");
@@ -39,9 +42,9 @@ function ProfessorAttendancePage() {
   useEffect(() => {
     fetchMySubjects()
       .then((data) => setOfferings(Array.isArray(data) ? data : []))
-      .catch((err) => setOfferErr(getErrorMessage(err, "Failed to load your offerings.")))
+      .catch((err) => setOfferErr(getErrorMessage(err, t("profAttendance.failedOfferings"))))
       .finally(() => setOfferLoad(false));
-  }, []);
+  }, [t]);
 
   const handleCreate = useCallback(async (e) => {
     e.preventDefault();
@@ -53,20 +56,20 @@ function ProfessorAttendancePage() {
       setSessions((prev) => [data, ...prev]);
       setNotes("");
     } catch (err) {
-      setCreateErr(getErrorMessage(err, "Failed to create session."));
+      setCreateErr(getErrorMessage(err, t("profAttendance.failedCreate")));
     } finally {
       setCreating(false);
     }
-  }, [selectedId, notes]);
+  }, [selectedId, notes, t]);
 
-  if (offerLoad) return <Loading label="Loading your offerings…" />;
+  if (offerLoad) return <Loading label={t("profAttendance.loadingOfferings")} />;
   if (offerErr)  return <ErrorState message={offerErr} />;
 
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-slate-800">Attendance Sessions</h1>
-        <p className="text-sm text-slate-400 mt-0.5">Create sessions and track student attendance</p>
+        <h1 className="text-2xl font-bold text-slate-800">{t("profAttendance.title")}</h1>
+        <p className="text-sm text-slate-400 mt-0.5">{t("profAttendance.subtitle")}</p>
       </div>
 
       {/* Create session form */}
@@ -77,21 +80,21 @@ function ProfessorAttendancePage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </div>
-          <h2 className="text-base font-bold text-slate-800">Create New Session</h2>
+          <h2 className="text-base font-bold text-slate-800">{t("profAttendance.createNew")}</h2>
         </div>
 
         <form onSubmit={handleCreate} className="space-y-4">
           <div>
-            <label className="mb-1.5 block text-xs font-semibold text-slate-600">Subject Offering</label>
+            <label className="mb-1.5 block text-xs font-semibold text-slate-600">{t("profAttendance.subjectOffering")}</label>
             <select
               value={selectedId}
               onChange={(e) => setSelectedId(e.target.value)}
               className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
             >
-              <option value="">Select an offering…</option>
+              <option value="">{t("profAttendance.selectOffering")}</option>
               {offerings.map((o) => {
                 const id   = o.id ?? o.subjectOfferingId;
-                const name = o.subjectName ?? o.name ?? "Untitled";
+                const name = o.subjectName ?? o.name ?? t("profAttendance.untitled");
                 const code = o.subjectCode ?? o.code ?? "";
                 return (
                   <option key={id} value={id}>
@@ -103,12 +106,12 @@ function ProfessorAttendancePage() {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-xs font-semibold text-slate-600">Notes (optional)</label>
+            <label className="mb-1.5 block text-xs font-semibold text-slate-600">{t("profAttendance.notesOptional")}</label>
             <input
               type="text"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="e.g. Week 5 Lecture"
+              placeholder={t("profAttendance.notesPlaceholder")}
               className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
             />
           </div>
@@ -124,7 +127,7 @@ function ProfessorAttendancePage() {
             disabled={creating || !selectedId}
             className="w-full rounded-xl bg-[#0b2c4a] px-4 py-3 text-sm font-semibold text-white hover:bg-[#153a63] disabled:opacity-50 transition"
           >
-            {creating ? "Creating…" : "Create Session"}
+            {creating ? t("profAttendance.creating") : t("profAttendance.createSession")}
           </button>
         </form>
       </div>
@@ -133,7 +136,7 @@ function ProfessorAttendancePage() {
       {sessions.length > 0 && (
         <div className="space-y-4">
           <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500">
-            Sessions Created This Visit
+            {t("profAttendance.sessionsThisVisit")}
           </h2>
           {sessions.map((s, i) => {
             const sessionId = s.id ?? s.sessionId ?? s.Id;
