@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { DataGrid } from "@mui/x-data-grid";
 import { Button, Chip, IconButton } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
@@ -6,6 +7,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import ListAltIcon from "@mui/icons-material/ListAlt";
 
 function SemesterRowActions({ row, onEdit, onDelete, onManageOfferings }) {
+  const { t } = useTranslation();
   const handleEdit = useCallback(() => onEdit(row), [onEdit, row]);
   const handleDelete = useCallback(() => onDelete(row), [onDelete, row]);
   const handleOfferings = useCallback(() => onManageOfferings(row), [onManageOfferings, row]);
@@ -14,7 +16,7 @@ function SemesterRowActions({ row, onEdit, onDelete, onManageOfferings }) {
     <div className="flex items-center gap-1">
       <Button size="small" variant="outlined" startIcon={<ListAltIcon fontSize="inherit" />}
         onClick={handleOfferings} sx={{ fontSize: 11 }}>
-        Offerings
+        {t("semesters.offerings")}
       </Button>
       <IconButton size="small" color="primary" onClick={handleEdit}>
         <EditIcon fontSize="inherit" />
@@ -27,28 +29,29 @@ function SemesterRowActions({ row, onEdit, onDelete, onManageOfferings }) {
 }
 
 function SemestersTable({ rows, loading, onEdit, onDelete, onManageOfferings }) {
+  const { t } = useTranslation();
   const gridRows = useMemo(() => rows || [], [rows]);
 
   const columns = useMemo(
     () => [
-      { field: "name", headerName: "Semester Name", flex: 1, minWidth: 200 },
-      { field: "type", headerName: "Type", flex: 1, minWidth: 140 },
-      { field: "startDate", headerName: "Start Date", flex: 1, minWidth: 140 },
-      { field: "endDate", headerName: "End Date", flex: 1, minWidth: 140 },
+      { field: "name", headerName: t("semesters.semesterName"), flex: 1, minWidth: 200 },
+      { field: "type", headerName: t("semesters.type"), flex: 1, minWidth: 140 },
+      { field: "startDate", headerName: t("semesters.startDate"), flex: 1, minWidth: 140 },
+      { field: "endDate", headerName: t("semesters.endDate"), flex: 1, minWidth: 140 },
       {
         field: "isActive",
-        headerName: "Status",
+        headerName: t("semesters.status"),
         width: 110,
         renderCell: (params) =>
           params.value ? (
-            <Chip label="Active" color="success" size="small" />
+            <Chip label={t("common.active")} color="success" size="small" />
           ) : (
-            <Chip label="Closed" size="small" />
+            <Chip label={t("semesters.closed")} size="small" />
           ),
       },
       {
         field: "actions",
-        headerName: "Actions",
+        headerName: t("semesters.actions"),
         width: 220,
         sortable: false,
         filterable: false,
@@ -58,7 +61,7 @@ function SemestersTable({ rows, loading, onEdit, onDelete, onManageOfferings }) 
         ),
       },
     ],
-    [onDelete, onEdit, onManageOfferings]
+    [onDelete, onEdit, onManageOfferings, t]
   );
 
   return (

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Alert, Button, Chip, CircularProgress, Dialog, DialogActions,
   DialogContent, DialogTitle, InputAdornment, List, ListItemButton,
@@ -393,6 +394,8 @@ function DepartmentGroup({ deptName, batches }) {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 function AdminEnrollmentsPage() {
+  const { t } = useTranslation();
+  const breadcrumbs = [{ label: t("adminNav.secSubjects") }, { label: t("adminEnrollments.title") }];
   // Cascade state
   const [colleges,    setColleges]    = useState([]);
   const [collegeId,   setCollegeId]   = useState("");
@@ -458,7 +461,7 @@ function AdminEnrollmentsPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Enrollment Management" breadcrumbs={breadcrumbs} />
+      <PageHeader title={t("adminEnrollments.title")} breadcrumbs={breadcrumbs} />
 
       {/* Cascade selectors */}
       <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 space-y-4">

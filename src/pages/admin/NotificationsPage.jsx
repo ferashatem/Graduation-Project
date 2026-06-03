@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Alert,
   Box,
@@ -205,11 +206,13 @@ const TAB_ICONS = [HiGlobe, HiUser, HiUserGroup];
 const TAB_LABELS = ["Broadcast", "Single User", "By Department"];
 
 function NotificationsPage() {
+  const { t } = useTranslation();
+  const breadcrumbs = [{ label: t("adminNav.secAnalytics") }, { label: t("adminNotifications.title") }];
   const [tab, setTab] = useState(0);
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Send Notifications" breadcrumbs={breadcrumbs} />
+      <PageHeader title={t("adminNotifications.title")} breadcrumbs={breadcrumbs} />
 
       <Paper variant="outlined" sx={{ maxWidth: 640, borderRadius: 3, overflow: "hidden" }}>
         {/* Header */}

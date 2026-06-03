@@ -7,6 +7,7 @@ import {
   DialogActions,
   Button,
 } from "@mui/material";
+import { useTranslation } from "react-i18next";
 
 const CONFIRM_MESSAGE = "Are you sure you want to delete this assignment?";
 

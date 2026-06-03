@@ -14,6 +14,7 @@ import {
   Select,
   TextField,
 } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import { fetchDoctorOptions } from "../api/complaintsApi";
 
 const TARGET_TYPES = ["Doctor", "Exam", "Grade", "SubjectOffering", "Other"];

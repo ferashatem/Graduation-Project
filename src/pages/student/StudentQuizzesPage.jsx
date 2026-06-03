@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { HiBookOpen, HiClock, HiQuestionMarkCircle } from "react-icons/hi";
 import apiClient from "../../api/apiClient";
 
@@ -33,22 +34,25 @@ function examState(exam) {
   return "draft";
 }
 
-const STATE_BADGE = {
-  completed: <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">Completed</span>,
-  pending:   <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">Pending Grading</span>,
-  missed:    <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-600">Missed</span>,
-  upcoming:  <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">Not Started Yet</span>,
-  available: <span className="rounded-full bg-[#0b2c4a]/10 px-3 py-1 text-xs font-semibold text-[#0b2c4a]">Available</span>,
-  closed:    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500">Closed</span>,
-  draft:     <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-400">Not Published</span>,
-};
+// STATE_BADGE built inside ExamCard using t()
 
 function ExamCard({ exam }) {
+  const { t } = useTranslation();
   const state      = examState(exam);
   const startDate  = parseDate(exam.startTime);
   const endDate    = parseDate(exam.endTime);
   const canTake    = state === "available";
   const showResult = state === "completed" || state === "pending";
+
+  const STATE_BADGE = {
+    completed: <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">{t("studentQuizzes.completed")}</span>,
+    pending:   <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">{t("studentQuizzes.pendingGrading")}</span>,
+    missed:    <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-600">{t("studentQuizzes.missed")}</span>,
+    upcoming:  <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">{t("studentQuizzes.upcoming")}</span>,
+    available: <span className="rounded-full bg-[#0b2c4a]/10 px-3 py-1 text-xs font-semibold text-[#0b2c4a]">{t("studentQuizzes.available")}</span>,
+    closed:    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500">{t("studentQuizzes.closed")}</span>,
+    draft:     <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-400">{t("studentQuizzes.draft")}</span>,
+  };
 
   return (
     <article className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 space-y-3">
@@ -64,9 +68,9 @@ function ExamCard({ exam }) {
       {(startDate || endDate) && (
         <p className="text-xs text-slate-500">
           {state === "upcoming"
-            ? `Starts at ${fmtWhen(startDate)}`
+            ? t("studentQuizzes.startsAt", { time: fmtWhen(startDate) })
             : state === "missed"
-              ? `Ended at ${fmtWhen(endDate)}`
+              ? t("studentQuizzes.endedAt", { time: fmtWhen(endDate) })
               : `${fmtWhen(startDate)} → ${fmtWhen(endDate)}`}
         </p>
       )}
@@ -75,17 +79,17 @@ function ExamCard({ exam }) {
         {(exam.questionCount > 0 || exam.questions?.length > 0) && (
           <span className="flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1">
             <HiQuestionMarkCircle className="h-3.5 w-3.5" />
-            {exam.questionCount || exam.questions.length} questions
+            {t("studentQuizzes.questions", { count: exam.questionCount || exam.questions.length })}
           </span>
         )}
         {exam.durationMinutes && (
           <span className="flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1">
             <HiClock className="h-3.5 w-3.5" />
-            {exam.durationMinutes} min
+            {t("studentQuizzes.min", { n: exam.durationMinutes })}
           </span>
         )}
         {exam.totalMarks && (
-          <span className="rounded-full bg-slate-100 px-2.5 py-1">{exam.totalMarks} marks</span>
+          <span className="rounded-full bg-slate-100 px-2.5 py-1">{t("studentQuizzes.marks", { n: exam.totalMarks })}</span>
         )}
       </div>
 
@@ -93,19 +97,19 @@ function ExamCard({ exam }) {
         {showResult ? (
           <Link to={`/student/quizzes/${exam.id}/result`}
             className="inline-block rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50">
-            {state === "pending" ? "View Submission" : "View Result"}
+            {state === "pending" ? t("studentQuizzes.viewSubmission") : t("studentQuizzes.viewResult")}
           </Link>
         ) : canTake ? (
           <Link to={`/student/quizzes/${exam.id}`}
             className="inline-block rounded-xl bg-[#0b2c4a] px-4 py-2 text-xs font-semibold text-white hover:bg-[#153a63]">
-            Enter Exam
+            {t("studentQuizzes.enterExam")}
           </Link>
         ) : (
           <span className="inline-block rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-400 cursor-not-allowed">
-            {state === "missed" ? "Exam Missed"
-              : state === "upcoming" ? `Opens at ${fmtWhen(startDate)}`
-              : state === "closed" ? "Exam Closed"
-              : "Not Available"}
+            {state === "missed" ? t("studentQuizzes.examMissed")
+              : state === "upcoming" ? t("studentQuizzes.opensAt", { time: fmtWhen(startDate) })
+              : state === "closed" ? t("studentQuizzes.examClosed")
+              : t("studentQuizzes.notAvailable")}
           </span>
         )}
       </div>
@@ -114,6 +118,7 @@ function ExamCard({ exam }) {
 }
 
 function StudentQuizzesPage() {
+  const { t } = useTranslation();
   const [exams,   setExams]   = useState([]);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState("");
@@ -125,24 +130,24 @@ function StudentQuizzesPage() {
         const payload = res.data?.data ?? res.data;
         setExams(Array.isArray(payload) ? payload : payload?.items ?? []);
       })
-      .catch((e) => setError(e?.response?.data?.message ?? e?.message ?? "Failed to load exams."))
+      .catch((e) => setError(e?.response?.data?.message ?? e?.message ?? t("studentQuizzes.failed")))
       .finally(() => setLoading(false));
   }, []);
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold text-[#0b2c4a]">Available Exams</h1>
+      <h1 className="text-2xl font-semibold text-[#0b2c4a]">{t("studentQuizzes.title")}</h1>
 
       {error && (
         <div className="rounded-2xl bg-red-50 p-4 text-sm text-red-700">{error}</div>
       )}
 
       {loading ? (
-        <div className="py-12 text-center text-sm text-slate-500">Loading exams…</div>
+        <div className="py-12 text-center text-sm text-slate-500">{t("studentQuizzes.loading")}</div>
       ) : exams.length === 0 ? (
         <div className="rounded-2xl bg-white p-8 text-center text-sm text-slate-500 shadow-sm ring-1 ring-slate-200">
           <HiBookOpen className="mx-auto mb-3 h-10 w-10 text-slate-300" />
-          No exams available right now.
+          {t("studentQuizzes.noExams")}
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

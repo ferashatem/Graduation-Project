@@ -1,5 +1,6 @@
 
 import { useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button, Alert } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "../../../components/common/PageHeader";
@@ -12,6 +13,7 @@ import CollegeFormDialog from "../components/CollegeFormDialog";
 import { useColleges } from "../hooks/useColleges";
 
 function CollegesPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { colleges, loading, error, reload, addCollege, updateCollege, deleteCollege } =
     useColleges();
@@ -22,7 +24,7 @@ function CollegesPage() {
   const [blockedDialog, setBlockedDialog] = useState({ open: false, message: "" });
 
   const rows = useMemo(() => colleges, [colleges]);
-  const breadcrumbs = useMemo(() => [{ label: "Colleges" }], []);
+  const breadcrumbs = useMemo(() => [{ label: t("colleges.title") }], [t]);
 
   const handleAdd = useCallback(() => {
     setEditing(null);
@@ -90,11 +92,11 @@ function CollegesPage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Colleges"
+        title={t("colleges.title")}
         breadcrumbs={breadcrumbs}
         action={
           <Button variant="contained" onClick={handleAdd}>
-            Add College
+            {t("colleges.addCollege")}
           </Button>
         }
       />
@@ -102,7 +104,7 @@ function CollegesPage() {
       {actionError ? <Alert severity="error">{actionError}</Alert> : null}
       {error && !loading ? <ErrorState message={error} onRetry={reload} /> : null}
       {loading && rows.length === 0 ? (
-        <Loading label="Loading colleges..." />
+        <Loading label={t("colleges.loading")} />
       ) : (
         <CollegesTable
           rows={rows}
@@ -123,9 +125,9 @@ function CollegesPage() {
 
       <ConfirmDialog
         open={confirmState.open}
-        title="Delete college?"
-        message="سيتم حذف الكلية نهائياً مع كل أقسامها والبيانات الأكاديمية بالكامل."
-        confirmLabel="Delete"
+        title={t("colleges.deleteTitle")}
+        message={t("colleges.deleteMessage")}
+        confirmLabel={t("common.delete")}
         onConfirm={handleConfirmDelete}
         onClose={handleCloseConfirm}
       />

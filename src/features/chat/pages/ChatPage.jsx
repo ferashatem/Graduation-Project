@@ -3,6 +3,7 @@ import {
   HiOutlinePencilAlt, HiOutlineTrash, HiOutlineMenuAlt2,
   HiOutlineMoon, HiOutlineSun, HiCheck, HiX,
 } from "react-icons/hi";
+import { useTranslation } from "react-i18next";
 import { FiArrowUp } from "react-icons/fi";
 import { useChat } from "../hooks/useChat";
 

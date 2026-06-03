@@ -1,11 +1,13 @@
 
 import { useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { DataGrid } from "@mui/x-data-grid";
 import { Button, IconButton } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 
 function CollegeRowActions({ row, onEdit, onDelete, onManage }) {
+  const { t } = useTranslation();
   const handleEdit = useCallback(() => onEdit(row), [onEdit, row]);
   const handleDelete = useCallback(() => onDelete(row), [onDelete, row]);
   const handleManage = useCallback(() => onManage(row), [onManage, row]);
@@ -13,7 +15,7 @@ function CollegeRowActions({ row, onEdit, onDelete, onManage }) {
   return (
     <div className="flex items-center gap-2">
       <Button size="small" variant="outlined" onClick={handleManage}>
-        Manage Years
+        {t("colleges.manageYears")}
       </Button>
       <IconButton size="small" color="primary" onClick={handleEdit}>
         <EditIcon fontSize="inherit" />
@@ -26,15 +28,16 @@ function CollegeRowActions({ row, onEdit, onDelete, onManage }) {
 }
 
 function CollegesTable({ rows, loading, onEdit, onDelete, onManage }) {
+  const { t } = useTranslation();
   const gridRows = useMemo(() => rows || [], [rows]);
 
   const columns = useMemo(
     () => [
-      { field: "name", headerName: "College Name", flex: 1, minWidth: 200 },
-      { field: "code", headerName: "Code", flex: 1, minWidth: 140 },
+      { field: "name", headerName: t("colleges.collegeName"), flex: 1, minWidth: 200 },
+      { field: "code", headerName: t("colleges.code"), flex: 1, minWidth: 140 },
       {
         field: "actions",
-        headerName: "Actions",
+        headerName: t("colleges.actions"),
         flex: 1,
         minWidth: 360,
         sortable: false,
@@ -49,7 +52,7 @@ function CollegesTable({ rows, loading, onEdit, onDelete, onManage }) {
         ),
       },
     ],
-    [onDelete, onEdit, onManage]
+    [onDelete, onEdit, onManage, t]
   );
 
   return (

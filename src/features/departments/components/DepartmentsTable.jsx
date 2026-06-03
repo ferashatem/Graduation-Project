@@ -1,11 +1,13 @@
 
 import { useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { DataGrid } from "@mui/x-data-grid";
 import { Button, IconButton } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 
 function DepartmentRowActions({ row, onEdit, onDelete, onManageBatches }) {
+  const { t } = useTranslation();
   const handleEdit = useCallback(() => onEdit(row), [onEdit, row]);
   const handleDelete = useCallback(() => onDelete(row), [onDelete, row]);
   const handleBatches = useCallback(
@@ -17,7 +19,7 @@ function DepartmentRowActions({ row, onEdit, onDelete, onManageBatches }) {
     <div className="flex items-center gap-2">
       {onManageBatches && (
         <Button size="small" variant="outlined" onClick={handleBatches}>
-          Batches
+          {t("departments.batches")}
         </Button>
       )}
       <IconButton size="small" color="primary" onClick={handleEdit}>
@@ -31,15 +33,16 @@ function DepartmentRowActions({ row, onEdit, onDelete, onManageBatches }) {
 }
 
 function DepartmentsTable({ rows, loading, onEdit, onDelete, onManageBatches }) {
+  const { t } = useTranslation();
   const gridRows = useMemo(() => rows || [], [rows]);
 
   const columns = useMemo(
     () => [
-      { field: "name", headerName: "Department Name", flex: 1, minWidth: 200 },
-      { field: "code", headerName: "Code", flex: 1, minWidth: 140 },
+      { field: "name", headerName: t("departments.departmentName"), flex: 1, minWidth: 200 },
+      { field: "code", headerName: t("departments.code"), flex: 1, minWidth: 140 },
       {
         field: "actions",
-        headerName: "Actions",
+        headerName: t("departments.actions"),
         minWidth: 220,
         flex: 1,
         sortable: false,
@@ -54,7 +57,7 @@ function DepartmentsTable({ rows, loading, onEdit, onDelete, onManageBatches }) 
         ),
       },
     ],
-    [onDelete, onEdit, onManageBatches]
+    [onDelete, onEdit, onManageBatches, t]
   );
 
   return (

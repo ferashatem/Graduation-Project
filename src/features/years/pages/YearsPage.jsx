@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button, Alert } from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
 import PageHeader from "../../../components/common/PageHeader";
@@ -12,6 +13,7 @@ import { getCollegeById } from "../../colleges/api/collegesApi";
 import { getErrorMessage } from "../../../utils/errorHelpers";
 
 function YearsPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { collegeId } = useParams();
   const { years, loading, error, reload, addYear, updateYear, deleteYear } =
@@ -44,11 +46,11 @@ function YearsPage() {
 
   const breadcrumbs = useMemo(
     () => [
-      { label: "Colleges", to: "/admin/colleges" },
-      { label: collegeName || "College" },
-      { label: "Years" },
+      { label: t("colleges.title"), to: "/admin/colleges" },
+      { label: collegeName || t("colleges.title") },
+      { label: t("years.title") },
     ],
-    [collegeName]
+    [collegeName, t]
   );
 
   const handleAdd = useCallback(() => {
@@ -119,11 +121,11 @@ function YearsPage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Years"
+        title={t("years.title")}
         breadcrumbs={breadcrumbs}
         action={
           <Button variant="contained" onClick={handleAdd}>
-            Add Year
+            {t("years.addYear")}
           </Button>
         }
       />
@@ -131,7 +133,7 @@ function YearsPage() {
       {actionError ? <Alert severity="error">{actionError}</Alert> : null}
       {error && !loading ? <ErrorState message={error} onRetry={reload} /> : null}
       {loading && rows.length === 0 ? (
-        <Loading label="Loading years..." />
+        <Loading label={t("years.loading")} />
       ) : (
         <YearsTable
           rows={rows}
@@ -154,9 +156,9 @@ function YearsPage() {
 
       <ConfirmDialog
         open={confirmState.open}
-        title="Delete year?"
-        message="This will remove the year. Related departments and courses are not deleted automatically."
-        confirmLabel="Delete"
+        title={t("years.deleteTitle")}
+        message={t("years.deleteMessage")}
+        confirmLabel={t("common.delete")}
         onConfirm={handleConfirmDelete}
         onClose={handleCloseConfirm}
       />

@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button, Alert } from "@mui/material";
 import { useParams } from "react-router-dom";
 import PageHeader from "../../../components/common/PageHeader";
@@ -11,6 +12,7 @@ import GroupFormDialog from "../components/GroupFormDialog";
 import { useGroups } from "../hooks/useGroups";
 
 function GroupsPage() {
+  const { t } = useTranslation();
   const { batchId, batchCode } = useParams();
 
   const { groups, loading, error, reload, addGroup, updateGroup, deleteGroup } =
@@ -24,11 +26,11 @@ function GroupsPage() {
 
   const breadcrumbs = useMemo(
     () => [
-      { label: "Colleges", to: "/admin/colleges" },
-      { label: batchCode || "Batch" },
-      { label: "Groups" },
+      { label: t("colleges.title"), to: "/admin/colleges" },
+      { label: batchCode || t("batches.title") },
+      { label: t("groups.title") },
     ],
-    [batchCode]
+    [batchCode, t]
   );
 
   const handleAdd = useCallback(() => {
@@ -81,15 +83,15 @@ function GroupsPage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Groups / Sections"
+        title={t("groups.title")}
         breadcrumbs={breadcrumbs}
-        action={<Button variant="contained" onClick={handleAdd}>Add Group</Button>}
+        action={<Button variant="contained" onClick={handleAdd}>{t("groups.addGroup")}</Button>}
       />
 
       {actionError ? <Alert severity="error">{actionError}</Alert> : null}
       {error && !loading ? <ErrorState message={error} onRetry={reload} /> : null}
       {loading && groups.length === 0 ? (
-        <Loading label="Loading groups..." />
+        <Loading label={t("groups.loading")} />
       ) : (
         <GroupsTable
           rows={groups}
@@ -109,9 +111,9 @@ function GroupsPage() {
 
       <ConfirmDialog
         open={confirmState.open}
-        title="Delete group?"
-        message="سيتم حذف المجموعة نهائياً وكل المواد والامتحانات والدرجات المرتبطة بها."
-        confirmLabel="Delete"
+        title={t("groups.deleteTitle")}
+        message={t("groups.deleteMessage")}
+        confirmLabel={t("common.delete")}
         onConfirm={handleConfirmDelete}
         onClose={handleCloseConfirm}
       />

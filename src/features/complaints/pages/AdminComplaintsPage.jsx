@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Box, FormControl, InputLabel, MenuItem, Select, Tab, Tabs } from "@mui/material";
 import PageHeader from "../../../components/common/PageHeader";
 import Loading from "../../../components/common/Loading";
@@ -11,13 +12,14 @@ const STATUSES = ["", "Pending", "Resolved", "Dismissed"];
 const TARGET_TYPES = ["", "Doctor", "Exam", "Grade", "SubjectOffering", "Other"];
 
 function AdminComplaintsPage() {
+  const { t } = useTranslation();
   const { complaints, loading, error, reload, setQuery } = useAdminComplaints();
   const { clusters, loading: clustersLoading } = useComplaintClusters();
   const [tab, setTab] = useState(0);
   const [status, setStatus] = useState("");
   const [targetType, setTargetType] = useState("");
 
-  const breadcrumbs = useMemo(() => [{ label: "Complaints" }], []);
+  const breadcrumbs = useMemo(() => [{ label: t("complaints.title") }], [t]);
 
   const handleFilter = (newStatus, newTargetType) => {
     setQuery({ page: 1, pageSize: 20, status: newStatus || undefined, targetType: newTargetType || undefined });
@@ -25,42 +27,42 @@ function AdminComplaintsPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Complaints" breadcrumbs={breadcrumbs} />
+      <PageHeader title={t("complaints.title")} breadcrumbs={breadcrumbs} />
 
       <Tabs value={tab} onChange={(_, v) => setTab(v)}>
-        <Tab label="All Complaints" />
-        <Tab label="Patterns & Clusters" />
+        <Tab label={t("complaints.allComplaints")} />
+        <Tab label={t("complaints.patternsAndClusters")} />
       </Tabs>
 
       {tab === 0 && (
         <>
           <Box className="flex flex-wrap gap-3">
             <FormControl size="small" sx={{ minWidth: 140 }}>
-              <InputLabel>Status</InputLabel>
+              <InputLabel>{t("complaints.status")}</InputLabel>
               <Select
                 value={status}
-                label="Status"
+                label={t("complaints.status")}
                 onChange={(e) => { setStatus(e.target.value); handleFilter(e.target.value, targetType); }}
               >
-                {STATUSES.map((s) => <MenuItem key={s} value={s}>{s || "All"}</MenuItem>)}
+                {STATUSES.map((s) => <MenuItem key={s} value={s}>{s || t("common.all")}</MenuItem>)}
               </Select>
             </FormControl>
 
             <FormControl size="small" sx={{ minWidth: 160 }}>
-              <InputLabel>Target Type</InputLabel>
+              <InputLabel>{t("complaints.targetType")}</InputLabel>
               <Select
                 value={targetType}
-                label="Target Type"
+                label={t("complaints.targetType")}
                 onChange={(e) => { setTargetType(e.target.value); handleFilter(status, e.target.value); }}
               >
-                {TARGET_TYPES.map((t) => <MenuItem key={t} value={t}>{t || "All"}</MenuItem>)}
+                {TARGET_TYPES.map((tt) => <MenuItem key={tt} value={tt}>{tt || t("common.all")}</MenuItem>)}
               </Select>
             </FormControl>
           </Box>
 
           {error && !loading ? <ErrorState message={error} onRetry={reload} /> : null}
           {loading && complaints.length === 0 ? (
-            <Loading label="Loading complaints…" />
+            <Loading label={t("complaints.loading")} />
           ) : (
             <ComplaintsTable rows={complaints} loading={loading} showStudent />
           )}
@@ -69,7 +71,7 @@ function AdminComplaintsPage() {
 
       {tab === 1 && (
         <>
-          {clustersLoading ? <Loading label="Loading patterns…" /> : <ClustersPanel clusters={clusters} />}
+          {clustersLoading ? <Loading label={t("common.loading")} /> : <ClustersPanel clusters={clusters} />}
         </>
       )}
     </div>

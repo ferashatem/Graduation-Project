@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useOutletContext } from "react-router-dom";
 import apiClient from "../../api/apiClient";
 import { fetchMySubjects } from "../../features/professor/api/professorBackendApi";

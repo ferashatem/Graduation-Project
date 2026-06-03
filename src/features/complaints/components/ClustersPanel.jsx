@@ -1,4 +1,5 @@
 import { Box, Card, CardContent, Chip, Grid, Typography } from "@mui/material";
+import { useTranslation } from "react-i18next";
 
 function ClustersPanel({ clusters = [] }) {
   if (clusters.length === 0) {

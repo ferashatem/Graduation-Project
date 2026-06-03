@@ -10,6 +10,7 @@ import {
   DialogTitle,
   TextField,
 } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import { fetchCollegeCourses } from "../../firebase/coursesApi";
 import { createSchedule, updateSchedule } from "../../firebase/scheduleApi";
 import { getErrorMessage } from "../../utils/errorHelpers";

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import apiClient from "../../api/apiClient";
 import Loading from "../../components/common/Loading";
 import ErrorState from "../../components/common/ErrorState";

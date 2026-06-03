@@ -12,6 +12,7 @@ import {
   Snackbar,
   TextField,
 } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { useParams } from "react-router-dom";
 import {

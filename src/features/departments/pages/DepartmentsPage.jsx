@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button, Alert } from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
 import PageHeader from "../../../components/common/PageHeader";
@@ -13,6 +14,7 @@ import { getCollegeById } from "../../colleges/api/collegesApi";
 import { getErrorMessage } from "../../../utils/errorHelpers";
 
 function DepartmentsPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { collegeId, yearId } = useParams();
   const [collegeMeta, setCollegeMeta] = useState({ name: "", code: "" });
@@ -63,11 +65,11 @@ function DepartmentsPage() {
 
   const breadcrumbs = useMemo(
     () => [
-      { label: "Colleges", to: "/admin/colleges" },
-      { label: collegeMeta.name || "College" },
-      { label: "Departments" },
+      { label: t("colleges.title"), to: "/admin/colleges" },
+      { label: collegeMeta.name || t("colleges.title") },
+      { label: t("departments.title") },
     ],
-    [collegeMeta.name]
+    [collegeMeta.name, t]
   );
 
   const handleAdd = useCallback(() => {
@@ -135,7 +137,7 @@ function DepartmentsPage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Departments"
+        title={t("departments.title")}
         breadcrumbs={breadcrumbs}
         action={
           <Button
@@ -143,7 +145,7 @@ function DepartmentsPage() {
             onClick={handleAdd}
             disabled={!collegeId && !yearId}
           >
-            Add Department
+            {t("departments.addDepartment")}
           </Button>
         }
       />
@@ -151,7 +153,7 @@ function DepartmentsPage() {
       {actionError ? <Alert severity="error">{actionError}</Alert> : null}
       {error && !loading ? <ErrorState message={error} onRetry={reload} /> : null}
       {loading && rows.length === 0 ? (
-        <Loading label="Loading departments..." />
+        <Loading label={t("departments.loading")} />
       ) : (
         <DepartmentsTable
           rows={rows}
@@ -172,9 +174,9 @@ function DepartmentsPage() {
 
       <ConfirmDialog
         open={confirmState.open}
-        title="Delete department?"
-        message="سيتم حذف القسم نهائياً مع كل دفعاته ومجموعاته والبيانات الأكاديمية. الطلاب والدكاترة لن يُحذفوا."
-        confirmLabel="Delete"
+        title={t("departments.deleteTitle")}
+        message={t("departments.deleteMessage")}
+        confirmLabel={t("common.delete")}
         onConfirm={handleConfirmDelete}
         onClose={handleCloseConfirm}
       />

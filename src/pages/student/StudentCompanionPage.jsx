@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import apiClient from "../../api/apiClient";
 
 const unwrap = (res) => res.data?.data ?? res.data;

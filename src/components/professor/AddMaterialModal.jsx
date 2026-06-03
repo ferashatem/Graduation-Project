@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, LinearProgress } from "@mui/material";
 import { uploadMaterial } from "../../api/materialsApi";
 import { getErrorMessage } from "../../utils/errorHelpers";

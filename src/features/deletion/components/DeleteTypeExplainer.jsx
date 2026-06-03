@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 const EXPLAINERS = {
   "Soft Delete":  { icon: "🔅", text: "This record will be deactivated. Data is preserved but hidden.", color: "bg-blue-50 border-blue-200 text-blue-800" },

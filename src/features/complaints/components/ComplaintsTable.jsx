@@ -13,6 +13,7 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { HiChevronDown, HiChevronUp } from "react-icons/hi";
 
@@ -61,6 +62,7 @@ function AnalysisRow({ analysis }) {
 }
 
 function ComplaintRow({ row, showStudent, onReply }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
 
   const colSpan = showStudent ? 8 : 7;
@@ -112,7 +114,7 @@ function ComplaintRow({ row, showStudent, onReply }) {
                 variant="outlined"
                 onClick={() => onReply(row)}
               >
-                Reply
+                {t("complaints.submitResponse")}
               </Button>
             )}
           </TableCell>
@@ -167,10 +169,11 @@ function ComplaintRow({ row, showStudent, onReply }) {
 }
 
 function ComplaintsTable({ rows = [], loading, showStudent = false, onReply }) {
+  const { t } = useTranslation();
   if (!loading && rows.length === 0) {
     return (
       <Box className="py-12 text-center text-slate-500">
-        No complaints found.
+        {t("complaints.noComplaints")}
       </Box>
     );
   }
@@ -181,12 +184,12 @@ function ComplaintsTable({ rows = [], loading, showStudent = false, onReply }) {
         <TableHead>
           <TableRow>
             <TableCell width={48} />
-            {showStudent && <TableCell>Student</TableCell>}
-            <TableCell>Title</TableCell>
-            <TableCell>Type</TableCell>
-            <TableCell>Status</TableCell>
-            <TableCell>Priority</TableCell>
-            <TableCell>Date</TableCell>
+            {showStudent && <TableCell>{t("complaints.student")}</TableCell>}
+            <TableCell>{t("complaints.titleCol")}</TableCell>
+            <TableCell>{t("complaints.type")}</TableCell>
+            <TableCell>{t("complaints.status")}</TableCell>
+            <TableCell>{t("complaints.priority")}</TableCell>
+            <TableCell>{t("complaints.date")}</TableCell>
             {onReply && <TableCell />}
           </TableRow>
         </TableHead>

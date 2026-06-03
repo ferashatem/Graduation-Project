@@ -14,6 +14,7 @@ import {
   TextField,
   Tooltip,
 } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { useCourseOfferings } from "../hooks/useCourseOfferings";
 import {

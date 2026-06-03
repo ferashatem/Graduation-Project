@@ -15,6 +15,7 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
+import { useTranslation } from "react-i18next";
 
 const REQUIRED = [
   { name: "FullName", note: "student's full name (3–100 chars)" },

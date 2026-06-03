@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 const RISK_CONFIG = {
   Low:          { bg: "#22c55e", pulse: false },

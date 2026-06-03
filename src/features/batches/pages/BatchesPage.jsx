@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button, Alert } from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
 import PageHeader from "../../../components/common/PageHeader";
@@ -12,6 +13,7 @@ import { useBatches } from "../hooks/useBatches";
 import { getDepartmentById } from "../../departments/api/departmentsApi";
 
 function BatchesPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { deptId } = useParams();
 
@@ -34,11 +36,11 @@ function BatchesPage() {
 
   const breadcrumbs = useMemo(
     () => [
-      { label: "Colleges", to: "/admin/colleges" },
-      { label: deptName || "Department" },
-      { label: "Batches" },
+      { label: t("colleges.title"), to: "/admin/colleges" },
+      { label: deptName || t("departments.title") },
+      { label: t("batches.title") },
     ],
-    [deptName]
+    [deptName, t]
   );
 
   const handleAdd = useCallback(() => {
@@ -97,15 +99,15 @@ function BatchesPage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Batches"
+        title={t("batches.title")}
         breadcrumbs={breadcrumbs}
-        action={<Button variant="contained" onClick={handleAdd}>Add Batch</Button>}
+        action={<Button variant="contained" onClick={handleAdd}>{t("batches.addBatch")}</Button>}
       />
 
       {actionError ? <Alert severity="error">{actionError}</Alert> : null}
       {error && !loading ? <ErrorState message={error} onRetry={reload} /> : null}
       {loading && batches.length === 0 ? (
-        <Loading label="Loading batches..." />
+        <Loading label={t("batches.loading")} />
       ) : (
         <BatchesTable
           rows={batches}
@@ -126,9 +128,9 @@ function BatchesPage() {
 
       <ConfirmDialog
         open={confirmState.open}
-        title="Delete batch?"
-        message="سيتم حذف الدفعة نهائياً مع كل مجموعاتها والمواد والامتحانات والدرجات. الطلاب لن يُحذفوا."
-        confirmLabel="Delete"
+        title={t("batches.deleteTitle")}
+        message={t("batches.deleteMessage")}
+        confirmLabel={t("common.delete")}
         onConfirm={handleConfirmDelete}
         onClose={handleCloseConfirm}
       />

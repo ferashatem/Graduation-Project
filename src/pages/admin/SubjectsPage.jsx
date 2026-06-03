@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Alert, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
   IconButton, MenuItem, TextField, Typography, CircularProgress, Autocomplete,
@@ -459,6 +460,8 @@ function FilterBar({ colleges, onBatchSelect }) {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 function SubjectsPage() {
+  const { t } = useTranslation();
+  const breadcrumbs = [{ label: t("adminNav.secSubjects") }, { label: t("adminSubjects.title") }];
   const [subjects, setSubjects] = useState([]);
   const [selectedBatchId, setSelectedBatchId] = useState(null);
   const [selectedBatch, setSelectedBatch] = useState(null);
@@ -577,7 +580,7 @@ function SubjectsPage() {
 
   const columns = useMemo(() => [
     {
-      field: "name", headerName: "Subject Name", flex: 1, minWidth: 200,
+      field: "name", headerName: t("adminSubjects.name"), flex: 1, minWidth: 200,
       renderCell: (params) => (
         <div className="flex items-center gap-2">
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-50">
@@ -590,14 +593,14 @@ function SubjectsPage() {
       ),
     },
     {
-      field: "code", headerName: "Code", width: 130,
+      field: "code", headerName: t("adminSubjects.code"), width: 130,
       renderCell: (params) => (
         <Chip label={params.row.code} size="small" variant="outlined"
           sx={{ fontFamily: "monospace", fontWeight: 600 }} />
       ),
     },
     {
-      field: "doctorName", headerName: "Assigned Doctor", flex: 1, minWidth: 160,
+      field: "doctorName", headerName: t("adminSubjects.department"), flex: 1, minWidth: 160,
       renderCell: (params) => (
         params.row.doctorName
           ? <span className="text-sm text-slate-700">{params.row.doctorName}</span>
@@ -605,7 +608,7 @@ function SubjectsPage() {
       ),
     },
     {
-      field: "actions", headerName: "Actions", width: 140,
+      field: "actions", headerName: t("common.actions"), width: 140,
       sortable: false, filterable: false,
       renderCell: (params) => (
         <div className="flex items-center gap-1">
@@ -621,14 +624,14 @@ function SubjectsPage() {
         </div>
       ),
     },
-  ], [handleEdit, handleDeletePrompt, handleAssignDoctor]);
+  ], [handleEdit, handleDeletePrompt, handleAssignDoctor, t]);
 
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Subjects"
+        title={t("adminSubjects.title")}
         breadcrumbs={breadcrumbs}
-        action={<Button variant="contained" onClick={handleAdd}>Add Subject</Button>}
+        action={<Button variant="contained" onClick={handleAdd}>{t("adminSubjects.addSubject")}</Button>}
       />
 
       {actionError ? <Alert severity="error">{actionError}</Alert> : null}
@@ -656,7 +659,7 @@ function SubjectsPage() {
       ) : loadError ? (
         <ErrorState message={loadError} onRetry={() => loadSubjects(selectedBatchId)} />
       ) : loading ? (
-        <Loading label="Loading subjects…" />
+        <Loading label={t("adminSubjects.loading")} />
       ) : (
         <div className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 overflow-hidden">
           {/* Batch header */}
@@ -698,9 +701,9 @@ function SubjectsPage() {
 
       <ConfirmDialog
         open={confirmState.open}
-        title="Delete subject?"
-        message="This will permanently remove the subject."
-        confirmLabel="Delete"
+        title={t("adminSubjects.deleteConfirm", { name: confirmState.row?.name ?? "" })}
+        message={t("adminSubjects.deleteConfirm", { name: confirmState.row?.name ?? "" })}
+        confirmLabel={t("common.delete")}
         onConfirm={handleConfirmDelete}
         onClose={handleCloseConfirm}
       />

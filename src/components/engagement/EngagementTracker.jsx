@@ -4,6 +4,7 @@ import {
   FaceLandmarker,
   FilesetResolver,
 } from "@mediapipe/tasks-vision";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../../context/AuthContext";
 import { pushEngagement } from "../../firebase/attendanceFunctions";
 import { getErrorMessage } from "../../utils/errorHelpers";

@@ -1,34 +1,31 @@
 import { useCallback, useMemo, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useAuthUser } from "../../auth/useAuthUser";
 import AdminSidebar from "../../components/admin/AdminSidebar";
 import AdminTopbar from "../../components/admin/AdminTopbar";
 import { NotificationProvider } from "../../context/NotificationContext";
 
-const PAGE_TITLES = [
-  ["/super_admin/bulk-import-users", "Bulk Import Users"],
-  ["/super_admin/create-admin", "User Management"],
-  ["/super_admin/home", "Home"],
-  ["/super_admin", "Super Admin Dashboard"],
-  ["/sessions", "Sessions"],
-];
-
-function resolveTitle(pathname) {
-  for (const [prefix, label] of PAGE_TITLES) {
-    if (pathname.startsWith(prefix)) return label;
-  }
-  return "Super Admin";
-}
-
 function MainLayoutSuperAdmin() {
+  const { t } = useTranslation();
   const { user, profile, authLoading } = useAuthUser();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const pageTitle = useMemo(
-    () => resolveTitle(location.pathname),
-    [location.pathname]
-  );
+  const PAGE_TITLES = useMemo(() => [
+    ["/super_admin/bulk-import-users", t("pageTitles.bulkImportUsers")],
+    ["/super_admin/create-admin", t("pageTitles.userManagement")],
+    ["/super_admin/home", t("pageTitles.home")],
+    ["/super_admin", t("pageTitles.superAdminDashboard")],
+    ["/sessions", t("pageTitles.sessions")],
+  ], [t]);
+
+  const pageTitle = useMemo(() => {
+    for (const [prefix, label] of PAGE_TITLES) {
+      if (location.pathname.startsWith(prefix)) return label;
+    }
+    return t("pageTitles.superAdminDashboard");
+  }, [location.pathname, PAGE_TITLES, t]);
 
   const handleMenuClick = useCallback(() => setSidebarOpen((p) => !p), []);
   const handleCloseSidebar = useCallback(() => setSidebarOpen(false), []);

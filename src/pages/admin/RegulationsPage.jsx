@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Alert, Button, Card, CardContent, Chip, Dialog, DialogActions,
   DialogContent, DialogTitle, IconButton, MenuItem, TextField, Typography,
@@ -238,6 +239,7 @@ function RegulationCard({ regulation, onEdit, onDelete }) {
 }
 
 function RegulationsPage() {
+  const { t } = useTranslation();
   const [regulations, setRegulations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -304,9 +306,9 @@ function RegulationsPage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Regulations"
-        breadcrumbs={breadcrumbs}
-        action={<Button variant="contained" onClick={handleAdd}>Add Regulation</Button>}
+        title={t("adminRegulations.title")}
+        breadcrumbs={[{ label: t("adminNav.secSettings") }, { label: t("adminRegulations.title") }]}
+        action={<Button variant="contained" onClick={handleAdd}>{t("adminRegulations.addRegulation")}</Button>}
       />
 
       {actionError ? <Alert severity="error">{actionError}</Alert> : null}

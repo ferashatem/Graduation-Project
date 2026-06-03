@@ -1,10 +1,12 @@
 import { useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { DataGrid } from "@mui/x-data-grid";
 import { Button, IconButton } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 
 function YearRowActions({ row, onEdit, onDelete, onManage, onManageSemesters }) {
+  const { t } = useTranslation();
   const handleEdit = useCallback(() => onEdit(row), [onEdit, row]);
   const handleDelete = useCallback(() => onDelete(row), [onDelete, row]);
   const handleManage = useCallback(() => onManage(row), [onManage, row]);
@@ -16,10 +18,10 @@ function YearRowActions({ row, onEdit, onDelete, onManage, onManageSemesters }) 
   return (
     <div className="flex items-center gap-2 flex-wrap">
       <Button size="small" variant="outlined" onClick={handleManage}>
-        Departments
+        {t("years.departments")}
       </Button>
       <Button size="small" variant="outlined" color="secondary" onClick={handleSemesters}>
-        Semesters
+        {t("years.semesters")}
       </Button>
       <IconButton size="small" color="primary" onClick={handleEdit}>
         <EditIcon fontSize="inherit" />
@@ -32,15 +34,16 @@ function YearRowActions({ row, onEdit, onDelete, onManage, onManageSemesters }) 
 }
 
 function YearsTable({ rows, loading, onEdit, onDelete, onManage, onManageSemesters }) {
+  const { t } = useTranslation();
   const gridRows = useMemo(() => rows || [], [rows]);
 
   const columns = useMemo(
     () => [
-      { field: "name", headerName: "Year Name", flex: 1, minWidth: 200 },
-      { field: "order", headerName: "Order", width: 120 },
+      { field: "name", headerName: t("years.yearName"), flex: 1, minWidth: 200 },
+      { field: "order", headerName: t("years.order"), width: 120 },
       {
         field: "actions",
-        headerName: "Actions",
+        headerName: t("years.actions"),
         flex: 1,
         minWidth: 260,
         sortable: false,
@@ -56,7 +59,7 @@ function YearsTable({ rows, loading, onEdit, onDelete, onManage, onManageSemeste
         ),
       },
     ],
-    [onDelete, onEdit, onManage, onManageSemesters]
+    [onDelete, onEdit, onManage, onManageSemesters, t]
   );
 
   return (

@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { httpsCallable } from "firebase/functions";
 import { saveAs } from "file-saver";
 import * as XLSX from "xlsx";

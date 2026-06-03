@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { FiArrowUp } from "react-icons/fi";
 
 function ChatInput({ onSend, disabled }) {

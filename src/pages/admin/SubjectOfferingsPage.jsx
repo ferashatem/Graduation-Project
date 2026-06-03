@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Alert, Button, Chip, CircularProgress, Dialog, DialogActions,
   DialogContent, DialogTitle, InputAdornment, List, ListItemButton,
@@ -19,7 +20,7 @@ import { fetchBatchesByDepartment } from "../../features/batches/api/batchesApi"
 import { fetchGroupsByBatch } from "../../features/groups/api/groupsApi";
 import { getErrorMessage } from "../../utils/errorHelpers";
 
-const breadcrumbs = [{ label: "Subjects & Registration" }, { label: "Subject Offerings" }];
+// breadcrumbs are built inside the component using t()
 
 const emptyForm = {
   subjectCode: "",
@@ -388,6 +389,7 @@ function EnrollStudentDialog({ open, offering, onClose }) {
 }
 
 function SubjectOfferingsPage() {
+  const { t } = useTranslation();
   const { semesterId } = useParams();
   const { state } = useLocation();
   const collegeId = state?.collegeId ?? null;
@@ -449,34 +451,37 @@ function SubjectOfferingsPage() {
   }, []);
 
   const columns = useMemo(() => [
-    { field: "subjectName", headerName: "Subject", flex: 1, minWidth: 180 },
-    { field: "doctorName", headerName: "Doctor", flex: 1, minWidth: 180 },
-    { field: "semesterName", headerName: "Semester", flex: 1, minWidth: 140 },
-    { field: "maxCapacity", headerName: "Capacity", width: 100 },
+    { field: "subjectName", headerName: t("subjectOfferings.subject"), flex: 1, minWidth: 180 },
+    { field: "doctorName", headerName: t("subjectOfferings.doctor"), flex: 1, minWidth: 180 },
+    { field: "semesterName", headerName: t("subjectOfferings.semester"), flex: 1, minWidth: 140 },
+    { field: "maxCapacity", headerName: t("subjectOfferings.capacity"), width: 100 },
     {
-      field: "actions", headerName: "Actions", width: 260, sortable: false,
+      field: "actions", headerName: t("subjectOfferings.actions"), width: 260, sortable: false,
       renderCell: ({ row }) => (
         <div className="flex gap-2">
-          <Button size="small" variant="outlined" color="success" onClick={() => setEnrollTarget(row)}>Enroll</Button>
-          <Button size="small" variant="outlined" onClick={() => { setActionError(""); setEditTarget(row); }}>Edit</Button>
-          <Button size="small" variant="outlined" color="error" onClick={() => handleDelete(row.id)}>Delete</Button>
+          <Button size="small" variant="outlined" color="success" onClick={() => setEnrollTarget(row)}>{t("subjectOfferings.enroll")}</Button>
+          <Button size="small" variant="outlined" onClick={() => { setActionError(""); setEditTarget(row); }}>{t("subjectOfferings.edit")}</Button>
+          <Button size="small" variant="outlined" color="error" onClick={() => handleDelete(row.id)}>{t("subjectOfferings.delete")}</Button>
         </div>
       ),
     },
-  ], [handleDelete]);
+  ], [handleDelete, t]);
 
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Subject Offerings"
-        breadcrumbs={[...breadcrumbs, { label: "Offerings" }]}
-        action={<Button variant="contained" onClick={() => setDialogOpen(true)}>Add Offering</Button>}
+        title={t("subjectOfferings.title")}
+        breadcrumbs={[
+          { label: t("adminNav.subjectsRegistration") },
+          { label: t("subjectOfferings.title") },
+        ]}
+        action={<Button variant="contained" onClick={() => setDialogOpen(true)}>{t("subjectOfferings.addOffering")}</Button>}
       />
 
       {actionError ? <Alert severity="error">{actionError}</Alert> : null}
       {error && !loading ? <ErrorState message={error} onRetry={load} /> : null}
       {loading ? (
-        <Loading label="Loading offerings..." />
+        <Loading label={t("subjectOfferings.loading")} />
       ) : (
         <div className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 overflow-hidden">
           <DataGrid

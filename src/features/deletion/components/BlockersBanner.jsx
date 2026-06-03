@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import BlockIcon from "@mui/icons-material/Block";
 
 export default function BlockersBanner({ blockers = [] }) {

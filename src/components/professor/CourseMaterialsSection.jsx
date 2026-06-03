@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Alert, Button, CircularProgress, Snackbar } from "@mui/material";
 import { HiSearch, HiDatabase } from "react-icons/hi";
 import Loading from "../common/Loading";

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { HiAcademicCap, HiChevronDown, HiChevronUp, HiExclamation, HiLightBulb, HiRefresh } from "react-icons/hi";
 import PageHeader from "../../components/common/PageHeader";
 import Loading from "../../components/common/Loading";

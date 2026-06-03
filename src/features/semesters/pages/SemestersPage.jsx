@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button, Alert } from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
 import PageHeader from "../../../components/common/PageHeader";
@@ -11,6 +12,7 @@ import { useSemesters } from "../hooks/useSemesters";
 import { getYearById } from "../../years/api/yearsApi";
 
 function SemestersPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { yearId } = useParams();
   const { semesters, loading, error, reload, addSemester, updateSemester, deleteSemester } =
@@ -35,11 +37,11 @@ function SemestersPage() {
 
   const breadcrumbs = useMemo(
     () => [
-      { label: "Colleges", to: "/admin/colleges" },
-      { label: yearName || "Academic Year" },
-      { label: "Semesters" },
+      { label: t("colleges.title"), to: "/admin/colleges" },
+      { label: yearName || t("years.title") },
+      { label: t("semesters.title") },
     ],
-    [yearName]
+    [yearName, t]
   );
 
   const handleAdd = useCallback(() => {
@@ -93,11 +95,11 @@ function SemestersPage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Semesters"
+        title={t("semesters.title")}
         breadcrumbs={breadcrumbs}
         action={
           <Button variant="contained" onClick={handleAdd}>
-            Add Semester
+            {t("semesters.addSemester")}
           </Button>
         }
       />
@@ -105,7 +107,7 @@ function SemestersPage() {
       {actionError ? <Alert severity="error">{actionError}</Alert> : null}
       {error && !loading ? <ErrorState message={error} onRetry={reload} /> : null}
       {loading && semesters.length === 0 ? (
-        <Loading label="Loading semesters..." />
+        <Loading label={t("semesters.loading")} />
       ) : (
         <SemestersTable
           rows={semesters}
@@ -126,9 +128,9 @@ function SemestersPage() {
 
       <ConfirmDialog
         open={confirmState.open}
-        title="Delete semester?"
-        message="This will permanently remove the semester and may affect subject offerings."
-        confirmLabel="Delete"
+        title={t("semesters.deleteTitle")}
+        message={t("semesters.deleteMessage")}
+        confirmLabel={t("common.delete")}
         onConfirm={handleConfirmDelete}
         onClose={handleCloseConfirm}
       />

@@ -1,10 +1,12 @@
 import { useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { DataGrid } from "@mui/x-data-grid";
 import { Button, IconButton } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 
 function BatchRowActions({ row, onEdit, onDelete, onManage }) {
+  const { t } = useTranslation();
   const handleEdit = useCallback(() => onEdit(row), [onEdit, row]);
   const handleDelete = useCallback(() => onDelete(row), [onDelete, row]);
   const handleManage = useCallback(() => onManage(row), [onManage, row]);
@@ -12,7 +14,7 @@ function BatchRowActions({ row, onEdit, onDelete, onManage }) {
   return (
     <div className="flex items-center gap-2">
       <Button size="small" variant="outlined" onClick={handleManage}>
-        Manage Groups
+        {t("batches.manageGroups")}
       </Button>
       <IconButton size="small" color="primary" onClick={handleEdit}>
         <EditIcon fontSize="inherit" />
@@ -25,15 +27,16 @@ function BatchRowActions({ row, onEdit, onDelete, onManage }) {
 }
 
 function BatchesTable({ rows, loading, onEdit, onDelete, onManage }) {
+  const { t } = useTranslation();
   const gridRows = useMemo(() => rows || [], [rows]);
 
   const columns = useMemo(
     () => [
-      { field: "name", headerName: "Batch Name", flex: 1, minWidth: 200 },
-      { field: "year", headerName: "Year", flex: 1, minWidth: 120 },
+      { field: "name", headerName: t("batches.batchName"), flex: 1, minWidth: 200 },
+      { field: "year", headerName: t("batches.year"), flex: 1, minWidth: 120 },
       {
         field: "actions",
-        headerName: "Actions",
+        headerName: t("batches.actions"),
         flex: 1,
         minWidth: 320,
         sortable: false,
@@ -48,7 +51,7 @@ function BatchesTable({ rows, loading, onEdit, onDelete, onManage }) {
         ),
       },
     ],
-    [onDelete, onEdit, onManage]
+    [onDelete, onEdit, onManage, t]
   );
 
   return (

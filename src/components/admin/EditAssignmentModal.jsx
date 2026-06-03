@@ -7,6 +7,7 @@ import {
   Button,
   Alert,
 } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "../../firebase/firebaseConfig";
 import { getErrorMessage } from "../../utils/errorHelpers";

@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { DataGrid } from "@mui/x-data-grid";
 import { IconButton } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
@@ -21,15 +22,16 @@ function GroupRowActions({ row, onEdit, onDelete }) {
 }
 
 function GroupsTable({ rows, loading, onEdit, onDelete }) {
+  const { t } = useTranslation();
   const gridRows = useMemo(() => rows || [], [rows]);
 
   const columns = useMemo(
     () => [
-      { field: "name", headerName: "Group / Section Name", flex: 1, minWidth: 200 },
-      { field: "capacity", headerName: "Capacity", flex: 1, minWidth: 120 },
+      { field: "name", headerName: t("groups.groupName"), flex: 1, minWidth: 200 },
+      { field: "capacity", headerName: t("groups.capacity"), flex: 1, minWidth: 120 },
       {
         field: "actions",
-        headerName: "Actions",
+        headerName: t("groups.actions"),
         width: 120,
         sortable: false,
         filterable: false,
@@ -38,7 +40,7 @@ function GroupsTable({ rows, loading, onEdit, onDelete }) {
         ),
       },
     ],
-    [onDelete, onEdit]
+    [onDelete, onEdit, t]
   );
 
   return (

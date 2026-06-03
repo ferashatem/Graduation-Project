@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import PageHeader from "../../components/common/PageHeader";
 import Loading from "../../components/common/Loading";
 import ErrorState from "../../components/common/ErrorState";
@@ -433,6 +434,7 @@ function SlotFormModal({ open, onClose, onSave, initial, batchId }) {
 }
 
 function AdminSchedulePage() {
+  const { t } = useTranslation();
   const [batches, setBatches] = useState([]);
   const [batchId, setBatchId] = useState("");
   const [entries, setEntries] = useState([]);
@@ -503,7 +505,7 @@ function AdminSchedulePage() {
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8">
       <PageHeader
-        title="Timetable Manager"
+        title={t("adminSchedule.title")}
         action={
           batchId && (
             <button

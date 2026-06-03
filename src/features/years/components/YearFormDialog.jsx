@@ -10,6 +10,7 @@ import {
   FormControlLabel,
   Switch,
 } from "@mui/material";
+import { useTranslation } from "react-i18next";
 
 const emptyValues = { name: "", order: "", isActive: true };
 

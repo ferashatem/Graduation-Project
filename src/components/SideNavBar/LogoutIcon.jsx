@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import lougout from "../../assets/imgs/logout.png";
 import { useNavigate } from "react-router-dom";
 import  app  from "../../firebase/firebaseConfig";

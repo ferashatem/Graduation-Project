@@ -7,6 +7,7 @@ import {
   DialogContent,
   DialogTitle,
 } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import { collection, getDocs, orderBy, query, where } from "firebase/firestore";
 import { auth, db } from "../../firebase/firebaseConfig";
 import { addAssignment, updateAssignment } from "../../firebase/firestoreAssignments";

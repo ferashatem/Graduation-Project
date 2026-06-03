@@ -10,6 +10,7 @@ import {
   listenCourseAiMessages,
   updateCourseAiMessage,
 } from "../../../firebase/courseAiApi";
+import { useTranslation } from "react-i18next";
 import { fetchMaterialsForCourse } from "../../../firebase/materialsApi";
 import { getErrorMessage } from "../../../utils/errorHelpers";
 

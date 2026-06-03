@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions,
   DialogContent, DialogTitle, IconButton, Paper, Table, TableBody,
@@ -16,9 +17,8 @@ import {
 } from "../../api/adminsApi";
 import { getErrorMessage } from "../../utils/errorHelpers";
 
-const breadcrumbs = [{ label: "Admins Management" }];
-
 function CreateAdminDialog({ open, onClose, onCreated }) {
+  const { t } = useTranslation();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -36,7 +36,7 @@ function CreateAdminDialog({ open, onClose, onCreated }) {
 
   const handleCreate = async () => {
     if (!fullName.trim() || !email.trim() || !password.trim()) {
-      setError("Full name, email, and password are required.");
+      setError(t("adminManagement.required"));
       return;
     }
     setSaving(true);
@@ -54,35 +54,17 @@ function CreateAdminDialog({ open, onClose, onCreated }) {
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Add Admin</DialogTitle>
+      <DialogTitle>{t("adminManagement.addAdmin")}</DialogTitle>
       <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 2 }}>
         {error && <Alert severity="error">{error}</Alert>}
-        <TextField
-          label="Full Name"
-          value={fullName}
-          onChange={(e) => setFullName(e.target.value)}
-          fullWidth
-          autoFocus
-        />
-        <TextField
-          label="Email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          fullWidth
-        />
-        <TextField
-          label="Password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          fullWidth
-        />
+        <TextField label={t("adminManagement.fullName")} value={fullName} onChange={(e) => setFullName(e.target.value)} fullWidth autoFocus />
+        <TextField label={t("adminManagement.email")} type="email" value={email} onChange={(e) => setEmail(e.target.value)} fullWidth />
+        <TextField label={t("adminManagement.password")} type="password" value={password} onChange={(e) => setPassword(e.target.value)} fullWidth />
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} disabled={saving}>Cancel</Button>
+        <Button onClick={onClose} disabled={saving}>{t("common.cancel")}</Button>
         <Button variant="contained" onClick={handleCreate} disabled={saving}>
-          {saving ? "Creating…" : "Create"}
+          {saving ? t("adminManagement.saving") : t("common.create")}
         </Button>
       </DialogActions>
     </Dialog>
@@ -90,6 +72,7 @@ function CreateAdminDialog({ open, onClose, onCreated }) {
 }
 
 function EditAdminDialog({ admin, open, onClose, onSaved }) {
+  const { t } = useTranslation();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [saving, setSaving] = useState(false);
@@ -119,16 +102,16 @@ function EditAdminDialog({ admin, open, onClose, onSaved }) {
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Edit Admin</DialogTitle>
+      <DialogTitle>{t("adminManagement.edit")}</DialogTitle>
       <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 2 }}>
         {error && <Alert severity="error">{error}</Alert>}
-        <TextField label="Full Name" value={fullName} onChange={(e) => setFullName(e.target.value)} fullWidth />
-        <TextField label="Email" value={email} onChange={(e) => setEmail(e.target.value)} fullWidth />
+        <TextField label={t("adminManagement.fullName")} value={fullName} onChange={(e) => setFullName(e.target.value)} fullWidth />
+        <TextField label={t("adminManagement.email")} value={email} onChange={(e) => setEmail(e.target.value)} fullWidth />
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} disabled={saving}>Cancel</Button>
+        <Button onClick={onClose} disabled={saving}>{t("common.cancel")}</Button>
         <Button variant="contained" onClick={handleSave} disabled={saving}>
-          {saving ? "Saving…" : "Save"}
+          {saving ? t("adminManagement.saving") : t("common.save")}
         </Button>
       </DialogActions>
     </Dialog>
@@ -136,6 +119,8 @@ function EditAdminDialog({ admin, open, onClose, onSaved }) {
 }
 
 function AdminsManagementPage() {
+  const { t } = useTranslation();
+  const breadcrumbs = [{ label: t("adminManagement.title") }];
   const [admins, setAdmins] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -173,7 +158,7 @@ function AdminsManagementPage() {
   };
 
   const handleDelete = async (admin) => {
-    if (!window.confirm(`Delete admin "${admin.fullName}"? This cannot be undone.`)) return;
+    if (!window.confirm(t("adminManagement.deleteMessage", { name: admin.fullName }))) return;
     try {
       await deleteAdmin(admin.id);
       setAdmins((prev) => prev.filter((a) => a.id !== admin.id));
@@ -185,14 +170,14 @@ function AdminsManagementPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <PageHeader title="Admins Management" breadcrumbs={breadcrumbs} />
+        <PageHeader title={t("adminManagement.title")} breadcrumbs={breadcrumbs} />
         <Button
           variant="contained"
           startIcon={<HiPlus />}
           onClick={() => setCreateOpen(true)}
           sx={{ borderRadius: 2, textTransform: "none", fontWeight: 600 }}
         >
-          Add Admin
+          {t("adminManagement.addAdmin")}
         </Button>
       </div>
 
@@ -206,11 +191,11 @@ function AdminsManagementPage() {
           <Table size="small">
             <TableHead>
               <TableRow sx={{ bgcolor: "slate.50" }}>
-                <TableCell><strong>Name</strong></TableCell>
-                <TableCell><strong>Email</strong></TableCell>
-                <TableCell><strong>Role</strong></TableCell>
-                <TableCell><strong>Status</strong></TableCell>
-                <TableCell align="right"><strong>Actions</strong></TableCell>
+                <TableCell><strong>{t("adminManagement.name")}</strong></TableCell>
+                <TableCell><strong>{t("adminManagement.email")}</strong></TableCell>
+                <TableCell><strong>{t("common.type")}</strong></TableCell>
+                <TableCell><strong>{t("adminManagement.status")}</strong></TableCell>
+                <TableCell align="right"><strong>{t("adminManagement.actions")}</strong></TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -227,25 +212,25 @@ function AdminsManagementPage() {
                   </TableCell>
                   <TableCell>
                     <Chip
-                      label={admin.isActive ? "Active" : "Inactive"}
+                      label={admin.isActive ? t("adminManagement.active") : t("adminManagement.inactive")}
                       size="small"
                       color={admin.isActive ? "success" : "default"}
                     />
                   </TableCell>
                   <TableCell align="right">
                     <Box sx={{ display: "flex", gap: 1, justifyContent: "flex-end" }}>
-                      <IconButton size="small" onClick={() => setEditTarget(admin)} title="Edit">
+                      <IconButton size="small" onClick={() => setEditTarget(admin)} title={t("adminManagement.edit")}>
                         <HiPencil />
                       </IconButton>
                       <IconButton
                         size="small"
                         onClick={() => handleToggle(admin)}
-                        title={admin.isActive ? "Deactivate" : "Activate"}
+                        title={admin.isActive ? t("adminManagement.deactivate") : t("adminManagement.activate")}
                         color={admin.isActive ? "warning" : "success"}
                       >
                         {admin.isActive ? <HiX /> : <HiCheck />}
                       </IconButton>
-                      <IconButton size="small" onClick={() => handleDelete(admin)} title="Delete" color="error">
+                      <IconButton size="small" onClick={() => handleDelete(admin)} title={t("adminManagement.delete")} color="error">
                         <HiTrash />
                       </IconButton>
                     </Box>
@@ -254,7 +239,7 @@ function AdminsManagementPage() {
               ))}
               {admins.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} align="center">No admins found.</TableCell>
+                  <TableCell colSpan={5} align="center">{t("adminManagement.noAdmins")}</TableCell>
                 </TableRow>
               )}
             </TableBody>
