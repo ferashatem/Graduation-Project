@@ -61,14 +61,6 @@ export const fetchStudentDashboard = async () => {
 
 // ── Advanced analytics ─────────────────────────────────────────────────────────
 
-export const fetchAttendanceTrends = async (offeringId, weeks = 8) => {
-  const res = await apiClient.get("/analytics/attendance/trends", {
-    params: { offeringId, weeks },
-  });
-  const payload = unwrap(res);
-  return Array.isArray(payload) ? payload : [];
-};
-
 export const fetchGradeDistribution = async (offeringId) => {
   const res = await apiClient.get("/analytics/grades/distribution", {
     params: { offeringId },

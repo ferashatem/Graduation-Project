@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNotifications } from "../../context/NotificationContext";
 import { sendToMyStudents } from "../../api/notificationsApi";
 import { fetchMySubjects } from "../../features/professor/api/professorBackendApi";
@@ -11,6 +12,7 @@ const fmtDate = (s) => {
 };
 
 function ProfessorNotificationsPage() {
+  const { t } = useTranslation();
   const { notifications, unreadCount, loading, markRead, markAllRead } = useNotifications();
 
   const [offerings, setOfferings]   = useState([]);
@@ -37,7 +39,7 @@ function ProfessorNotificationsPage() {
       setSendOk(true);
       setForm({ title: "", message: "", offeringId: "" });
     } catch (err) {
-      setSendErr(getErrorMessage(err, "Failed to send notification."));
+      setSendErr(getErrorMessage(err, t("profNotifications.failedSend")));
     } finally {
       setSending(false);
     }
@@ -47,9 +49,9 @@ function ProfessorNotificationsPage() {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Notifications</h1>
+          <h1 className="text-2xl font-bold text-slate-800">{t("notifications.title")}</h1>
           <p className="text-sm text-slate-400 mt-0.5">
-            {unreadCount > 0 ? `${unreadCount} unread` : "All caught up"}
+            {unreadCount > 0 ? t("notifications.unread", { count: unreadCount }) : t("notifications.allCaughtUp")}
           </p>
         </div>
         {unreadCount > 0 && (
@@ -58,7 +60,7 @@ function ProfessorNotificationsPage() {
             onClick={markAllRead}
             className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition"
           >
-            Mark all as read
+            {t("notifications.markAllRead")}
           </button>
         )}
       </div>
@@ -71,33 +73,33 @@ function ProfessorNotificationsPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
             </svg>
           </div>
-          <h2 className="text-base font-bold text-slate-800">Send Message to Students</h2>
+          <h2 className="text-base font-bold text-slate-800">{t("profNotifications.sendTitle")}</h2>
         </div>
 
         <form onSubmit={handleSend} className="space-y-3">
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1">Title *</label>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">{t("profNotifications.title")} *</label>
               <input
                 type="text"
                 value={form.title}
                 onChange={(e) => setF("title", e.target.value)}
-                placeholder="e.g. Exam reminder"
+                placeholder={t("profNotifications.titlePlaceholder")}
                 required
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1">Subject Offering (optional)</label>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">{t("profNotifications.selectOffering")}</label>
               <select
                 value={form.offeringId}
                 onChange={(e) => setF("offeringId", e.target.value)}
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-300"
               >
-                <option value="">All my students</option>
+                <option value="">{t("profNotifications.allOfferings")}</option>
                 {offerings.map((o) => {
                   const id = o.id ?? o.subjectOfferingId;
-                  const name = o.subjectName ?? o.name ?? "Untitled";
+                  const name = o.subjectName ?? o.name ?? t("profCourses.untitled");
                   return <option key={id} value={id}>{name} ({o.subjectCode ?? o.code ?? ""})</option>;
                 })}
               </select>
@@ -105,12 +107,12 @@ function ProfessorNotificationsPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1">Message *</label>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">{t("profNotifications.message")} *</label>
             <textarea
               rows={3}
               value={form.message}
               onChange={(e) => setF("message", e.target.value)}
-              placeholder="Write your message to students…"
+              placeholder={t("profNotifications.messagePlaceholder")}
               required
               className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 resize-none"
             />
@@ -121,7 +123,7 @@ function ProfessorNotificationsPage() {
           )}
           {sendOk && (
             <p className="rounded-xl bg-emerald-50 px-4 py-2.5 text-xs text-emerald-700 ring-1 ring-emerald-200">
-              Notification sent successfully!
+              {t("profNotifications.sentSuccess")}
             </p>
           )}
 
@@ -134,7 +136,7 @@ function ProfessorNotificationsPage() {
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
               </svg>
-              {sending ? "Sending…" : "Send Notification"}
+              {sending ? t("profNotifications.sending") : t("profNotifications.send")}
             </button>
           </div>
         </form>
@@ -142,15 +144,15 @@ function ProfessorNotificationsPage() {
 
       {/* Received notifications */}
       <div className="space-y-3">
-        <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500">Received Notifications</h2>
+        <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500">{t("notifications.title")}</h2>
 
         {loading && (
-          <div className="py-8 text-center text-sm text-slate-400">Loading…</div>
+          <div className="py-8 text-center text-sm text-slate-400">{t("common.loading")}</div>
         )}
 
         {!loading && notifications.length === 0 && (
           <div className="rounded-2xl bg-white p-8 text-center ring-1 ring-slate-200">
-            <p className="text-sm text-slate-500">No notifications yet.</p>
+            <p className="text-sm text-slate-500">{t("notifications.noNotifications")}</p>
           </div>
         )}
 
@@ -167,7 +169,7 @@ function ProfessorNotificationsPage() {
                 {!n.isRead && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-blue-500" />}
                 <div className="min-w-0">
                   <p className={`text-sm font-semibold ${n.isRead ? "text-slate-700" : "text-slate-900"}`}>
-                    {n.title ?? "Notification"}
+                    {n.title ?? t("notifications.notification")}
                   </p>
                   {n.message && (
                     <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{n.message}</p>

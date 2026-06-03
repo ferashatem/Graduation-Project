@@ -29,7 +29,6 @@ function StudentSidebar({ open = false, onClose, onNavigate, profile, user }) {
     { label: t("studentNav.myGrades"),       to: "/student/grades",          icon: HiAcademicCap           },
     { label: t("studentNav.academicStatus"), to: "/student/academic-status", icon: HiChartBar              },
     { label: t("studentNav.myRoadmap"),      to: "/student/roadmap",         icon: HiMap                   },
-    { label: t("studentNav.attendance"),     to: "/student/attendance",      icon: HiClipboardList         },
     { label: t("studentNav.assignments"),    to: "/student/assignments",     icon: HiDocumentText          },
     { label: t("studentNav.quizzes"),        to: "/student/quizzes",         icon: HiPencilAlt             },
     { label: t("studentNav.myComplaints"),   to: "/student/complaints",      icon: HiClipboardList         },

@@ -22,7 +22,6 @@ function StatCard({ label, value, sub, color, icon }) {
 const QUICK_LINKS = [
   { to: "/student/courses",    labelKey: "studentHome.qlCourses",     descKey: "studentHome.qlCoursesDesc",     bg: "bg-blue-50",    text: "text-blue-600" },
   { to: "/student/grades",     labelKey: "studentHome.qlGrades",      descKey: "studentHome.qlGradesDesc",      bg: "bg-emerald-50", text: "text-emerald-600" },
-  { to: "/student/attendance", labelKey: "studentHome.qlAttendance",  descKey: "studentHome.qlAttendanceDesc",  bg: "bg-amber-50",   text: "text-amber-600" },
   { to: "/student/assignments",labelKey: "studentHome.qlAssignments", descKey: "studentHome.qlAssignmentsDesc", bg: "bg-violet-50",  text: "text-violet-600" },
   { to: "/student/quizzes",    labelKey: "studentHome.qlQuizzes",     descKey: "studentHome.qlQuizzesDesc",     bg: "bg-sky-50",     text: "text-sky-600" },
   { to: "/student/roadmap",    labelKey: "studentHome.qlRoadmap",     descKey: "studentHome.qlRoadmapDesc",     bg: "bg-rose-50",    text: "text-rose-600" },
@@ -46,9 +45,8 @@ function StudentHome() {
       .finally(() => setLoading(false));
   }, []);
 
-  const gpa         = dashboard?.currentGpa ?? dashboard?.gpa ?? null;
-  const attendance  = dashboard?.overallAttendance ?? dashboard?.attendancePercentage ?? null;
-  const courses     = dashboard?.enrolledCourses ?? dashboard?.enrolledCoursesCount ?? null;
+  const gpa     = dashboard?.currentGpa ?? dashboard?.gpa ?? null;
+  const courses = dashboard?.enrolledCourses ?? dashboard?.enrolledCoursesCount ?? null;
 
   return (
     <div className="space-y-6">
@@ -87,17 +85,6 @@ function StudentHome() {
               </svg>
             )}
           />
-          <StatCard
-            label={t("studentHome.attendance")}
-            value={attendance != null ? `${Math.round(attendance)}%` : "—"}
-            sub={attendance != null && attendance < 75 ? t("studentHome.belowThreshold") : t("studentHome.overallAverage")}
-            color={attendance != null && attendance < 75 ? "#ef4444" : "#7c3aed"}
-            icon={(c) => (
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke={c}>
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-              </svg>
-            )}
-          />
         </div>
       )}
 
@@ -115,13 +102,6 @@ function StudentHome() {
                   <p className="text-sm font-semibold text-slate-800">{s.subjectName ?? t("studentHome.subject")}</p>
                   <p className="text-xs text-slate-400">{s.subjectCode ?? ""}{s.doctorName ? ` · ${s.doctorName}` : ""}</p>
                 </div>
-                {s.attendancePercentage != null && (
-                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-                    s.attendancePercentage >= 75 ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-600"
-                  }`}>
-                    {Math.round(s.attendancePercentage)}%
-                  </span>
-                )}
               </div>
             ))}
           </div>
@@ -141,7 +121,6 @@ function StudentHome() {
               <div className={`text-2xl ${item.text}`}>
                 {item.to === "/student/courses"     ? "📚" :
                  item.to === "/student/grades"      ? "📊" :
-                 item.to === "/student/attendance"  ? "✅" :
                  item.to === "/student/assignments" ? "📝" :
                  item.to === "/student/quizzes"     ? "🧪" : "🗺️"}
               </div>

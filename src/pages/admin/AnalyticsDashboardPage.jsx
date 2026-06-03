@@ -283,7 +283,6 @@ function AnalyticsDashboardPage() {
                   <TableCell><strong>{t("analytics.department")}</strong></TableCell>
                   <TableCell align="right"><strong>{t("analytics.avgGpa")}</strong></TableCell>
                   <TableCell align="right"><strong>{t("analytics.passRate")}</strong></TableCell>
-                  <TableCell align="right"><strong>{t("analytics.attendanceRate")}</strong></TableCell>
                   <TableCell align="right"><strong>{t("analytics.students")}</strong></TableCell>
                 </TableRow>
               </TableHead>
@@ -297,7 +296,6 @@ function AnalyticsDashboardPage() {
                       </strong>
                     </TableCell>
                     <TableCell align="right">{row.passRate}%</TableCell>
-                    <TableCell align="right">{row.attendanceRate}%</TableCell>
                     <TableCell align="right">{row.studentCount}</TableCell>
                   </TableRow>
                 ))}
@@ -318,7 +316,6 @@ function AnalyticsDashboardPage() {
                   <TableCell><strong>{t("analytics.students")}</strong></TableCell>
                   <TableCell><strong>{t("analytics.department")}</strong></TableCell>
                   <TableCell align="right"><strong>{t("analytics.gpa")}</strong></TableCell>
-                  <TableCell align="right"><strong>{t("analytics.attendanceRate")}</strong></TableCell>
                   <TableCell align="right"><strong>{t("analytics.failing")}</strong></TableCell>
                   <TableCell><strong>{t("analytics.risk")}</strong></TableCell>
                 </TableRow>
@@ -334,7 +331,6 @@ function AnalyticsDashboardPage() {
                       <Chip label={row.departmentName || "—"} size="small" variant="outlined" />
                     </TableCell>
                     <TableCell align="right">{row.gpa ?? "—"}</TableCell>
-                    <TableCell align="right">{row.attendanceRate}%</TableCell>
                     <TableCell align="right">{row.failingSubjects}</TableCell>
                     <TableCell>
                       <Chip

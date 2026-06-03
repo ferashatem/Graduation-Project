@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { HiUpload, HiDownload, HiRefresh } from "react-icons/hi";
@@ -9,7 +10,7 @@ import { fetchMySubjects } from "../../features/professor/api/professorBackendAp
 import { bulkUploadGrades } from "../../api/bulkUploadApi";
 import { calculateGrades } from "../../api/gradesApi";
 
-const BREADCRUMBS = [{ label: "Import Grades" }];
+// BREADCRUMBS defined inside component now (uses t)
 
 const TEMPLATE_ROWS = [
   ["StudentId", "Midterm", "Coursework", "Final"],
@@ -44,6 +45,8 @@ function SummaryBadge({ label, value, color }) {
 }
 
 function ProfessorGradesImportPage() {
+  const { t } = useTranslation();
+  const BREADCRUMBS = [{ label: t("profGrades.title") }];
   const [offerings, setOfferings] = useState([]);
   const [offerLoad, setOfferLoad] = useState(true);
   const [selectedId, setSelectedId] = useState("");
@@ -81,9 +84,9 @@ function ProfessorGradesImportPage() {
         setCalculating(true);
         try {
           await calculateGrades(selectedId);
-          setCalcMsg("✅ Grades calculated automatically.");
+          setCalcMsg("✅ " + t("profGrades.calculateGpa") + " OK.");
         } catch {
-          setCalcMsg("⚠️ Import succeeded but auto-calculation failed. Run it manually.");
+          setCalcMsg("⚠️ Import succeeded but auto-calculation failed.");
         } finally {
           setCalculating(false);
         }
@@ -103,11 +106,11 @@ function ProfessorGradesImportPage() {
     setFile(null);
   };
 
-  if (offerLoad) return <Loading label="Loading your offerings…" />;
+  if (offerLoad) return <Loading label={t("profGrades.loading")} />;
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Import Grades" breadcrumbs={BREADCRUMBS} />
+      <PageHeader title={t("profGrades.title")} breadcrumbs={BREADCRUMBS} />
 
       {/* Step 1 — Offering */}
       <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200 space-y-4">
@@ -122,7 +125,7 @@ function ProfessorGradesImportPage() {
             className="flex items-center gap-1.5 rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
           >
             <HiDownload className="h-4 w-4" />
-            Download Template
+            {t("profGrades.downloadTemplate")}
           </button>
         </div>
 
@@ -131,10 +134,10 @@ function ProfessorGradesImportPage() {
           onChange={(e) => { setSelectedId(e.target.value); handleReset(); }}
           className="w-full max-w-md rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
         >
-          <option value="">Choose offering…</option>
+          <option value="">{t("profGrades.selectOffering")}</option>
           {offerings.map((o) => {
             const id = o.id ?? o.subjectOfferingId;
-            const name = o.subjectName ?? o.name ?? "Untitled";
+            const name = o.subjectName ?? o.name ?? t("profCourses.untitled");
             const code = o.subjectCode ?? o.code ?? "";
             return <option key={id} value={id}>{name}{code ? ` (${code})` : ""}</option>;
           })}
@@ -163,7 +166,7 @@ function ProfessorGradesImportPage() {
           <label className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-200 p-8 cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition">
             <HiUpload className="h-8 w-8 text-slate-400" />
             <span className="text-sm font-medium text-slate-600">
-              {file ? file.name : "Click to select .xlsx file"}
+              {file ? file.name : t("profGrades.uploadFile")}
             </span>
             <input
               type="file"
@@ -184,7 +187,7 @@ function ProfessorGradesImportPage() {
               disabled={!file || uploading}
               className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-50"
             >
-              Clear
+              {t("common.cancel")}
             </button>
             <button
               type="button"
@@ -195,7 +198,7 @@ function ProfessorGradesImportPage() {
               {uploading ? (
                 <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/50 border-t-white" /> Uploading…</>
               ) : (
-                <><HiUpload className="h-4 w-4" /> Upload Grades</>
+                <><HiUpload className="h-4 w-4" /> {t("profGrades.upload")}</>
               )}
             </button>
           </div>
@@ -217,10 +220,10 @@ function ProfessorGradesImportPage() {
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <SummaryBadge label="Total Rows" value={result.totalRows ?? 0} color="slate" />
-            <SummaryBadge label="Imported" value={result.imported ?? 0} color="green" />
-            <SummaryBadge label="Skipped" value={result.skipped ?? 0} color="amber" />
-            <SummaryBadge label="Failed" value={result.failed ?? 0} color="red" />
+            <SummaryBadge label={t("profGrades.totalCount")} value={result.totalRows ?? 0} color="slate" />
+            <SummaryBadge label={t("profGrades.successCount")} value={result.imported ?? 0} color="green" />
+            <SummaryBadge label={t("profGrades.skippedCount")} value={result.skipped ?? 0} color="amber" />
+            <SummaryBadge label={t("profGrades.failCount")} value={result.failed ?? 0} color="red" />
           </div>
 
           {calcMsg && (

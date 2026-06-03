@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import PageHeader from "../../components/common/PageHeader";
 import Loading from "../../components/common/Loading";
 import ErrorState from "../../components/common/ErrorState";
@@ -6,14 +7,20 @@ import { fetchMySchedule, fetchMyToday } from "../../api/scheduleApi";
 import { getErrorMessage } from "../../utils/errorHelpers";
 
 const DAYS = [
-  { label: "Sun", number: 0 },
-  { label: "Mon", number: 1 },
-  { label: "Tue", number: 2 },
-  { label: "Wed", number: 3 },
-  { label: "Thu", number: 4 },
-  { label: "Fri", number: 5 },
-  { label: "Sat", number: 6 },
+  { label: "Sun", key: "studentSchedule.daySun", number: 0 },
+  { label: "Mon", key: "studentSchedule.dayMon", number: 1 },
+  { label: "Tue", key: "studentSchedule.dayTue", number: 2 },
+  { label: "Wed", key: "studentSchedule.dayWed", number: 3 },
+  { label: "Thu", key: "studentSchedule.dayThu", number: 4 },
+  { label: "Fri", key: "studentSchedule.dayFri", number: 5 },
+  { label: "Sat", key: "studentSchedule.daySat", number: 6 },
 ];
+
+const TYPE_KEYS = {
+  Lecture: "studentSchedule.lecture",
+  Section: "studentSchedule.section",
+  Lab: "studentSchedule.lab",
+};
 
 const TYPE_STYLES = {
   Lecture: "bg-blue-100 text-blue-800 border-blue-300",
@@ -28,8 +35,10 @@ const TYPE_DOT = {
 };
 
 function ScheduleCard({ entry }) {
+  const { t } = useTranslation();
   const typeStyle = TYPE_STYLES[entry.type] || "bg-slate-100 text-slate-800 border-slate-300";
   const dot = TYPE_DOT[entry.type] || "bg-slate-400";
+  const typeLabel = TYPE_KEYS[entry.type] ? t(TYPE_KEYS[entry.type]) : entry.type;
 
   return (
     <div className={`rounded-2xl border p-4 shadow-sm ${typeStyle}`}>
@@ -44,7 +53,7 @@ function ScheduleCard({ entry }) {
           </div>
         </div>
         <span className="mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium bg-white/60 border">
-          {entry.type}
+          {typeLabel}
         </span>
       </div>
       <div className="mt-3 flex items-center gap-3 text-xs">
@@ -56,13 +65,13 @@ function ScheduleCard({ entry }) {
       </div>
       {entry.weekType && entry.weekType !== "All" && (
         <span className="mt-1 inline-block rounded-full bg-white/50 px-2 py-0.5 text-[11px] border">
-          {entry.weekType === "Odd" ? "Week A" : "Week B"}
+          {entry.weekType === "Odd" ? t("profSchedule.weekA") : t("profSchedule.weekB")}
         </span>
       )}
       {entry.isNow && (
         <div className="mt-2 flex items-center gap-1.5">
           <span className={`h-2 w-2 rounded-full animate-pulse ${dot}`} />
-          <span className="text-xs font-semibold">HAPPENING NOW</span>
+          <span className="text-xs font-semibold">{t("profSchedule.happeningNow")}</span>
         </div>
       )}
     </div>
@@ -70,6 +79,7 @@ function ScheduleCard({ entry }) {
 }
 
 function WeekGrid({ entries }) {
+  const { t } = useTranslation();
   const byDay = DAYS.map((d) => ({
     ...d,
     slots: entries
@@ -85,13 +95,13 @@ function WeekGrid({ entries }) {
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {byDay.map((day) => (
         <div key={day.number} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-100">
-          <h3 className="mb-3 text-sm font-bold text-slate-700 uppercase tracking-widest">{day.label}</h3>
+          <h3 className="mb-3 text-sm font-bold text-slate-700 uppercase tracking-widest">{t(day.key)}</h3>
           {day.slots.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-6 text-slate-300">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-              <p className="text-xs text-slate-400">No classes</p>
+              <p className="text-xs text-slate-400">{t("profSchedule.noClasses")}</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -105,6 +115,7 @@ function WeekGrid({ entries }) {
 }
 
 function ProfessorSchedulePage() {
+  const { t } = useTranslation();
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -117,7 +128,7 @@ function ProfessorSchedulePage() {
       const data = mode === "today" ? await fetchMyToday() : await fetchMySchedule();
       setEntries(Array.isArray(data) ? data : []);
     } catch (err) {
-      setError(getErrorMessage(err, "Failed to load schedule."));
+      setError(getErrorMessage(err, t("profSchedule.failed")));
     } finally {
       setLoading(false);
     }
@@ -131,8 +142,7 @@ function ProfessorSchedulePage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-slate-800">My Teaching Schedule</h1>
-        <p className="text-sm text-slate-400 mt-0.5">View your weekly class timetable</p>
+        <h1 className="text-2xl font-bold text-slate-800">{t("profSchedule.title")}</h1>
       </div>
 
       <div className="flex gap-2">
@@ -145,7 +155,7 @@ function ProfessorSchedulePage() {
               : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
           }`}
         >
-          Today ({todayLabel})
+          {t("profSchedule.today")} ({t(DAYS.find(d=>d.number===new Date().getDay())?.key ?? "studentSchedule.daySun")})
         </button>
         <button
           type="button"
@@ -156,11 +166,11 @@ function ProfessorSchedulePage() {
               : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
           }`}
         >
-          Full Week
+          {t("profSchedule.fullWeek")}
         </button>
       </div>
 
-      {loading && <Loading label="Loading schedule…" />}
+      {loading && <Loading label={t("profSchedule.loading")} />}
       {!loading && error && <ErrorState message={error} onRetry={loadSchedule} />}
       {!loading && !error && (
         <>
@@ -170,7 +180,7 @@ function ProfessorSchedulePage() {
             <div className="space-y-3 max-w-xl">
               {entries.length === 0 ? (
                 <div className="rounded-2xl bg-white p-8 text-center ring-1 ring-slate-200">
-                  <p className="text-slate-500">No classes scheduled for today.</p>
+                  <p className="text-slate-500">{t("profSchedule.noClassesScheduled")}</p>
                 </div>
               ) : (
                 entries.map((e) => <ScheduleCard key={e.id} entry={e} />)

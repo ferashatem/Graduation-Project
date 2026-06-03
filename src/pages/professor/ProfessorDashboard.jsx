@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useOutletContext } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { fetchMySubjects } from "../../features/professor/api/professorBackendApi";
 import PageHeader from "../../components/common/PageHeader";
 import Loading from "../../components/common/Loading";
@@ -16,6 +17,7 @@ function Row({ label, value }) {
 
 function ProfessorDashboard() {
   const { user, profile, profileLoading } = useOutletContext() || {};
+  const { t } = useTranslation();
 
   const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -32,7 +34,7 @@ function ProfessorDashboard() {
 
     fetchMySubjects(doctorCode)
       .then((data) => { if (active) setSubjects(data); })
-      .catch((e) => { if (active) setError(e?.response?.data?.message ?? e?.message ?? "Failed to load subjects."); })
+      .catch((e) => { if (active) setError(e?.response?.data?.message ?? e?.message ?? t("profDashboard.failed")); })
       .finally(() => { if (active) setLoading(false); });
 
     return () => { active = false; };
@@ -40,22 +42,22 @@ function ProfessorDashboard() {
 
   const handleRetry = useCallback(() => setRefreshKey((k) => k + 1), []);
 
-  if (profileLoading || loading) return <Loading label="Loading dashboard..." />;
+  if (profileLoading || loading) return <Loading label={t("profDashboard.loading")} />;
 
   return (
     <div className="space-y-6">
-      <PageHeader title="My Dashboard" />
+      <PageHeader title={t("profDashboard.title")} />
 
       {error ? <ErrorState message={error} onRetry={handleRetry} /> : null}
 
       {subjects.length === 0 && !error ? (
         <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center text-sm text-slate-500 shadow-sm ring-1 ring-slate-100">
-          No subjects assigned yet.
+          {t("profDashboard.noSubjects")}
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {subjects.map((s, i) => {
-            const name = s.subjectName ?? s.name ?? s.courseName ?? "Untitled";
+            const name = s.subjectName ?? s.name ?? s.courseName ?? t("profDashboard.untitled");
             const code = s.subjectCode ?? s.code ?? "";
             const term = s.term ?? s.termName ?? s.semesterName ?? "-";
             const dept = s.departmentName ?? s.department ?? "";
@@ -72,10 +74,10 @@ function ProfessorDashboard() {
                 </div>
 
                 <div className="space-y-2 text-sm">
-                  <Row label="Term" value={term} />
-                  {year && <Row label="Year" value={`Year ${year}`} />}
-                  {dept && <Row label="Department" value={dept} />}
-                  {credits && <Row label="Credit Hours" value={credits} />}
+                  <Row label={t("profDashboard.term")} value={term} />
+                  {year && <Row label={t("profDashboard.students")} value={`${year}`} />}
+                  {dept && <Row label={t("profCourses.department")} value={dept} />}
+                  {credits && <Row label={t("profCourses.creditHours")} value={credits} />}
                 </div>
               </article>
             );
