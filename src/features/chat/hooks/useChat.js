@@ -21,11 +21,22 @@ export function useChat() {
   const activeRef = useRef(activeConversationId);
   activeRef.current = activeConversationId;
 
+  const parseTs = (v) => { if (!v) return 0; const t = new Date(v).getTime(); return isNaN(t) ? 0 : t; };
+
+  // ULIDs encode timestamp — lexicographic sort = chronological sort
+  const sortByLatest = (list) =>
+    [...list].sort((a, b) => {
+      const da = parseTs(a.updatedAt ?? a.createdAt);
+      const db = parseTs(b.updatedAt ?? b.createdAt);
+      if (da !== 0 || db !== 0) return db - da;
+      return String(b.id ?? "").localeCompare(String(a.id ?? ""));
+    });
+
   const loadConversations = useCallback(async () => {
     try {
       setLoadingConvs(true);
       const data = await fetchConversations();
-      setConversations(data);
+      setConversations(sortByLatest(data));
     } catch (e) {
       setError(e?.response?.data?.message ?? e?.message ?? "Failed to load conversations.");
     } finally {
@@ -134,6 +145,12 @@ export function useChat() {
               return updated;
             })
           );
+          setConversations((prev) => {
+            const now = new Date().toISOString();
+            return prev.map((c) =>
+              c.id === activeRef.current ? { ...c, updatedAt: now } : c
+            ).sort((a, b) => new Date(b.updatedAt ?? b.createdAt ?? 0) - new Date(a.updatedAt ?? a.createdAt ?? 0));
+          });
           setSending(false);
         },
         onError: async () => {

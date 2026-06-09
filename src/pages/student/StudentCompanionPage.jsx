@@ -9,13 +9,17 @@ const fetchCompanionDashboard = () =>
   apiClient.get("/companion/dashboard").then(unwrap);
 
 const fetchDueFlashcards = (limit = 20) =>
-  apiClient.get("/companion/flashcards/due", { params: { limit } }).then(unwrap);
+  apiClient
+    .get("/companion/flashcards/due", { params: { limit } })
+    .then(unwrap);
 
 const generateFlashcards = (dto) =>
   apiClient.post("/companion/flashcards/generate", dto).then(unwrap);
 
 const reviewFlashcard = (cardId, quality) =>
-  apiClient.post(`/companion/flashcards/cards/${cardId}/review`, { quality }).then(unwrap);
+  apiClient
+    .post(`/companion/flashcards/cards/${cardId}/review`, { quality })
+    .then(unwrap);
 
 const fetchInsights = (unreadOnly = false) =>
   apiClient.get("/companion/insights", { params: { unreadOnly } }).then(unwrap);
@@ -38,20 +42,25 @@ const fetchCompanionProfile = () =>
 const patchCompanionProfile = (dto) =>
   apiClient.patch("/companion/profile", dto).then(unwrap);
 
-const fetchAllDecks = () =>
-  apiClient.get("/companion/flashcards").then(unwrap);
+const fetchAllDecks = () => apiClient.get("/companion/flashcards").then(unwrap);
 
 const fetchDeck = (deckId) =>
   apiClient.get(`/companion/flashcards/${deckId}`).then(unwrap);
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
-const TABS = ["Dashboard", "Flashcards", "Study Session", "Insights", "Profile"];
+const TABS = [
+  "Dashboard",
+  "Flashcards",
+  "Study Session",
+  "Insights",
+  "Profile",
+];
 
 // ── Dashboard Tab ─────────────────────────────────────────────────────────────
 function DashboardTab() {
-  const [data, setData]       = useState(null);
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
     fetchCompanionDashboard()
@@ -61,12 +70,12 @@ function DashboardTab() {
   }, []);
 
   if (loading) return <TabLoader label="Loading companion dashboard…" />;
-  if (error)   return <TabError message={error} />;
+  if (error) return <TabError message={error} />;
 
   const profile = data?.profile ?? {};
-  const recs    = data?.todayRecommendations ?? [];
-  const due     = data?.dueFlashcards ?? [];
-  const weekly  = data?.weeklyProgress ?? {};
+  const recs = data?.todayRecommendations ?? [];
+  const due = data?.dueFlashcards ?? [];
+  const weekly = data?.weeklyProgress ?? {};
   const insights = data?.recentInsights ?? [];
 
   return (
@@ -76,21 +85,57 @@ function DashboardTab() {
         <div className="sm:col-span-2 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
           <div className="flex items-start gap-4">
             <div className="w-12 h-12 rounded-2xl bg-violet-100 flex items-center justify-center shrink-0">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-6 w-6 text-violet-600"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                />
               </svg>
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="text-base font-bold text-slate-800">{profile.fullName ?? "Student"}</h3>
+              <h3 className="text-base font-bold text-slate-800">
+                {profile.fullName ?? "Student"}
+              </h3>
               <p className="text-xs text-slate-400 mt-0.5">
-                Learning Style: <span className="font-medium text-slate-600">{profile.learningStyle ?? "—"}</span>
-                {profile.goal && <> · Goal: <span className="font-medium text-slate-600">{profile.goal}</span></>}
+                Learning Style:{" "}
+                <span className="font-medium text-slate-600">
+                  {profile.learningStyle ?? "—"}
+                </span>
+                {profile.goal && (
+                  <>
+                    {" "}
+                    · Goal:{" "}
+                    <span className="font-medium text-slate-600">
+                      {profile.goal}
+                    </span>
+                  </>
+                )}
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-3">
-                <StatPill label="Total Sessions" value={profile.totalSessions ?? "—"} color="bg-violet-100 text-violet-700" />
-                <StatPill label="Streak" value={`${profile.currentStreakDays ?? 0} 🔥`} color="bg-amber-100 text-amber-700" />
+                <StatPill
+                  label="Total Sessions"
+                  value={profile.totalSessions ?? "—"}
+                  color="bg-violet-100 text-violet-700"
+                />
+                <StatPill
+                  label="Streak"
+                  value={`${profile.currentStreakDays ?? 0} 🔥`}
+                  color="bg-amber-100 text-amber-700"
+                />
                 {profile.engagementScore != null && (
-                  <StatPill label="Engagement" value={`${profile.engagementScore}/100`} color="bg-blue-100 text-blue-700" />
+                  <StatPill
+                    label="Engagement"
+                    value={`${profile.engagementScore}/100`}
+                    color="bg-blue-100 text-blue-700"
+                  />
                 )}
               </div>
             </div>
@@ -99,7 +144,10 @@ function DashboardTab() {
           {profile.engagementScore != null && (
             <div className="mt-4">
               <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-                <div className="h-full rounded-full bg-violet-500 transition-all" style={{ width: `${profile.engagementScore}%` }} />
+                <div
+                  className="h-full rounded-full bg-violet-500 transition-all"
+                  style={{ width: `${profile.engagementScore}%` }}
+                />
               </div>
             </div>
           )}
@@ -108,28 +156,52 @@ function DashboardTab() {
         {/* Due flashcards */}
         <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100 flex flex-col justify-between">
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Due Flashcards</p>
-            <p className="mt-2 text-3xl font-bold text-slate-800">{due.length}</p>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+              Due Flashcards
+            </p>
+            <p className="mt-2 text-3xl font-bold text-slate-800">
+              {due.length}
+            </p>
           </div>
-          <p className="text-xs text-slate-400 mt-2">Cards ready for review today</p>
+          <p className="text-xs text-slate-400 mt-2">
+            Cards ready for review today
+          </p>
         </div>
       </div>
 
       {/* Weekly progress */}
       {weekly.dailyActivity?.length > 0 && (
         <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
-          <h3 className="mb-4 text-xs font-bold uppercase tracking-widest text-slate-500">Weekly Activity</h3>
+          <h3 className="mb-4 text-xs font-bold uppercase tracking-widest text-slate-500">
+            Weekly Activity
+          </h3>
           <div className="flex items-end gap-2 h-20">
             {weekly.dailyActivity.map((d, i) => {
-              const max = Math.max(...weekly.dailyActivity.map((x) => x.minutes ?? x.sessions ?? 1), 1);
+              const max = Math.max(
+                ...weekly.dailyActivity.map(
+                  (x) => x.minutes ?? x.sessions ?? 1,
+                ),
+                1,
+              );
               const val = d.minutes ?? d.sessions ?? 0;
               const pct = max > 0 ? Math.round((val / max) * 100) : 0;
               return (
-                <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                  <div className="w-full rounded-t-sm bg-violet-100 overflow-hidden" style={{ height: "60px" }}>
-                    <div className="w-full rounded-t-sm bg-violet-500 transition-all" style={{ height: `${pct}%`, marginTop: `${100 - pct}%` }} />
+                <div
+                  key={i}
+                  className="flex-1 flex flex-col items-center gap-1"
+                >
+                  <div
+                    className="w-full rounded-t-sm bg-violet-100 overflow-hidden"
+                    style={{ height: "60px" }}
+                  >
+                    <div
+                      className="w-full rounded-t-sm bg-violet-500 transition-all"
+                      style={{ height: `${pct}%`, marginTop: `${100 - pct}%` }}
+                    />
                   </div>
-                  <span className="text-[10px] text-slate-400">{d.day ?? d.dayName ?? i}</span>
+                  <span className="text-[10px] text-slate-400">
+                    {d.day ?? d.dayName ?? i}
+                  </span>
                 </div>
               );
             })}
@@ -140,12 +212,19 @@ function DashboardTab() {
       {/* Today's recommendations */}
       {recs.length > 0 && (
         <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
-          <h3 className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500">Today's Recommendations</h3>
+          <h3 className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500">
+            Today's Recommendations
+          </h3>
           <div className="space-y-2">
             {recs.map((r, i) => (
-              <div key={i} className="flex items-start gap-3 rounded-xl bg-violet-50 px-4 py-3">
+              <div
+                key={i}
+                className="flex items-start gap-3 rounded-xl bg-violet-50 px-4 py-3"
+              >
                 <div className="mt-0.5 h-2 w-2 rounded-full bg-violet-400 shrink-0" />
-                <p className="text-sm text-violet-800">{r.recommendation ?? r.message ?? r}</p>
+                <p className="text-sm text-violet-800">
+                  {r.recommendation ?? r.message ?? r}
+                </p>
               </div>
             ))}
           </div>
@@ -155,12 +234,21 @@ function DashboardTab() {
       {/* Recent insights */}
       {insights.length > 0 && (
         <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
-          <h3 className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500">Recent Insights</h3>
+          <h3 className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500">
+            Recent Insights
+          </h3>
           <div className="space-y-2">
             {insights.slice(0, 4).map((ins, i) => (
-              <div key={ins.id ?? i} className="rounded-xl bg-blue-50 px-4 py-3">
-                <p className="text-sm font-semibold text-blue-800">{ins.title ?? "Insight"}</p>
-                {ins.message && <p className="text-xs text-blue-600 mt-0.5">{ins.message}</p>}
+              <div
+                key={ins.id ?? i}
+                className="rounded-xl bg-blue-50 px-4 py-3"
+              >
+                <p className="text-sm font-semibold text-blue-800">
+                  {ins.title ?? "Insight"}
+                </p>
+                {ins.message && (
+                  <p className="text-xs text-blue-600 mt-0.5">{ins.message}</p>
+                )}
               </div>
             ))}
           </div>
@@ -170,10 +258,15 @@ function DashboardTab() {
       {/* Weak subjects */}
       {profile.weakSubjects?.length > 0 && (
         <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
-          <h3 className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500">Subjects to Focus On</h3>
+          <h3 className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500">
+            Subjects to Focus On
+          </h3>
           <div className="flex flex-wrap gap-2">
             {profile.weakSubjects.map((s, i) => (
-              <span key={i} className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700">
+              <span
+                key={i}
+                className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700"
+              >
                 {s.subjectName ?? s.name ?? s}
               </span>
             ))}
@@ -186,16 +279,20 @@ function DashboardTab() {
 
 // ── Flashcards Tab ────────────────────────────────────────────────────────────
 function FlashcardsTab() {
-  const [mode, setMode]         = useState("menu"); // menu | generate | review
+  const [mode, setMode] = useState("menu"); // menu | generate | review
   const [dueCards, setDueCards] = useState([]);
-  const [deck, setDeck]         = useState([]);
-  const [current, setCurrent]   = useState(0);
-  const [flipped, setFlipped]   = useState(false);
+  const [deck, setDeck] = useState([]);
+  const [current, setCurrent] = useState(0);
+  const [flipped, setFlipped] = useState(false);
   const [doneCount, setDoneCount] = useState(0);
   const [generating, setGenerating] = useState(false);
-  const [genErr, setGenErr]     = useState("");
+  const [genErr, setGenErr] = useState("");
   const [loadingDue, setLoadingDue] = useState(true);
-  const [form, setForm] = useState({ topicName: "", cardCount: 10, difficulty: "mixed" });
+  const [form, setForm] = useState({
+    topicName: "",
+    cardCount: 10,
+    difficulty: "mixed",
+  });
 
   useEffect(() => {
     fetchDueFlashcards(20)
@@ -209,13 +306,25 @@ function FlashcardsTab() {
   const handleGenerate = async (e) => {
     e.preventDefault();
     if (!form.topicName.trim()) return;
-    setGenerating(true); setGenErr("");
+    setGenerating(true);
+    setGenErr("");
     try {
-      const result = await generateFlashcards({ ...form, cardCount: Number(form.cardCount) });
-      const cards = result?.cards ?? result?.flashcards ?? (Array.isArray(result) ? result : []);
-      if (cards.length === 0) { setGenErr("No flashcards returned. Try a different topic."); return; }
+      const result = await generateFlashcards({
+        ...form,
+        cardCount: Number(form.cardCount),
+      });
+      const cards =
+        result?.cards ??
+        result?.flashcards ??
+        (Array.isArray(result) ? result : []);
+      if (cards.length === 0) {
+        setGenErr("No flashcards returned. Try a different topic.");
+        return;
+      }
       setDeck(cards);
-      setCurrent(0); setFlipped(false); setDoneCount(0);
+      setCurrent(0);
+      setFlipped(false);
+      setDoneCount(0);
       setMode("review");
     } catch {
       setGenErr("Failed to generate flashcards. Try again.");
@@ -227,7 +336,9 @@ function FlashcardsTab() {
   const startDueReview = () => {
     if (dueCards.length === 0) return;
     setDeck(dueCards);
-    setCurrent(0); setFlipped(false); setDoneCount(0);
+    setCurrent(0);
+    setFlipped(false);
+    setDoneCount(0);
     setMode("review");
   };
 
@@ -248,21 +359,33 @@ function FlashcardsTab() {
 
   if (mode === "review") {
     const card = deck[current];
-    const progress = deck.length > 0 ? Math.round(((current) / deck.length) * 100) : 0;
+    const progress =
+      deck.length > 0 ? Math.round((current / deck.length) * 100) : 0;
     return (
       <div className="max-w-lg mx-auto space-y-5">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-slate-800">Flashcard Review</h2>
-          <button type="button" onClick={() => setMode("menu")} className="text-sm text-slate-400 hover:text-slate-600">✕ Exit</button>
+          <button
+            type="button"
+            onClick={() => setMode("menu")}
+            className="text-sm text-slate-400 hover:text-slate-600"
+          >
+            ✕ Exit
+          </button>
         </div>
         {/* Progress */}
         <div>
           <div className="flex justify-between text-xs text-slate-400 mb-1">
-            <span>Card {current + 1} of {deck.length}</span>
+            <span>
+              Card {current + 1} of {deck.length}
+            </span>
             <span>{progress}%</span>
           </div>
           <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
-            <div className="h-full rounded-full bg-violet-500 transition-all" style={{ width: `${progress}%` }} />
+            <div
+              className="h-full rounded-full bg-violet-500 transition-all"
+              style={{ width: `${progress}%` }}
+            />
           </div>
         </div>
         {/* Card */}
@@ -274,7 +397,9 @@ function FlashcardsTab() {
             {flipped ? "Answer" : "Question"}
           </p>
           <p className="text-center text-lg font-semibold text-slate-800">
-            {flipped ? (card?.back ?? card?.answer ?? card?.backText ?? "—") : (card?.front ?? card?.question ?? card?.frontText ?? "—")}
+            {flipped
+              ? (card?.back ?? card?.answer ?? card?.backText ?? "—")
+              : (card?.front ?? card?.question ?? card?.frontText ?? "—")}
           </p>
           {!flipped && (
             <p className="mt-4 text-xs text-slate-400">Tap to reveal answer</p>
@@ -284,10 +409,26 @@ function FlashcardsTab() {
         {flipped && (
           <div className="flex gap-3">
             {[
-              { label: "Hard", quality: 0, cls: "bg-red-100 text-red-700 hover:bg-red-200" },
-              { label: "Medium", quality: 3, cls: "bg-amber-100 text-amber-700 hover:bg-amber-200" },
-              { label: "Easy", quality: 4, cls: "bg-blue-100 text-blue-700 hover:bg-blue-200" },
-              { label: "Perfect", quality: 5, cls: "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" },
+              {
+                label: "Hard",
+                quality: 0,
+                cls: "bg-red-100 text-red-700 hover:bg-red-200",
+              },
+              {
+                label: "Medium",
+                quality: 3,
+                cls: "bg-amber-100 text-amber-700 hover:bg-amber-200",
+              },
+              {
+                label: "Easy",
+                quality: 4,
+                cls: "bg-blue-100 text-blue-700 hover:bg-blue-200",
+              },
+              {
+                label: "Perfect",
+                quality: 5,
+                cls: "bg-emerald-100 text-emerald-700 hover:bg-emerald-200",
+              },
             ].map((r) => (
               <button
                 key={r.label}
@@ -310,7 +451,11 @@ function FlashcardsTab() {
         <div className="text-5xl">🎉</div>
         <h2 className="text-xl font-bold text-slate-800">Session Complete!</h2>
         <p className="text-slate-500">{doneCount} cards reviewed.</p>
-        <button type="button" onClick={() => setMode("menu")} className="rounded-xl bg-violet-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-violet-700 transition">
+        <button
+          type="button"
+          onClick={() => setMode("menu")}
+          className="rounded-xl bg-violet-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-violet-700 transition"
+        >
           Back to Flashcards
         </button>
       </div>
@@ -324,9 +469,13 @@ function FlashcardsTab() {
       <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-bold text-slate-800">Review Due Cards</h3>
+            <h3 className="text-sm font-bold text-slate-800">
+              Review Due Cards
+            </h3>
             <p className="text-xs text-slate-400 mt-0.5">
-              {loadingDue ? "Loading…" : `${dueCards.length} cards ready for review`}
+              {loadingDue
+                ? "Loading…"
+                : `${dueCards.length} cards ready for review`}
             </p>
           </div>
           <button
@@ -344,15 +493,30 @@ function FlashcardsTab() {
       <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100 space-y-4">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-violet-100 flex items-center justify-center shrink-0">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5 text-violet-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 10V3L4 14h7v7l9-11h-7z"
+              />
             </svg>
           </div>
-          <h3 className="text-sm font-bold text-slate-800">Generate New Deck with AI</h3>
+          <h3 className="text-sm font-bold text-slate-800">
+            Generate New Deck with AI
+          </h3>
         </div>
         <form onSubmit={handleGenerate} className="space-y-3">
           <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1">Topic *</label>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">
+              Topic *
+            </label>
             <input
               type="text"
               value={form.topicName}
@@ -364,17 +528,25 @@ function FlashcardsTab() {
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1">Card Count</label>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">
+                Card Count
+              </label>
               <select
                 value={form.cardCount}
                 onChange={(e) => setF("cardCount", e.target.value)}
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-violet-300"
               >
-                {[5, 10, 15, 20].map((n) => <option key={n} value={n}>{n} cards</option>)}
+                {[5, 10, 15, 20].map((n) => (
+                  <option key={n} value={n}>
+                    {n} cards
+                  </option>
+                ))}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1">Difficulty</label>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">
+                Difficulty
+              </label>
               <select
                 value={form.difficulty}
                 onChange={(e) => setF("difficulty", e.target.value)}
@@ -387,7 +559,11 @@ function FlashcardsTab() {
               </select>
             </div>
           </div>
-          {genErr && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-xs text-red-700 ring-1 ring-red-200">{genErr}</p>}
+          {genErr && (
+            <p className="rounded-xl bg-red-50 px-4 py-2.5 text-xs text-red-700 ring-1 ring-red-200">
+              {genErr}
+            </p>
+          )}
           <div className="flex justify-end">
             <button
               type="submit"
@@ -396,13 +572,31 @@ function FlashcardsTab() {
             >
               {generating ? (
                 <>
-                  <svg className="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                  <svg
+                    className="h-4 w-4 animate-spin"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v8H4z"
+                    />
                   </svg>
                   Generating…
                 </>
-              ) : "Generate Deck"}
+              ) : (
+                "Generate Deck"
+              )}
             </button>
           </div>
         </form>
@@ -416,25 +610,30 @@ function FlashcardsTab() {
 
 // ── Deck List Panel ───────────────────────────────────────────────────────────
 function DeckListPanel() {
-  const [decks,       setDecks]       = useState([]);
-  const [loading,     setLoading]     = useState(true);
-  const [openDeckId,  setOpenDeckId]  = useState(null);
-  const [deckCards,   setDeckCards]   = useState([]);
+  const [decks, setDecks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [openDeckId, setOpenDeckId] = useState(null);
+  const [deckCards, setDeckCards] = useState([]);
   const [deckLoading, setDeckLoading] = useState(false);
 
   useEffect(() => {
     fetchAllDecks()
-      .then((d) => setDecks(Array.isArray(d) ? d : d?.items ?? []))
+      .then((d) => setDecks(Array.isArray(d) ? d : (d?.items ?? [])))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
   const openDeck = (deckId) => {
-    if (openDeckId === deckId) { setOpenDeckId(null); return; }
+    if (openDeckId === deckId) {
+      setOpenDeckId(null);
+      return;
+    }
     setOpenDeckId(deckId);
     setDeckLoading(true);
     fetchDeck(deckId)
-      .then((d) => setDeckCards(d?.cards ?? d?.flashcards ?? (Array.isArray(d) ? d : [])))
+      .then((d) =>
+        setDeckCards(d?.cards ?? d?.flashcards ?? (Array.isArray(d) ? d : [])),
+      )
       .catch(() => setDeckCards([]))
       .finally(() => setDeckLoading(false));
   };
@@ -445,7 +644,9 @@ function DeckListPanel() {
   return (
     <div className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-100 overflow-hidden">
       <div className="px-5 py-3 border-b border-slate-100">
-        <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500">My Flashcard Decks</h3>
+        <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500">
+          My Flashcard Decks
+        </h3>
       </div>
       <div className="divide-y divide-slate-100">
         {decks.map((deck, i) => (
@@ -456,28 +657,55 @@ function DeckListPanel() {
               className="w-full flex items-center justify-between gap-3 px-5 py-3 hover:bg-slate-50 transition"
             >
               <div className="text-left min-w-0">
-                <p className="text-sm font-semibold text-slate-800 truncate">{deck.topicName ?? deck.title ?? "Deck"}</p>
+                <p className="text-sm font-semibold text-slate-800 truncate">
+                  {deck.topicName ?? deck.title ?? "Deck"}
+                </p>
                 <p className="text-xs text-slate-400 mt-0.5">
                   {deck.cardCount ?? deck.totalCards ?? ""} cards
                   {deck.difficulty ? ` · ${deck.difficulty}` : ""}
-                  {deck.createdAt ? ` · ${new Date(deck.createdAt).toLocaleDateString()}` : ""}
+                  {deck.createdAt
+                    ? ` · ${new Date(deck.createdAt).toLocaleDateString("en-US")}`
+                    : ""}
                 </p>
               </div>
-              <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 text-slate-300 shrink-0 transition-transform ${openDeckId === deck.id ? "rotate-90" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className={`h-4 w-4 text-slate-300 shrink-0 transition-transform ${openDeckId === deck.id ? "rotate-90" : ""}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
               </svg>
             </button>
             {openDeckId === deck.id && (
               <div className="bg-slate-50 px-5 pb-4 space-y-2">
-                {deckLoading && <p className="text-xs text-slate-400 py-2">Loading cards…</p>}
-                {!deckLoading && deckCards.map((c, ci) => (
-                  <div key={c.id ?? ci} className="rounded-xl bg-white p-3 ring-1 ring-slate-100">
-                    <p className="text-xs font-semibold text-slate-700">{c.front ?? c.question ?? c.frontText}</p>
-                    <p className="text-xs text-slate-400 mt-1 border-t border-slate-100 pt-1">{c.back ?? c.answer ?? c.backText}</p>
-                  </div>
-                ))}
+                {deckLoading && (
+                  <p className="text-xs text-slate-400 py-2">Loading cards…</p>
+                )}
+                {!deckLoading &&
+                  deckCards.map((c, ci) => (
+                    <div
+                      key={c.id ?? ci}
+                      className="rounded-xl bg-white p-3 ring-1 ring-slate-100"
+                    >
+                      <p className="text-xs font-semibold text-slate-700">
+                        {c.front ?? c.question ?? c.frontText}
+                      </p>
+                      <p className="text-xs text-slate-400 mt-1 border-t border-slate-100 pt-1">
+                        {c.back ?? c.answer ?? c.backText}
+                      </p>
+                    </div>
+                  ))}
                 {!deckLoading && deckCards.length === 0 && (
-                  <p className="text-xs text-slate-400 py-2">No cards in this deck.</p>
+                  <p className="text-xs text-slate-400 py-2">
+                    No cards in this deck.
+                  </p>
                 )}
               </div>
             )}
@@ -492,19 +720,31 @@ function DeckListPanel() {
 const SESSION_TYPES = [
   { value: "Quiz", label: "Quiz", desc: "MCQ quiz on a topic" },
   { value: "ActiveRecall", label: "Active Recall", desc: "Open-ended Q&A" },
-  { value: "ConceptCheck", label: "Concept Check", desc: "Quick check after explanation" },
+  {
+    value: "ConceptCheck",
+    label: "Concept Check",
+    desc: "Quick check after explanation",
+  },
   { value: "ExamPrep", label: "Exam Prep", desc: "Practice before exam" },
 ];
 const DIFFICULTIES = ["Easy", "Medium", "Hard"];
 
 function StudySessionTab() {
-  const [session, setSession]     = useState(null);
-  const [mode, setMode]           = useState("form"); // form | active | complete
-  const [starting, setStarting]   = useState(false);
-  const [err, setErr]             = useState("");
-  const [result, setResult]       = useState(null);
-  const [form, setForm] = useState({ sessionType: "Quiz", topicName: "", difficulty: "Medium" });
-  const [completingData, setCompletingData] = useState({ totalQuestions: 10, correctAnswers: 0, durationMinutes: 0 });
+  const [session, setSession] = useState(null);
+  const [mode, setMode] = useState("form"); // form | active | complete
+  const [starting, setStarting] = useState(false);
+  const [err, setErr] = useState("");
+  const [result, setResult] = useState(null);
+  const [form, setForm] = useState({
+    sessionType: "Quiz",
+    topicName: "",
+    difficulty: "Medium",
+  });
+  const [completingData, setCompletingData] = useState({
+    totalQuestions: 10,
+    correctAnswers: 0,
+    durationMinutes: 0,
+  });
   const [startedAt, setStartedAt] = useState(null);
 
   const setF = (k, v) => setForm((p) => ({ ...p, [k]: v }));
@@ -512,7 +752,8 @@ function StudySessionTab() {
   const handleStart = async (e) => {
     e.preventDefault();
     if (!form.topicName.trim()) return;
-    setStarting(true); setErr("");
+    setStarting(true);
+    setErr("");
     try {
       const res = await startSession(form);
       setSession(res);
@@ -528,9 +769,14 @@ function StudySessionTab() {
   const handleComplete = async () => {
     if (!session?.id && !session?.sessionId) return;
     const sid = session.id ?? session.sessionId;
-    const duration = startedAt ? Math.round((Date.now() - startedAt) / 60000) : 1;
+    const duration = startedAt
+      ? Math.round((Date.now() - startedAt) / 60000)
+      : 1;
     try {
-      const res = await completeSession(sid, { ...completingData, durationMinutes: duration });
+      const res = await completeSession(sid, {
+        ...completingData,
+        durationMinutes: duration,
+      });
       setResult(res);
       setMode("complete");
     } catch {
@@ -546,23 +792,33 @@ function StudySessionTab() {
     const pct = total > 0 ? Math.round((score / total) * 100) : 0;
     return (
       <div className="max-w-lg mx-auto text-center space-y-5 py-10">
-        <div className="text-5xl">{pct >= 80 ? "🎉" : pct >= 60 ? "👍" : "📚"}</div>
+        <div className="text-5xl">
+          {pct >= 80 ? "🎉" : pct >= 60 ? "👍" : "📚"}
+        </div>
         <h2 className="text-xl font-bold text-slate-800">Session Complete!</h2>
         <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100 text-left space-y-3">
           <div className="flex justify-between text-sm">
             <span className="text-slate-500">Score</span>
-            <span className="font-bold text-slate-800">{score}/{total} ({pct}%)</span>
+            <span className="font-bold text-slate-800">
+              {score}/{total} ({pct}%)
+            </span>
           </div>
           {feedback && (
             <div className="rounded-xl bg-violet-50 px-4 py-3">
-              <p className="text-xs font-semibold text-violet-700 mb-1">AI Feedback</p>
+              <p className="text-xs font-semibold text-violet-700 mb-1">
+                AI Feedback
+              </p>
               <p className="text-sm text-violet-800">{feedback}</p>
             </div>
           )}
         </div>
         <button
           type="button"
-          onClick={() => { setMode("form"); setSession(null); setResult(null); }}
+          onClick={() => {
+            setMode("form");
+            setSession(null);
+            setResult(null);
+          }}
           className="rounded-xl bg-[#0b2c4a] px-6 py-2.5 text-sm font-semibold text-white hover:bg-[#153a63] transition"
         >
           Start New Session
@@ -576,32 +832,57 @@ function StudySessionTab() {
       <div className="max-w-lg mx-auto space-y-5">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold text-slate-800">{form.sessionType} Session</h2>
-            <p className="text-xs text-slate-400 mt-0.5">Topic: {form.topicName}</p>
+            <h2 className="text-lg font-bold text-slate-800">
+              {form.sessionType} Session
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Topic: {form.topicName}
+            </p>
           </div>
-          <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">Active</span>
+          <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+            Active
+          </span>
         </div>
 
         <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100 space-y-4">
           <p className="text-sm text-slate-600">
-            Your session is active. Use the AI Assistant to conduct your study session, then come back here to log your results.
+            Your session is active. Use the AI Assistant to conduct your study
+            session, then come back here to log your results.
           </p>
           <div className="space-y-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1">Questions Answered</label>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">
+                Questions Answered
+              </label>
               <input
-                type="number" min={0} max={100}
+                type="number"
+                min={0}
+                max={100}
                 value={completingData.totalQuestions}
-                onChange={(e) => setCompletingData((p) => ({ ...p, totalQuestions: Number(e.target.value) }))}
+                onChange={(e) =>
+                  setCompletingData((p) => ({
+                    ...p,
+                    totalQuestions: Number(e.target.value),
+                  }))
+                }
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-violet-300"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1">Correct Answers</label>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">
+                Correct Answers
+              </label>
               <input
-                type="number" min={0} max={completingData.totalQuestions}
+                type="number"
+                min={0}
+                max={completingData.totalQuestions}
                 value={completingData.correctAnswers}
-                onChange={(e) => setCompletingData((p) => ({ ...p, correctAnswers: Number(e.target.value) }))}
+                onChange={(e) =>
+                  setCompletingData((p) => ({
+                    ...p,
+                    correctAnswers: Number(e.target.value),
+                  }))
+                }
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-violet-300"
               />
             </div>
@@ -629,19 +910,39 @@ function StudySessionTab() {
 
   return (
     <div className="space-y-5">
-    <div className="max-w-lg mx-auto rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+      <div className="max-w-lg mx-auto rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5 text-blue-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
             </svg>
           </div>
-          <h3 className="text-sm font-bold text-slate-800">Start Study Session</h3>
+          <h3 className="text-sm font-bold text-slate-800">
+            Start Study Session
+          </h3>
         </div>
         <form onSubmit={handleStart} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1">Topic *</label>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">
+              Topic *
+            </label>
             <input
               type="text"
               value={form.topicName}
@@ -652,7 +953,9 @@ function StudySessionTab() {
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-2">Session Type</label>
+            <label className="block text-xs font-semibold text-slate-500 mb-2">
+              Session Type
+            </label>
             <div className="grid grid-cols-2 gap-2">
               {SESSION_TYPES.map((t) => (
                 <button
@@ -672,7 +975,9 @@ function StudySessionTab() {
             </div>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-2">Difficulty</label>
+            <label className="block text-xs font-semibold text-slate-500 mb-2">
+              Difficulty
+            </label>
             <div className="flex gap-2">
               {DIFFICULTIES.map((d) => (
                 <button
@@ -690,7 +995,11 @@ function StudySessionTab() {
               ))}
             </div>
           </div>
-          {err && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-xs text-red-700 ring-1 ring-red-200">{err}</p>}
+          {err && (
+            <p className="rounded-xl bg-red-50 px-4 py-2.5 text-xs text-red-700 ring-1 ring-red-200">
+              {err}
+            </p>
+          )}
           <button
             type="submit"
             disabled={starting || !form.topicName.trim()}
@@ -710,42 +1019,60 @@ function StudySessionTab() {
 // ── Session History Panel ─────────────────────────────────────────────────────
 const fmtDate = (s) => {
   if (!s) return "";
-  try { return new Date(s).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); }
-  catch { return s; }
+  try {
+    return new Date(s).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return s;
+  }
 };
 
 function SessionHistoryPanel() {
   const [sessions, setSessions] = useState([]);
-  const [loading,  setLoading]  = useState(true);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchSessionHistory()
-      .then((d) => setSessions(Array.isArray(d) ? d : d?.items ?? []))
+      .then((d) => setSessions(Array.isArray(d) ? d : (d?.items ?? [])))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
   if (loading) return <TabLoader label="Loading sessions…" />;
-  if (sessions.length === 0) return (
-    <div className="rounded-2xl bg-white p-6 text-center ring-1 ring-slate-200">
-      <p className="text-sm text-slate-400">No sessions yet. Start your first study session!</p>
-    </div>
-  );
+  if (sessions.length === 0)
+    return (
+      <div className="rounded-2xl bg-white p-6 text-center ring-1 ring-slate-200">
+        <p className="text-sm text-slate-400">
+          No sessions yet. Start your first study session!
+        </p>
+      </div>
+    );
 
   return (
     <div className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-100 overflow-hidden">
       <div className="px-5 py-3 border-b border-slate-100">
-        <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500">Session History</h3>
+        <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500">
+          Session History
+        </h3>
       </div>
       <div className="divide-y divide-slate-100">
         {sessions.slice(0, 10).map((s, i) => {
-          const total   = s.totalQuestions ?? 0;
+          const total = s.totalQuestions ?? 0;
           const correct = s.correctAnswers ?? 0;
-          const pct     = total > 0 ? Math.round((correct / total) * 100) : null;
+          const pct = total > 0 ? Math.round((correct / total) * 100) : null;
           return (
-            <div key={s.id ?? i} className="flex items-center justify-between gap-3 px-5 py-3">
+            <div
+              key={s.id ?? i}
+              className="flex items-center justify-between gap-3 px-5 py-3"
+            >
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-slate-800 truncate">{s.topicName ?? "Session"}</p>
+                <p className="text-sm font-semibold text-slate-800 truncate">
+                  {s.topicName ?? "Session"}
+                </p>
                 <p className="text-xs text-slate-400 mt-0.5">
                   {s.sessionType ?? ""}
                   {s.durationMinutes ? ` · ${s.durationMinutes} min` : ""}
@@ -753,11 +1080,15 @@ function SessionHistoryPanel() {
                 </p>
               </div>
               {pct != null && (
-                <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${
-                  pct >= 80 ? "bg-emerald-100 text-emerald-700" :
-                  pct >= 60 ? "bg-blue-100 text-blue-700" :
-                  "bg-red-100 text-red-700"
-                }`}>
+                <span
+                  className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${
+                    pct >= 80
+                      ? "bg-emerald-100 text-emerald-700"
+                      : pct >= 60
+                        ? "bg-blue-100 text-blue-700"
+                        : "bg-red-100 text-red-700"
+                  }`}
+                >
                   {pct}%
                 </span>
               )}
@@ -771,24 +1102,29 @@ function SessionHistoryPanel() {
 
 // ── Insights Tab ──────────────────────────────────────────────────────────────
 const INSIGHT_COLORS = {
-  InactivityAlert:      "bg-amber-50 ring-amber-200 text-amber-800",
-  ExamApproaching:      "bg-red-50 ring-red-200 text-red-800",
-  AssignmentDeadline:   "bg-orange-50 ring-orange-200 text-orange-800",
-  StreakMilestone:      "bg-yellow-50 ring-yellow-200 text-yellow-800",
-  ImprovementDetected:  "bg-emerald-50 ring-emerald-200 text-emerald-800",
-  WeaknessDetected:     "bg-amber-50 ring-amber-200 text-amber-800",
-  WeeklyReport:         "bg-blue-50 ring-blue-200 text-blue-800",
-  RiskAlert:            "bg-red-50 ring-red-200 text-red-800",
+  InactivityAlert: "bg-amber-50 ring-amber-200 text-amber-800",
+  ExamApproaching: "bg-red-50 ring-red-200 text-red-800",
+  AssignmentDeadline: "bg-orange-50 ring-orange-200 text-orange-800",
+  StreakMilestone: "bg-yellow-50 ring-yellow-200 text-yellow-800",
+  ImprovementDetected: "bg-emerald-50 ring-emerald-200 text-emerald-800",
+  WeaknessDetected: "bg-amber-50 ring-amber-200 text-amber-800",
+  WeeklyReport: "bg-blue-50 ring-blue-200 text-blue-800",
+  RiskAlert: "bg-red-50 ring-red-200 text-red-800",
 };
 const INSIGHT_ICONS = {
-  InactivityAlert: "😴", ExamApproaching: "⚡", AssignmentDeadline: "📌",
-  StreakMilestone: "🔥", ImprovementDetected: "📈", WeaknessDetected: "⚠️",
-  WeeklyReport: "📊", RiskAlert: "🚨",
+  InactivityAlert: "😴",
+  ExamApproaching: "⚡",
+  AssignmentDeadline: "📌",
+  StreakMilestone: "🔥",
+  ImprovementDetected: "📈",
+  WeaknessDetected: "⚠️",
+  WeeklyReport: "📊",
+  RiskAlert: "🚨",
 };
 
 function InsightsTab() {
   const [insights, setInsights] = useState([]);
-  const [loading, setLoading]   = useState(true);
+  const [loading, setLoading] = useState(true);
   const [unreadOnly, setUnreadOnly] = useState(false);
 
   useEffect(() => {
@@ -801,13 +1137,19 @@ function InsightsTab() {
 
   const handleAcknowledge = (id) => {
     acknowledgeInsight(id).catch(() => {});
-    setInsights((prev) => prev.map((ins) => ins.id === id ? { ...ins, isAcknowledged: true } : ins));
+    setInsights((prev) =>
+      prev.map((ins) =>
+        ins.id === id ? { ...ins, isAcknowledged: true } : ins,
+      ),
+    );
   };
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500">AI Insights</h2>
+        <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500">
+          AI Insights
+        </h2>
         <label className="flex items-center gap-2 cursor-pointer">
           <span className="text-xs text-slate-500">Unread only</span>
           <input
@@ -823,37 +1165,46 @@ function InsightsTab() {
 
       {!loading && insights.length === 0 && (
         <div className="rounded-2xl bg-white p-8 text-center ring-1 ring-slate-200">
-          <p className="text-sm text-slate-400">No insights yet. Keep studying to generate insights!</p>
+          <p className="text-sm text-slate-400">
+            No insights yet. Keep studying to generate insights!
+          </p>
         </div>
       )}
 
-      {!loading && insights.map((ins, i) => {
-        const cls = INSIGHT_COLORS[ins.insightType] ?? "bg-slate-50 ring-slate-200 text-slate-700";
-        const icon = INSIGHT_ICONS[ins.insightType] ?? "💡";
-        return (
-          <div key={ins.id ?? i} className={`rounded-2xl p-4 ring-1 ${cls}`}>
-            <div className="flex items-start gap-3">
-              <span className="text-xl shrink-0">{icon}</span>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold">{ins.title ?? "Insight"}</p>
-                {ins.message && <p className="text-xs mt-0.5 opacity-80">{ins.message}</p>}
-                {ins.actionText && (
-                  <p className="mt-2 text-xs font-semibold underline cursor-pointer opacity-70">{ins.actionText}</p>
+      {!loading &&
+        insights.map((ins, i) => {
+          const cls =
+            INSIGHT_COLORS[ins.insightType] ??
+            "bg-slate-50 ring-slate-200 text-slate-700";
+          const icon = INSIGHT_ICONS[ins.insightType] ?? "💡";
+          return (
+            <div key={ins.id ?? i} className={`rounded-2xl p-4 ring-1 ${cls}`}>
+              <div className="flex items-start gap-3">
+                <span className="text-xl shrink-0">{icon}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold">{ins.title ?? "Insight"}</p>
+                  {ins.message && (
+                    <p className="text-xs mt-0.5 opacity-80">{ins.message}</p>
+                  )}
+                  {ins.actionText && (
+                    <p className="mt-2 text-xs font-semibold underline cursor-pointer opacity-70">
+                      {ins.actionText}
+                    </p>
+                  )}
+                </div>
+                {!ins.isAcknowledged && ins.id && (
+                  <button
+                    type="button"
+                    onClick={() => handleAcknowledge(ins.id)}
+                    className="shrink-0 text-[10px] font-semibold opacity-60 hover:opacity-100 underline"
+                  >
+                    Dismiss
+                  </button>
                 )}
               </div>
-              {!ins.isAcknowledged && ins.id && (
-                <button
-                  type="button"
-                  onClick={() => handleAcknowledge(ins.id)}
-                  className="shrink-0 text-[10px] font-semibold opacity-60 hover:opacity-100 underline"
-                >
-                  Dismiss
-                </button>
-              )}
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
     </div>
   );
 }
@@ -878,29 +1229,48 @@ function TabLoader({ label }) {
 
 function TabError({ message }) {
   return (
-    <div className="rounded-2xl bg-red-50 p-5 ring-1 ring-red-200 text-sm text-red-700">{message}</div>
+    <div className="rounded-2xl bg-red-50 p-5 ring-1 ring-red-200 text-sm text-red-700">
+      {message}
+    </div>
   );
 }
 
 // ── Profile Tab ───────────────────────────────────────────────────────────────
-const LEARNING_STYLES = ["Visual", "Auditory", "ReadWrite", "Kinesthetic", "Practical", "Mixed"];
-const GOALS = ["Graduation", "HighGPA", "SkillDevelopment", "ExamPrep", "GeneralLearning"];
+const LEARNING_STYLES = [
+  "Visual",
+  "Auditory",
+  "ReadWrite",
+  "Kinesthetic",
+  "Practical",
+  "Mixed",
+];
+const GOALS = [
+  "Graduation",
+  "HighGPA",
+  "SkillDevelopment",
+  "ExamPrep",
+  "GeneralLearning",
+];
 
 function ProfileTab() {
-  const [profile,  setProfile]  = useState(null);
-  const [loading,  setLoading]  = useState(true);
-  const [saving,   setSaving]   = useState(false);
-  const [saved,    setSaved]    = useState(false);
-  const [err,      setErr]      = useState("");
-  const [form,     setForm]     = useState({ learningStyle: "", goal: "", preferredLanguage: "" });
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [err, setErr] = useState("");
+  const [form, setForm] = useState({
+    learningStyle: "",
+    goal: "",
+    preferredLanguage: "",
+  });
 
   useEffect(() => {
     fetchCompanionProfile()
       .then((d) => {
         setProfile(d);
         setForm({
-          learningStyle:     d?.learningStyle     ?? "",
-          goal:              d?.goal              ?? "",
+          learningStyle: d?.learningStyle ?? "",
+          goal: d?.goal ?? "",
           preferredLanguage: d?.preferredLanguage ?? "",
         });
       })
@@ -912,7 +1282,9 @@ function ProfileTab() {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    setSaving(true); setSaved(false); setErr("");
+    setSaving(true);
+    setSaved(false);
+    setErr("");
     try {
       const updated = await patchCompanionProfile(form);
       setProfile(updated);
@@ -920,7 +1292,9 @@ function ProfileTab() {
       setTimeout(() => setSaved(false), 3000);
     } catch {
       setErr("Failed to save profile. Try again.");
-    } finally { setSaving(false); }
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) return <TabLoader label="Loading profile…" />;
@@ -932,12 +1306,28 @@ function ProfileTab() {
         <div className="grid grid-cols-3 gap-3">
           {[
             { label: "Total Sessions", value: profile.totalSessions ?? "—" },
-            { label: "Streak Days",    value: `${profile.currentStreakDays ?? 0} 🔥` },
-            { label: "Engagement",     value: profile.engagementScore != null ? `${profile.engagementScore}/100` : "—" },
+            {
+              label: "Streak Days",
+              value: `${profile.currentStreakDays ?? 0} 🔥`,
+            },
+            {
+              label: "Engagement",
+              value:
+                profile.engagementScore != null
+                  ? `${profile.engagementScore}/100`
+                  : "—",
+            },
           ].map((s) => (
-            <div key={s.label} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-100 text-center">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{s.label}</p>
-              <p className="mt-1.5 text-xl font-bold text-slate-800">{s.value}</p>
+            <div
+              key={s.label}
+              className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-100 text-center"
+            >
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                {s.label}
+              </p>
+              <p className="mt-1.5 text-xl font-bold text-slate-800">
+                {s.value}
+              </p>
             </div>
           ))}
         </div>
@@ -945,14 +1335,19 @@ function ProfileTab() {
 
       {/* Edit form */}
       <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
-        <h3 className="text-sm font-bold text-slate-800 mb-4">Learning Preferences</h3>
+        <h3 className="text-sm font-bold text-slate-800 mb-4">
+          Learning Preferences
+        </h3>
         <form onSubmit={handleSave} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-2">Learning Style</label>
+            <label className="block text-xs font-semibold text-slate-500 mb-2">
+              Learning Style
+            </label>
             <div className="flex flex-wrap gap-2">
               {LEARNING_STYLES.map((s) => (
                 <button
-                  key={s} type="button"
+                  key={s}
+                  type="button"
                   onClick={() => setF("learningStyle", s)}
                   className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition ${
                     form.learningStyle === s
@@ -966,11 +1361,14 @@ function ProfileTab() {
             </div>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-2">Goal</label>
+            <label className="block text-xs font-semibold text-slate-500 mb-2">
+              Goal
+            </label>
             <div className="flex flex-wrap gap-2">
               {GOALS.map((g) => (
                 <button
-                  key={g} type="button"
+                  key={g}
+                  type="button"
                   onClick={() => setF("goal", g)}
                   className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition ${
                     form.goal === g
@@ -984,7 +1382,9 @@ function ProfileTab() {
             </div>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1">Preferred Language</label>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">
+              Preferred Language
+            </label>
             <select
               value={form.preferredLanguage}
               onChange={(e) => setF("preferredLanguage", e.target.value)}
@@ -995,8 +1395,16 @@ function ProfileTab() {
               <option value="ar">Arabic (العربية)</option>
             </select>
           </div>
-          {err   && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-xs text-red-700 ring-1 ring-red-200">{err}</p>}
-          {saved && <p className="rounded-xl bg-emerald-50 px-4 py-2.5 text-xs text-emerald-700 ring-1 ring-emerald-200">Profile saved successfully!</p>}
+          {err && (
+            <p className="rounded-xl bg-red-50 px-4 py-2.5 text-xs text-red-700 ring-1 ring-red-200">
+              {err}
+            </p>
+          )}
+          {saved && (
+            <p className="rounded-xl bg-emerald-50 px-4 py-2.5 text-xs text-emerald-700 ring-1 ring-emerald-200">
+              Profile saved successfully!
+            </p>
+          )}
           <div className="flex justify-end">
             <button
               type="submit"
@@ -1012,10 +1420,15 @@ function ProfileTab() {
       {/* Weak subjects */}
       {profile?.weakSubjects?.length > 0 && (
         <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3">Areas to Improve</h3>
+          <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3">
+            Areas to Improve
+          </h3>
           <div className="flex flex-wrap gap-2">
             {profile.weakSubjects.map((s, i) => (
-              <span key={i} className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700">
+              <span
+                key={i}
+                className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700"
+              >
                 {s.subjectName ?? s.name ?? s}
               </span>
             ))}
@@ -1034,7 +1447,9 @@ function StudentCompanionPage() {
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-bold text-slate-800">AI Companion</h1>
-        <p className="text-sm text-slate-400 mt-0.5">Your personalized academic intelligence assistant</p>
+        <p className="text-sm text-slate-400 mt-0.5">
+          Your personalized academic intelligence assistant
+        </p>
       </div>
 
       {/* Tab bar */}

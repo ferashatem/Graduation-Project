@@ -1,11 +1,28 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiArrowUp } from "react-icons/fi";
+import SpeechRecognition, { useSpeechRecognition } from "react-speech-recognition";
+import i18n from "../../../i18n/config";
+
+function MicIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8" />
+    </svg>
+  );
+}
 
 function ChatInput({ onSend, disabled }) {
   const [value, setValue] = useState("");
   const [sending, setSending] = useState(false);
   const textareaRef = useRef(null);
+  const baseTextRef = useRef("");
+
+  const { transcript, listening, resetTranscript, browserSupportsSpeechRecognition } =
+    useSpeechRecognition();
+
+  const speechLang = "ar-EG";
 
   const canSend = useMemo(
     () => !disabled && !sending && value.trim().length > 0,
@@ -19,9 +36,24 @@ function ChatInput({ onSend, disabled }) {
     el.style.height = Math.min(el.scrollHeight, 200) + "px";
   }, [value]);
 
+  useEffect(() => {
+    setValue(baseTextRef.current + transcript);
+  }, [transcript]);
+
+  const toggleMic = useCallback(() => {
+    if (listening) {
+      SpeechRecognition.stopListening();
+    } else {
+      baseTextRef.current = value;
+      resetTranscript();
+      SpeechRecognition.startListening({ continuous: true, language: speechLang });
+    }
+  }, [listening, value, resetTranscript, speechLang]);
+
   const submit = useCallback(async () => {
     const trimmed = value.trim();
     if (!trimmed || !onSend || sending || disabled) return;
+    if (listening) SpeechRecognition.stopListening();
     setSending(true);
     try {
       await onSend(trimmed);
@@ -29,7 +61,7 @@ function ChatInput({ onSend, disabled }) {
     } finally {
       setSending(false);
     }
-  }, [disabled, onSend, sending, value]);
+  }, [disabled, listening, onSend, sending, value]);
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -53,6 +85,27 @@ function ChatInput({ onSend, disabled }) {
             className="flex-1 resize-none bg-transparent text-[15px] text-[#0d0d0d] dark:text-[#ececec] placeholder-[#8e8e8e] dark:placeholder-[#9b9b9b] outline-none max-h-[200px] overflow-y-auto py-1 disabled:opacity-60"
             style={{ lineHeight: "1.5" }}
           />
+          {browserSupportsSpeechRecognition && (
+            <button
+              type="button"
+              onClick={toggleMic}
+              title={listening ? "Stop listening" : "Voice input"}
+              className={`shrink-0 h-9 w-9 rounded-full flex items-center justify-center transition ${
+                listening
+                  ? "bg-red-500 text-white hover:bg-red-600"
+                  : "text-[#8e8e8e] hover:text-[#0d0d0d] dark:hover:text-[#ececec]"
+              }`}
+            >
+              {listening ? (
+                <span className="relative flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-white" />
+                </span>
+              ) : (
+                <MicIcon />
+              )}
+            </button>
+          )}
           <button
             type="button"
             onClick={submit}

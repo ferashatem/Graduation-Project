@@ -33,6 +33,7 @@
     "react-loader-spinner": "^6.1.6",
     "react-router-dom": "^7.3.0",
     "react-scripts": "5.0.1",
+    "react-speech-recognition": "^4.0.1",
     "react-top-loading-bar": "^3.0.2",
     "stylis": "^4.4.0",
     "stylis-plugin-rtl": "^2.1.1",
