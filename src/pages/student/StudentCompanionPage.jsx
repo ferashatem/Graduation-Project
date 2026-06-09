@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import apiClient from "../../api/apiClient";
 
@@ -30,8 +30,6 @@ const acknowledgeInsight = (id) =>
 const startSession = (dto) =>
   apiClient.post("/companion/sessions/start", dto).then(unwrap);
 
-const completeSession = (sessionId, dto) =>
-  apiClient.post(`/companion/sessions/${sessionId}/complete`, dto).then(unwrap);
 
 const fetchSessionHistory = () =>
   apiClient.get("/companion/sessions").then(unwrap);
@@ -46,6 +44,15 @@ const fetchAllDecks = () => apiClient.get("/companion/flashcards").then(unwrap);
 
 const fetchDeck = (deckId) =>
   apiClient.get(`/companion/flashcards/${deckId}`).then(unwrap);
+
+const generateQuestions = (sessionId) =>
+  apiClient.post(`/companion/sessions/${sessionId}/generate-questions`).then(unwrap);
+
+const submitAnswer = (sessionId, dto) =>
+  apiClient.post(`/companion/sessions/${sessionId}/submit-answer`, dto).then(unwrap);
+
+const fetchReport = (sessionId) =>
+  apiClient.get(`/companion/sessions/${sessionId}/report`).then(unwrap);
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 const TABS = [
@@ -718,231 +725,462 @@ function DeckListPanel() {
 
 // ── Study Session Tab ─────────────────────────────────────────────────────────
 const SESSION_TYPES = [
-  { value: "Quiz", label: "Quiz", desc: "MCQ quiz on a topic" },
-  { value: "ActiveRecall", label: "Active Recall", desc: "Open-ended Q&A" },
-  {
-    value: "ConceptCheck",
-    label: "Concept Check",
-    desc: "Quick check after explanation",
-  },
-  { value: "ExamPrep", label: "Exam Prep", desc: "Practice before exam" },
+  { value: "quiz", label: "Quiz", desc: "MCQ quiz on a topic" },
+  { value: "active_recall", label: "Active Recall", desc: "Open-ended Q&A" },
+  { value: "concept_check", label: "Concept Check", desc: "Quick concept check" },
+  { value: "exam_prep", label: "Exam Prep", desc: "Practice before exam" },
 ];
-const DIFFICULTIES = ["Easy", "Medium", "Hard"];
+const DIFFICULTIES = [
+  { value: "easy", label: "Easy" },
+  { value: "medium", label: "Medium" },
+  { value: "hard", label: "Hard" },
+];
+
+function fmtTimer(s) {
+  return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+}
+
+function Spinner() {
+  return (
+    <svg className="h-4 w-4 animate-spin shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+    </svg>
+  );
+}
+
+function PerformanceBadge({ level }) {
+  const map = {
+    Excellent:           { cls: "bg-emerald-100 text-emerald-700", stars: "⭐⭐⭐⭐⭐" },
+    Good:                { cls: "bg-blue-100 text-blue-700",        stars: "⭐⭐⭐⭐" },
+    "Needs Improvement": { cls: "bg-amber-100 text-amber-700",      stars: "⭐⭐⭐" },
+    Poor:                { cls: "bg-red-100 text-red-700",          stars: "⭐⭐" },
+  };
+  const { cls, stars } = map[level] ?? { cls: "bg-slate-100 text-slate-700", stars: "⭐" };
+  return (
+    <span className={`rounded-full px-3 py-1 text-xs font-bold ${cls}`}>
+      {level} {stars}
+    </span>
+  );
+}
 
 function StudySessionTab() {
-  const [session, setSession] = useState(null);
-  const [mode, setMode] = useState("form"); // form | active | complete
-  const [starting, setStarting] = useState(false);
+  const [mode, setMode] = useState("form"); // form | generating | questions | report
+  const [sessionId, setSessionId] = useState(null);
+  const [questions, setQuestions] = useState([]);
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const [selectedAnswer, setSelectedAnswer] = useState("");
+  const [openAnswer, setOpenAnswer] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [feedback, setFeedback] = useState(null);
+  const [report, setReport] = useState(null);
+  const [loadingReport, setLoadingReport] = useState(false);
   const [err, setErr] = useState("");
-  const [result, setResult] = useState(null);
-  const [form, setForm] = useState({
-    sessionType: "Quiz",
-    topicName: "",
-    difficulty: "Medium",
-  });
-  const [completingData, setCompletingData] = useState({
-    totalQuestions: 10,
-    correctAnswers: 0,
-    durationMinutes: 0,
-  });
-  const [startedAt, setStartedAt] = useState(null);
+  const [starting, setStarting] = useState(false);
+  const [seconds, setSeconds] = useState(0);
+  const timerRef = useRef(null);
 
+  const [form, setForm] = useState({
+    sessionType: "quiz",
+    topicName: "",
+    difficulty: "medium",
+    questionCount: 5,
+  });
   const setF = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+
+  useEffect(() => {
+    if (mode === "questions") {
+      timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
+    } else {
+      clearInterval(timerRef.current);
+    }
+    return () => clearInterval(timerRef.current);
+  }, [mode]);
 
   const handleStart = async (e) => {
     e.preventDefault();
     if (!form.topicName.trim()) return;
     setStarting(true);
     setErr("");
+    setSeconds(0);
     try {
-      const res = await startSession(form);
-      setSession(res);
-      setStartedAt(Date.now());
-      setMode("active");
+      const session = await startSession({
+        sessionType: form.sessionType,
+        topicName: form.topicName.trim(),
+        difficulty: form.difficulty,
+        questionCount: Number(form.questionCount),
+      });
+      const sid = session.id ?? session.sessionId;
+      setSessionId(sid);
+      setMode("generating");
+      const qs = await generateQuestions(sid);
+      const list = Array.isArray(qs) ? qs : (qs?.questions ?? []);
+      if (list.length === 0) throw new Error("empty");
+      setQuestions(list);
+      setCurrentIdx(0);
+      setSelectedAnswer("");
+      setOpenAnswer("");
+      setFeedback(null);
+      setMode("questions");
     } catch {
-      setErr("Failed to start session. Try again.");
+      setErr("Failed to start session. Please try again.");
+      setMode("form");
     } finally {
       setStarting(false);
     }
   };
 
-  const handleComplete = async () => {
-    if (!session?.id && !session?.sessionId) return;
-    const sid = session.id ?? session.sessionId;
-    const duration = startedAt
-      ? Math.round((Date.now() - startedAt) / 60000)
-      : 1;
+  const handleSubmit = async () => {
+    const q = questions[currentIdx];
+    const isMcq = q.questionType === "mcq";
+    const answer = isMcq ? selectedAnswer : openAnswer.trim();
+    if (!answer || (!isMcq && answer.length < 10)) return;
+    setSubmitting(true);
+    setErr("");
     try {
-      const res = await completeSession(sid, {
-        ...completingData,
-        durationMinutes: duration,
-      });
-      setResult(res);
-      setMode("complete");
+      const result = await submitAnswer(sessionId, { questionId: q.id, answer });
+      setFeedback(result);
     } catch {
-      setMode("complete");
-      setResult(null);
+      setErr("Failed to submit answer. Please try again.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  if (mode === "complete") {
-    const feedback = result?.aiFeedback ?? result?.feedback ?? "";
-    const score = result?.correctAnswers ?? completingData.correctAnswers;
-    const total = result?.totalQuestions ?? completingData.totalQuestions;
-    const pct = total > 0 ? Math.round((score / total) * 100) : 0;
+  const handleNext = async () => {
+    const nextIdx = currentIdx + 1;
+    if (nextIdx >= questions.length) {
+      setLoadingReport(true);
+      try {
+        const rep = await fetchReport(sessionId);
+        setReport(rep);
+      } catch {
+        setReport(null);
+      } finally {
+        setLoadingReport(false);
+        setMode("report");
+      }
+    } else {
+      setCurrentIdx(nextIdx);
+      setSelectedAnswer("");
+      setOpenAnswer("");
+      setFeedback(null);
+      setErr("");
+    }
+  };
+
+  const resetSession = () => {
+    setMode("form");
+    setSessionId(null);
+    setQuestions([]);
+    setCurrentIdx(0);
+    setSelectedAnswer("");
+    setOpenAnswer("");
+    setFeedback(null);
+    setReport(null);
+    setErr("");
+    setSeconds(0);
+  };
+
+  // ── Generating ──────────────────────────────────────────────────────────────
+  if (mode === "generating") {
     return (
-      <div className="max-w-lg mx-auto text-center space-y-5 py-10">
-        <div className="text-5xl">
-          {pct >= 80 ? "🎉" : pct >= 60 ? "👍" : "📚"}
+      <div className="max-w-lg mx-auto flex flex-col items-center justify-center py-20 gap-5">
+        <div className="w-16 h-16 rounded-2xl bg-blue-100 flex items-center justify-center">
+          <svg className="h-8 w-8 text-blue-500 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+          </svg>
         </div>
-        <h2 className="text-xl font-bold text-slate-800">Session Complete!</h2>
-        <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100 text-left space-y-3">
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-500">Score</span>
-            <span className="font-bold text-slate-800">
-              {score}/{total} ({pct}%)
-            </span>
-          </div>
-          {feedback && (
-            <div className="rounded-xl bg-violet-50 px-4 py-3">
-              <p className="text-xs font-semibold text-violet-700 mb-1">
-                AI Feedback
+        <div className="text-center">
+          <h2 className="text-lg font-bold text-slate-800">Generating Questions…</h2>
+          <p className="text-sm text-slate-400 mt-1">
+            AI is preparing your <span className="font-semibold capitalize">{form.sessionType.replace("_", " ")}</span> session on "{form.topicName}"
+          </p>
+          <p className="text-xs text-slate-300 mt-1.5">This may take 3–8 seconds</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Questions ───────────────────────────────────────────────────────────────
+  if (mode === "questions") {
+    const q = questions[currentIdx];
+    const isMcq = q.questionType === "mcq";
+    const canSubmit = !feedback && (isMcq ? !!selectedAnswer : openAnswer.trim().length >= 10);
+    const isLast = currentIdx === questions.length - 1;
+    const progress = Math.round((currentIdx / questions.length) * 100);
+
+    return (
+      <div className="max-w-lg mx-auto space-y-4">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-bold text-slate-700">
+            Question {currentIdx + 1} of {questions.length}
+          </span>
+          <span className="flex items-center gap-1.5 text-sm font-mono text-slate-400">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            {fmtTimer(seconds)}
+          </span>
+        </div>
+
+        {/* Progress bar */}
+        <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+          <div className="h-full rounded-full bg-blue-500 transition-all duration-300" style={{ width: `${progress}%` }} />
+        </div>
+
+        {/* Question card */}
+        <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+          <p className="text-sm font-semibold text-slate-800 leading-relaxed mb-4">
+            {q.text ?? q.questionText ?? q.question}
+          </p>
+
+          {/* MCQ options */}
+          {isMcq && (
+            <div className="space-y-2">
+              {(q.options ?? []).map((opt, i) => {
+                const letter = opt.trim()[0];
+                const isSelected = selectedAnswer === letter;
+                const isCorrect = feedback && feedback.correctAnswer === letter;
+                const isWrong = feedback && isSelected && !feedback.isCorrect;
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    disabled={!!feedback}
+                    onClick={() => setSelectedAnswer(letter)}
+                    className={`w-full flex items-center gap-3 rounded-xl border px-4 py-3 text-left text-sm transition ${
+                      feedback
+                        ? isCorrect
+                          ? "border-emerald-400 bg-emerald-50 text-emerald-800"
+                          : isWrong
+                          ? "border-red-400 bg-red-50 text-red-800"
+                          : "border-slate-200 bg-white text-slate-400"
+                        : isSelected
+                        ? "border-blue-400 bg-blue-50 ring-2 ring-blue-100 text-blue-800"
+                        : "border-slate-200 bg-slate-50 hover:border-blue-200 hover:bg-blue-50/40 text-slate-700"
+                    }`}
+                  >
+                    <span className={`shrink-0 h-6 w-6 rounded-full border-2 flex items-center justify-center text-xs font-bold ${
+                      feedback
+                        ? isCorrect ? "border-emerald-400 bg-emerald-100 text-emerald-700"
+                          : isWrong ? "border-red-400 bg-red-100 text-red-700"
+                          : "border-slate-200 bg-white text-slate-400"
+                        : isSelected ? "border-blue-400 bg-blue-100 text-blue-700"
+                        : "border-slate-300 bg-white text-slate-500"
+                    }`}>
+                      {letter}
+                    </span>
+                    <span className="flex-1">{opt.replace(/^[A-D]\.\s*/, "")}</span>
+                    {feedback && isCorrect && <span>✅</span>}
+                    {feedback && isWrong  && <span>❌</span>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Open-ended */}
+          {!isMcq && (
+            <div>
+              <textarea
+                rows={4}
+                value={openAnswer}
+                onChange={(e) => setOpenAnswer(e.target.value)}
+                disabled={!!feedback}
+                placeholder="اكتب إجابتك هنا… (10 أحرف على الأقل)"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none resize-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 disabled:opacity-60"
+              />
+              <p className="text-xs text-slate-400 mt-1">{openAnswer.trim().length} characters</p>
+            </div>
+          )}
+
+          {err && !feedback && (
+            <p className="mt-3 rounded-xl bg-red-50 px-4 py-2 text-xs text-red-700 ring-1 ring-red-200">{err}</p>
+          )}
+
+          {!feedback && (
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={!canSubmit || submitting}
+              className="mt-4 w-full flex items-center justify-center gap-2 rounded-xl bg-[#0b2c4a] py-2.5 text-sm font-semibold text-white hover:bg-[#153a63] disabled:opacity-50 transition"
+            >
+              {submitting ? <><Spinner /> Submitting…</> : "Submit Answer"}
+            </button>
+          )}
+        </div>
+
+        {/* Feedback card */}
+        {feedback && (
+          <div className={`rounded-2xl p-5 ring-1 ${feedback.isCorrect ? "bg-emerald-50 ring-emerald-200" : "bg-red-50 ring-red-200"}`}>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-lg">{feedback.isCorrect ? "✅" : "❌"}</span>
+              <p className={`font-bold text-sm flex-1 ${feedback.isCorrect ? "text-emerald-800" : "text-red-800"}`}>
+                {feedback.aiFeedback ?? (feedback.isCorrect ? "إجابة صحيحة!" : "إجابة خاطئة")}
               </p>
-              <p className="text-sm text-violet-800">{feedback}</p>
+              {feedback.score != null && (
+                <span className={`text-xs font-bold ${feedback.isCorrect ? "text-emerald-600" : "text-red-600"}`}>
+                  {feedback.score}/100
+                </span>
+              )}
+            </div>
+            {feedback.explanation && (
+              <div className={`rounded-xl p-3 mt-2 ${feedback.isCorrect ? "bg-emerald-100/60" : "bg-red-100/60"}`}>
+                <p className="text-xs font-semibold text-slate-600 mb-0.5">📖 Explanation</p>
+                <p className={`text-xs leading-relaxed ${feedback.isCorrect ? "text-emerald-900" : "text-red-900"}`}>
+                  {feedback.explanation}
+                </p>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={handleNext}
+              disabled={loadingReport}
+              className={`mt-3 w-full flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white transition disabled:opacity-50 ${
+                feedback.isCorrect ? "bg-emerald-600 hover:bg-emerald-700" : "bg-[#0b2c4a] hover:bg-[#153a63]"
+              }`}
+            >
+              {loadingReport ? <><Spinner /> Loading Report…</> : isLast ? "View Report →" : "Next Question →"}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── Report ──────────────────────────────────────────────────────────────────
+  if (mode === "report") {
+    if (!report) {
+      return (
+        <div className="max-w-lg mx-auto text-center space-y-4 py-14">
+          <div className="text-5xl">✅</div>
+          <h2 className="text-xl font-bold text-slate-800">Session Complete!</h2>
+          <p className="text-sm text-slate-400">Your session has been saved.</p>
+          <button type="button" onClick={resetSession}
+            className="rounded-xl bg-[#0b2c4a] px-6 py-2.5 text-sm font-semibold text-white hover:bg-[#153a63] transition">
+            Start New Session
+          </button>
+        </div>
+      );
+    }
+
+    const { accuracyPercent = 0, correctAnswers = 0, totalQuestions = 0, durationMinutes = 0 } = report;
+    const perfEmoji = accuracyPercent >= 90 ? "🏆" : accuracyPercent >= 75 ? "⭐" : accuracyPercent >= 50 ? "📚" : "💪";
+
+    return (
+      <div className="max-w-lg mx-auto space-y-4 pb-4">
+        {/* Hero */}
+        <div className="rounded-2xl bg-gradient-to-br from-[#0b2c4a] to-[#1a4b7a] p-6 text-white text-center">
+          <div className="text-4xl mb-2">{perfEmoji}</div>
+          <h2 className="text-xl font-bold">Session Complete!</h2>
+          <p className="text-sm opacity-70 mt-0.5">{report.topicName}</p>
+          {report.performanceLevel && (
+            <div className="mt-3 flex justify-center">
+              <PerformanceBadge level={report.performanceLevel} />
             </div>
           )}
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            setMode("form");
-            setSession(null);
-            setResult(null);
-          }}
-          className="rounded-xl bg-[#0b2c4a] px-6 py-2.5 text-sm font-semibold text-white hover:bg-[#153a63] transition"
-        >
+
+        {/* Stats grid */}
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: "Correct",  value: `${correctAnswers}/${totalQuestions}`, icon: "✅" },
+            { label: "Accuracy", value: `${accuracyPercent}%`,                icon: "🎯" },
+            { label: "Duration", value: `${durationMinutes} min`,             icon: "⏱️" },
+          ].map((s) => (
+            <div key={s.label} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-100 text-center">
+              <div className="text-xl">{s.icon}</div>
+              <p className="text-lg font-bold text-slate-800 mt-1">{s.value}</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{s.label}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Overall feedback */}
+        {report.overallFeedback && (
+          <div className="rounded-2xl bg-violet-50 ring-1 ring-violet-200 p-4">
+            <p className="text-xs font-bold uppercase tracking-widest text-violet-600 mb-1.5">💬 AI Feedback</p>
+            <p className="text-sm text-violet-900 leading-relaxed">{report.overallFeedback}</p>
+          </div>
+        )}
+
+        {/* Question review */}
+        {report.questionReview?.length > 0 && (
+          <div className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-100 overflow-hidden">
+            <div className="px-5 py-3 border-b border-slate-100">
+              <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500">Question Review</h3>
+            </div>
+            <div className="divide-y divide-slate-100">
+              {report.questionReview.map((qr, i) => (
+                <div key={i} className="px-5 py-3 flex items-start gap-2.5">
+                  <span className="shrink-0 mt-0.5 text-base">{qr.isCorrect ? "✅" : "❌"}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold text-slate-700 leading-snug">
+                      Q{qr.questionNumber ?? i + 1}: {qr.questionText}
+                    </p>
+                    <div className="mt-1.5 flex flex-wrap gap-1.5 text-xs">
+                      <span className={`px-2 py-0.5 rounded-full font-semibold ${qr.isCorrect ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
+                        Your answer: {qr.studentAnswer}
+                      </span>
+                      {!qr.isCorrect && (
+                        <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-semibold">
+                          Correct: {qr.correctAnswer}
+                        </span>
+                      )}
+                    </div>
+                    {qr.explanation && (
+                      <p className="text-xs text-slate-400 mt-1 leading-snug">{qr.explanation}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Recommendations */}
+        {report.recommendations?.length > 0 && (
+          <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3">Recommendations</h3>
+            <ul className="space-y-2">
+              {report.recommendations.map((r, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm text-slate-600 leading-snug">
+                  <span className="text-violet-400 shrink-0 mt-0.5 font-bold">•</span>
+                  {r}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* CTA */}
+        <button type="button" onClick={resetSession}
+          className="w-full rounded-xl bg-[#0b2c4a] py-2.5 text-sm font-semibold text-white hover:bg-[#153a63] transition">
           Start New Session
         </button>
       </div>
     );
   }
 
-  if (mode === "active") {
-    return (
-      <div className="max-w-lg mx-auto space-y-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-slate-800">
-              {form.sessionType} Session
-            </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Topic: {form.topicName}
-            </p>
-          </div>
-          <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
-            Active
-          </span>
-        </div>
-
-        <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100 space-y-4">
-          <p className="text-sm text-slate-600">
-            Your session is active. Use the AI Assistant to conduct your study
-            session, then come back here to log your results.
-          </p>
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1">
-                Questions Answered
-              </label>
-              <input
-                type="number"
-                min={0}
-                max={100}
-                value={completingData.totalQuestions}
-                onChange={(e) =>
-                  setCompletingData((p) => ({
-                    ...p,
-                    totalQuestions: Number(e.target.value),
-                  }))
-                }
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-violet-300"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1">
-                Correct Answers
-              </label>
-              <input
-                type="number"
-                min={0}
-                max={completingData.totalQuestions}
-                value={completingData.correctAnswers}
-                onChange={(e) =>
-                  setCompletingData((p) => ({
-                    ...p,
-                    correctAnswers: Number(e.target.value),
-                  }))
-                }
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-violet-300"
-              />
-            </div>
-          </div>
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => setMode("form")}
-              className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleComplete}
-              className="flex-1 rounded-xl bg-[#0b2c4a] py-2.5 text-sm font-semibold text-white hover:bg-[#153a63] transition"
-            >
-              Complete Session
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
+  // ── Form ────────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-5">
       <div className="max-w-lg mx-auto rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5 text-blue-600"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h3 className="text-sm font-bold text-slate-800">
-            Start Study Session
-          </h3>
+          <h3 className="text-sm font-bold text-slate-800">Start Study Session</h3>
         </div>
         <form onSubmit={handleStart} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1">
-              Topic *
-            </label>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Topic *</label>
             <input
               type="text"
               value={form.topicName}
@@ -953,64 +1191,63 @@ function StudySessionTab() {
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-2">
-              Session Type
-            </label>
+            <label className="block text-xs font-semibold text-slate-500 mb-2">Session Type</label>
             <div className="grid grid-cols-2 gap-2">
               {SESSION_TYPES.map((t) => (
-                <button
-                  key={t.value}
-                  type="button"
-                  onClick={() => setF("sessionType", t.value)}
+                <button key={t.value} type="button" onClick={() => setF("sessionType", t.value)}
                   className={`rounded-xl border px-3 py-2.5 text-left transition ${
                     form.sessionType === t.value
                       ? "border-blue-400 bg-blue-50 ring-2 ring-blue-100"
                       : "border-slate-200 bg-slate-50 hover:bg-slate-100"
-                  }`}
-                >
+                  }`}>
                   <p className="text-xs font-bold text-slate-800">{t.label}</p>
                   <p className="text-[10px] text-slate-400 mt-0.5">{t.desc}</p>
                 </button>
               ))}
             </div>
           </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-2">
-              Difficulty
-            </label>
-            <div className="flex gap-2">
-              {DIFFICULTIES.map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => setF("difficulty", d)}
-                  className={`flex-1 rounded-xl py-2 text-xs font-semibold transition ${
-                    form.difficulty === d
-                      ? "bg-[#0b2c4a] text-white"
-                      : "border border-slate-200 text-slate-600 hover:bg-slate-50"
-                  }`}
-                >
-                  {d}
-                </button>
-              ))}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-2">Difficulty</label>
+              <div className="flex gap-1.5">
+                {DIFFICULTIES.map((d) => (
+                  <button key={d.value} type="button" onClick={() => setF("difficulty", d.value)}
+                    className={`flex-1 rounded-xl py-2 text-xs font-semibold transition ${
+                      form.difficulty === d.value
+                        ? "bg-[#0b2c4a] text-white"
+                        : "border border-slate-200 text-slate-600 hover:bg-slate-50"
+                    }`}>
+                    {d.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-2">Questions</label>
+              <select
+                value={form.questionCount}
+                onChange={(e) => setF("questionCount", e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs outline-none focus:border-blue-300"
+              >
+                {[3, 5, 7, 10, 15].map((n) => (
+                  <option key={n} value={n}>{n} questions</option>
+                ))}
+              </select>
             </div>
           </div>
           {err && (
-            <p className="rounded-xl bg-red-50 px-4 py-2.5 text-xs text-red-700 ring-1 ring-red-200">
-              {err}
-            </p>
+            <p className="rounded-xl bg-red-50 px-4 py-2.5 text-xs text-red-700 ring-1 ring-red-200">{err}</p>
           )}
           <button
             type="submit"
             disabled={starting || !form.topicName.trim()}
             className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0b2c4a] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#153a63] disabled:opacity-50 transition"
           >
-            {starting ? "Starting…" : "Start Session"}
+            {starting ? <><Spinner /> Starting…</> : "Start Session"}
           </button>
         </form>
       </div>
 
-      {/* Session History */}
       <SessionHistoryPanel />
     </div>
   );
