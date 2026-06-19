@@ -547,7 +547,14 @@
     "totalCount": "Total",
     "failedLoad": "Failed to load.",
     "failedUpload": "Failed to upload.",
-    "loading": "Loading…"
+    "loading": "Loading…",
+    "assessmentBreakdown": "Assessment Breakdown",
+    "midterm": "Midterm",
+    "coursework": "Coursework",
+    "finalExam": "Final Exam",
+    "totalMarks": "Total Marks",
+    "skippedRows": "Skipped Rows",
+    "downloadingTemplate": "Loading students…"
   },
   "profAssignments": {
     "title": "Assignments",

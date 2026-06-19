@@ -547,7 +547,14 @@
     "totalCount": "الإجمالي",
     "failedLoad": "فشل التحميل.",
     "failedUpload": "فشل الرفع.",
-    "loading": "جارٍ التحميل…"
+    "loading": "جارٍ التحميل…",
+    "assessmentBreakdown": "توزيع الدرجات",
+    "midterm": "منتصف الفصل",
+    "coursework": "أعمال السنة",
+    "finalExam": "الامتحان النهائي",
+    "totalMarks": "المجموع",
+    "skippedRows": "الصفوف المُتخطَّاة",
+    "downloadingTemplate": "جارٍ تحميل الطلاب…"
   },
   "profAssignments": {
     "title": "الواجبات",
