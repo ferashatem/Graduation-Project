@@ -1,5 +1,4 @@
 import { useCallback } from "react";
-import { useTranslation } from "react-i18next";
 import { Button } from "@mui/material";
 
 function ErrorState({ message, onRetry }) {

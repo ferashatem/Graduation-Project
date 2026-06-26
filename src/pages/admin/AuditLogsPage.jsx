@@ -11,7 +11,6 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableContainer,
   TableHead,
   TableRow,
   Tooltip,
@@ -23,7 +22,6 @@ import {
   HiRefresh,
   HiX,
   HiDownload,
-  HiFilter,
   HiLightningBolt,
   HiChartBar,
   HiTable,
@@ -117,9 +115,6 @@ const fmtTime = (s) => {
   try { return new Date(s).toLocaleTimeString("en-GB", { hour:"2-digit", minute:"2-digit" }); }
   catch { return s; }
 };
-
-const truncate = (str, len = 14) =>
-  str ? (str.length > len ? str.slice(0, len) + "…" : str) : "—";
 
 const parseJson = (v) => {
   if (!v) return null;
@@ -289,7 +284,6 @@ function SkeletonRows({ count = 8 }) {
 function AuditTableRow({ log, onSelect, isNew }) {
   const [expanded, setExpanded] = useState(false);
   const hasChanges = !!(log.oldValues || log.newValues);
-  const sevStyle = SEVERITY_STYLES[log.severity];
 
   return (
     <>

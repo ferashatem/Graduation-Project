@@ -14,7 +14,6 @@ export const fetchUniversity = async () => {
 
 export const fetchUniversities = async () => {
   const res = await apiClient.get("/University/structure");
-  console.log("[fetchUniversities] raw response:", res.data);
   const payload = res.data?.data ?? res.data;
   if (!payload) return [];
   if (Array.isArray(payload)) return payload;

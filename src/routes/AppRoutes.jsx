@@ -35,7 +35,6 @@ import SubjectOfferingsPage from "../pages/admin/SubjectOfferingsPage";
 import StudentsPage from "../pages/admin/StudentsPage";
 import DoctorsPage from "../pages/admin/DoctorsPage";
 import RegisterStudentPage from "../pages/admin/RegisterStudentPage";
-import RegisterDoctorPage from "../pages/admin/RegisterDoctorPage";
 import BulkImportUsersPage from "../pages/admin/BulkImportUsersPage";
 
 // Admin — Misc
@@ -102,6 +101,7 @@ import ProfessorNotificationsPage from "../pages/professor/ProfessorNotification
 import StudentAssignmentsPage from "../pages/student/StudentAssignmentsPage";
 import StudentNotificationsPage from "../pages/student/StudentNotificationsPage";
 import StudentCompanionPage from "../pages/student/StudentCompanionPage";
+import RecordingDetailsPage from "../pages/student/recordings/RecordingDetailsPage";
 import ImportStudentsPage from "../features/students/pages/ImportStudentsPage";
 
 function AppRoutes() {
@@ -305,6 +305,7 @@ function AppRoutes() {
           <Route path="complaints" element={<StudentComplaintsPage />} />
           <Route path="notifications" element={<StudentNotificationsPage />} />
           <Route path="companion" element={<StudentCompanionPage />} />
+          <Route path="recordings/:id" element={<RecordingDetailsPage />} />
           <Route path="chat" element={<ChatPage />} />
           <Route path="change-password" element={<ForceChangePassword />} />
         </Route>

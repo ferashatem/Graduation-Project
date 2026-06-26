@@ -3,12 +3,10 @@ import {
   Alert,
   Box,
   Button,
-  Checkbox,
   Chip,
   CircularProgress,
   Collapse,
   Divider,
-  FormControlLabel,
   IconButton,
   InputAdornment,
   Paper,
@@ -23,7 +21,6 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { useTranslation } from "react-i18next";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";

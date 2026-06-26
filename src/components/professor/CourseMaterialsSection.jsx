@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { Alert, Button, CircularProgress, Snackbar } from "@mui/material";
-import { HiSearch, HiDatabase } from "react-icons/hi";
+import { HiSearch } from "react-icons/hi";
 import Loading from "../common/Loading";
 import ErrorState from "../common/ErrorState";
 import ConfirmDialog from "../common/ConfirmDialog";
 import { getMaterialsByOffering, getMaterialDownloadUrl, deleteMaterial } from "../../api/materialsApi";
-import { indexMaterial, ragSearchByOffering } from "../../api/ragApi";
+import { ragSearchByOffering } from "../../api/ragApi";
 import { getErrorMessage } from "../../utils/errorHelpers";
 
 function CourseMaterialsSection({ course }) {
@@ -23,8 +22,6 @@ function CourseMaterialsSection({ course }) {
   const [searchQuery,      setSearchQuery]      = useState("");
   const [searchResults,    setSearchResults]    = useState(null);
   const [searching,        setSearching]        = useState(false);
-  const [indexingId,       setIndexingId]       = useState(null);
-
   useEffect(() => {
     if (!offeringId) {
       setMaterials([]);
@@ -47,18 +44,6 @@ function CourseMaterialsSection({ course }) {
       window.open(url, "_blank", "noopener,noreferrer");
     } catch {
       setToast({ open: true, message: "Could not get download link.", severity: "error" });
-    }
-  }, []);
-
-  const handleIndex = useCallback(async (materialId) => {
-    setIndexingId(materialId);
-    try {
-      await indexMaterial(materialId);
-      setToast({ open: true, message: "Material indexed for AI search.", severity: "success" });
-    } catch (err) {
-      setToast({ open: true, message: getErrorMessage(err, "Indexing failed."), severity: "error" });
-    } finally {
-      setIndexingId(null);
     }
   }, []);
 
@@ -169,12 +154,6 @@ function CourseMaterialsSection({ course }) {
                 <Button size="small" variant="outlined" onClick={() => handleViewPdf(m.id)}>
                   Download
                 </Button>
-                {/* <Button size="small" variant="outlined" color="secondary"
-                  onClick={() => handleIndex(m.id)}
-                  disabled={indexingId === m.id}
-                  startIcon={indexingId === m.id ? <CircularProgress size={12} /> : <HiDatabase style={{ fontSize: 14 }} />}>
-                  {/* {indexingId === m.id ? "Indexing…" : "Index for AI"} */}
-                {/* </Button> */}
                 <Button size="small" color="error" onClick={() => setConfirmState({ open: true, material: m })}>
                   Delete
                 </Button>

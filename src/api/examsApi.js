@@ -55,24 +55,12 @@ export const previewQuestionsFromPdf = async ({ file, questionCount = 10, diffic
   form.append("difficulty", difficulty);
   form.append("examType", examType);
 
-  console.log("📤 [previewQuestionsFromPdf] REQUEST", {
-    endpoint: "/exams/preview-questions-from-pdf",
-    file: file?.name,
-    fileSize: file?.size,
-    questionCount,
-    difficulty,
-    examType,
-  });
-
   const res = await apiClient.post("/exams/preview-questions-from-pdf", form, {
     headers: { "Content-Type": "multipart/form-data" },
     onUploadProgress: (e) => {
       if (onProgress && e.total) onProgress(Math.round((e.loaded * 100) / e.total));
     },
   });
-
-  console.log("📥 [previewQuestionsFromPdf] RESPONSE status:", res.status);
-  console.log("📥 [previewQuestionsFromPdf] RESPONSE data:", res.data);
 
   const payload = res.data?.data ?? res.data;
   return Array.isArray(payload) ? payload : [];
@@ -176,11 +164,7 @@ export const submitExam = async (examId, answers) => {
   const payload = {
     answers: answers.map((a) => ({ questionId: a.questionId, answerText: a.answerText ?? a.answer ?? "" })),
   };
-  console.log("📤 [submitExam] examId:", examId);
-  console.log("📤 [submitExam] payload:", JSON.stringify(payload, null, 2));
   const res = await apiClient.post(`/exams/${examId}/submit`, payload);
-  console.log("📥 [submitExam] response status:", res.status);
-  console.log("📥 [submitExam] response data:", res.data);
   return res.data?.data ?? res.data;
 };
 

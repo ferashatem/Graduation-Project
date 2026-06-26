@@ -38,7 +38,7 @@ function ProfessorDashboard() {
       .finally(() => { if (active) setLoading(false); });
 
     return () => { active = false; };
-  }, [doctorCode, profileLoading, refreshKey]);
+  }, [doctorCode, profileLoading, refreshKey, t]);
 
   const handleRetry = useCallback(() => setRefreshKey((k) => k + 1), []);
 

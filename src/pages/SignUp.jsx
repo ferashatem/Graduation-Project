@@ -1,5 +1,4 @@
 import React, { useCallback, useState } from "react";
-import { useTranslation } from "react-i18next";
 import "../assets/styles/styles.css";
 import { Link } from "react-router-dom";
 import { createUserWithEmailAndPassword } from "firebase/auth";

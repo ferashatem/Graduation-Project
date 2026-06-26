@@ -15,7 +15,6 @@ import {
   HiCog,
   HiBookOpen,
   HiDocumentText,
-  HiPlusCircle,
   HiChat,
   HiClipboardList,
   HiChartBar,

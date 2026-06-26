@@ -132,7 +132,7 @@ function StudentQuizzesPage() {
       })
       .catch((e) => setError(e?.response?.data?.message ?? e?.message ?? t("studentQuizzes.failed")))
       .finally(() => setLoading(false));
-  }, []);
+  }, [t]);
 
   return (
     <div className="space-y-6">

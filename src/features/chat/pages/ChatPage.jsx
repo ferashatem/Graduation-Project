@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import {
   HiOutlinePencilAlt, HiOutlineTrash, HiOutlineMenuAlt2,
   HiOutlineMoon, HiOutlineSun, HiCheck, HiX,
 } from "react-icons/hi";
-import { useTranslation } from "react-i18next";
 import { FiArrowUp } from "react-icons/fi";
 import SpeechRecognition, { useSpeechRecognition } from "react-speech-recognition";
-import i18n from "../../../i18n/config";
 import { useChat } from "../hooks/useChat";
 
 // ── Markdown renderer ──────────────────────────────────────────────────────────
@@ -19,7 +18,7 @@ function MarkdownText({ text }) {
     const parts = str.split(/(\*\*[^*]+\*\*)/g);
     return parts.map((p, i) =>
       p.startsWith("**") && p.endsWith("**")
-        ? <strong key={i}>{p.slice(2, -2)}</strong>
+        ? <strong key={i} style={{ color: "inherit", fontWeight: "bold" }}>{p.slice(2, -2)}</strong>
         : p
     );
   };
@@ -199,11 +198,19 @@ function isUserMessage(msg) {
   return false;
 }
 
-function ChatBubble({ msg, onSuggestionClick, onDelete }) {
+function ChatBubble({ msg, onSuggestionClick, onDelete, onRegenerate }) {
   const isUser = isUserMessage(msg);
   const text = msg.content ?? msg.message ?? "";
   const suggestions = !isUser && Array.isArray(msg.suggestions) ? msg.suggestions : [];
   const [hovered, setHovered] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  function copyText() {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }
 
   if (isUser) {
     return (
@@ -222,13 +229,17 @@ function ChatBubble({ msg, onSuggestionClick, onDelete }) {
               <HiOutlineTrash className="h-3.5 w-3.5" />
             </button>
           )}
-          <div className="rounded-2xl rounded-br-sm bg-[#0b2c4a] text-white px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap">
+          <div className="rounded-2xl rounded-br-sm bg-[#0b2c4a] dark:bg-violet-600 text-white px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap" dir="auto">
             {text}
           </div>
         </div>
       </div>
     );
   }
+
+  const isCancelled = msg.streamStatus === "cancelled";
+  const isError = msg.isError || msg.streamStatus === "error";
+  const isCompleted = msg.streamStatus === "completed" || (!msg.streaming && !isCancelled && !isError && text);
 
   return (
     <div
@@ -238,12 +249,30 @@ function ChatBubble({ msg, onSuggestionClick, onDelete }) {
     >
       <AssistantAvatar />
       <div className="flex-1 min-w-0 pt-1">
-        <div className="text-sm leading-relaxed text-slate-800 dark:text-gray-200">
+        <div
+          className={`text-sm leading-relaxed [&_strong]:text-current [&_b]:text-current ${isError ? "text-red-500 dark:text-red-400" : "text-slate-800 dark:text-gray-200"}`}
+          dir="auto"
+        >
           <MarkdownText text={text} />
-          {msg.streaming && (
+          {msg.streaming && msg.streamStatus !== "typing" && (
             <span className="inline-block w-0.5 h-4 bg-slate-600 dark:bg-gray-400 ml-0.5 animate-pulse align-middle" />
           )}
         </div>
+
+        {/* Typing indicator before first token */}
+        {msg.streamStatus === "typing" && !text && (
+          <div className="flex items-center gap-1 mt-1">
+            {[0, 1, 2].map((i) => (
+              <span
+                key={i}
+                className="h-2 w-2 rounded-full bg-violet-500 animate-bounce"
+                style={{ animationDelay: `${i * 0.15}s` }}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Suggestions */}
         {suggestions.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-3">
             {suggestions.map((s, i) => (
@@ -258,14 +287,46 @@ function ChatBubble({ msg, onSuggestionClick, onDelete }) {
             ))}
           </div>
         )}
-        {hovered && (
-          <button
-            type="button"
-            onClick={() => onDelete?.(msg.id)}
-            className="mt-2 p-1 rounded-md text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition"
-          >
-            <HiOutlineTrash className="h-3.5 w-3.5" />
-          </button>
+
+        {/* Action row — shown on hover for completed messages */}
+        {(hovered || isError) && (
+          <div className="flex items-center gap-1.5 mt-2">
+            {isCompleted && (
+              <button
+                type="button"
+                onClick={copyText}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs text-slate-500 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-gray-700 transition"
+              >
+                {copied ? <HiCheck className="h-3.5 w-3.5 text-emerald-500" /> : "📋"}
+                {copied ? "Copied" : "Copy"}
+              </button>
+            )}
+            {(isCompleted || isCancelled) && onRegenerate && (
+              <button
+                type="button"
+                onClick={onRegenerate}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs text-slate-500 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-gray-700 transition"
+              >
+                🔄 Regenerate
+              </button>
+            )}
+            {isError && onRegenerate && (
+              <button
+                type="button"
+                onClick={onRegenerate}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition"
+              >
+                ↩ Retry
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => onDelete?.(msg.id)}
+              className="p-1 rounded-md text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition"
+            >
+              <HiOutlineTrash className="h-3.5 w-3.5" />
+            </button>
+          </div>
         )}
       </div>
     </div>
@@ -302,9 +363,9 @@ function SparkleIcon() {
 // ── Main ChatPage ─────────────────────────────────────────────────────────────
 export default function ChatPage() {
   const {
-    conversations, activeConversationId, messages, sending,
+    conversations, activeConversationId, messages, sending, streamStatus,
     loadingConvs, loadingMsgs, error, pendingConfirmation,
-    selectConversation, startNewConversation, send,
+    selectConversation, startNewConversation, send, cancelSend, regenerate,
     confirmAction, cancelAction, deleteMsg, deleteConv,
   } = useChat();
 
@@ -318,6 +379,8 @@ export default function ChatPage() {
   const bottomRef = useRef(null);
   const textareaRef = useRef(null);
   const baseInputRef = useRef("");
+
+  const { state: locationState } = useLocation();
 
   const { transcript, listening, resetTranscript, browserSupportsSpeechRecognition } =
     useSpeechRecognition();
@@ -342,6 +405,30 @@ export default function ChatPage() {
   useEffect(() => {
     setInput(baseInputRef.current + transcript);
   }, [transcript]);
+
+  // Auto-select conversation passed via navigation state (from My Subjects → explain with AI)
+  useEffect(() => {
+    if (!loadingConvs && locationState?.conversationId) {
+      selectConversation(locationState.conversationId);
+    }
+    // intentionally omit selectConversation — stable useCallback, deps cause false re-runs
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadingConvs, locationState?.conversationId]);
+
+  // Auto-send initial message once the conversation is selected and messages are loaded.
+  // setTimeout + cleanup prevents StrictMode double-fire in development.
+  useEffect(() => {
+    if (
+      !loadingMsgs &&
+      locationState?.autoSend &&
+      activeConversationId === locationState?.conversationId &&
+      messages.length === 0
+    ) {
+      const timer = setTimeout(() => send(locationState.autoSend), 0);
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadingMsgs, activeConversationId, locationState?.conversationId, locationState?.autoSend]);
 
   const toggleMic = useCallback(() => {
     if (listening) {
@@ -542,12 +629,24 @@ export default function ChatPage() {
                   </div>
                 </div>
               ) : (
-                messages.map((msg) => (
-                  <ChatBubble key={msg.id} msg={msg} onSuggestionClick={handleSend} onDelete={deleteMsg} />
-                ))
+                messages.map((msg, idx) => {
+                  const isLastAi = !isUserMessage(msg) && idx === messages.length - 1;
+                  return (
+                    <ChatBubble
+                      key={msg.id}
+                      msg={msg}
+                      onSuggestionClick={handleSend}
+                      onDelete={deleteMsg}
+                      onRegenerate={isLastAi ? regenerate : undefined}
+                    />
+                  );
+                })
               )}
 
-              {sending && <TypingDots />}
+              {/* Global typing dots only when no streaming bubble yet */}
+              {sending && streamStatus === "typing" && messages.every((m) => isUserMessage(m)) && (
+                <TypingDots />
+              )}
 
               {error && (
                 <p className="text-center text-xs text-red-500 bg-red-50 dark:bg-red-900/20 rounded-xl px-3 py-2 ring-1 ring-red-100 dark:ring-red-800">
@@ -579,6 +678,20 @@ export default function ChatPage() {
                     className="flex items-center gap-1.5 rounded-full border border-slate-200 dark:border-gray-600 text-slate-700 dark:text-gray-200 hover:bg-slate-50 dark:hover:bg-gray-700 px-4 py-1.5 text-sm font-semibold transition disabled:opacity-50"
                   >
                     <HiX className="h-4 w-4" /> إلغاء
+                  </button>
+                </div>
+              )}
+
+              {/* Stop Generating button */}
+              {sending && (
+                <div className="flex justify-center mb-2">
+                  <button
+                    type="button"
+                    onClick={cancelSend}
+                    className="flex items-center gap-2 px-4 py-1.5 rounded-full border border-slate-300 dark:border-gray-600 text-sm text-slate-600 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-slate-50 dark:hover:bg-gray-700 transition shadow-sm"
+                  >
+                    <span className="h-3 w-3 rounded-sm bg-slate-600 dark:bg-gray-300 inline-block" />
+                    Stop Generating
                   </button>
                 </div>
               )}

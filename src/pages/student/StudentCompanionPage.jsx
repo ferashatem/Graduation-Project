@@ -1,6 +1,14 @@
-import { useEffect, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import apiClient from "../../api/apiClient";
+import {
+  deleteRecording,
+  fetchMyRecordings,
+  fetchRecordingsDashboard,
+  uploadRecording,
+} from "../../api/recordingsApi";
+import { useRecordingSignalR } from "../../hooks/useRecordingSignalR";
+import { createConversation } from "../../features/chat/api/chatApi";
 
 const unwrap = (res) => res.data?.data ?? res.data;
 
@@ -54,6 +62,26 @@ const submitAnswer = (sessionId, dto) =>
 const fetchReport = (sessionId) =>
   apiClient.get(`/companion/sessions/${sessionId}/report`).then(unwrap);
 
+const fetchMySubjects = () =>
+  apiClient.get("/companion/my-subjects").then(unwrap);
+
+const fetchMaterialsByOffering = (offeringId) =>
+  apiClient.get(`/materials/by-offering/${offeringId}`).then(unwrap);
+
+const explainFile = (file, onUploadProgress) => {
+  const form = new FormData();
+  form.append("file", file);
+  return apiClient
+    .post("/companion/explain-file", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+      onUploadProgress,
+    })
+    .then(unwrap);
+};
+
+const explainMaterial = (materialId) =>
+  apiClient.post(`/companion/explain-material/${materialId}`).then(unwrap);
+
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 const TABS = [
   "Dashboard",
@@ -61,6 +89,8 @@ const TABS = [
   "Study Session",
   "Insights",
   "Profile",
+  "Recordings",
+  "My Subjects",
 ];
 
 // ── Dashboard Tab ─────────────────────────────────────────────────────────────
@@ -140,7 +170,7 @@ function DashboardTab() {
                 {profile.engagementScore != null && (
                   <StatPill
                     label="Engagement"
-                    value={`${profile.engagementScore}/100`}
+                    value={`${Number(profile.engagementScore).toFixed(1)}/100`}
                     color="bg-blue-100 text-blue-700"
                   />
                 )}
@@ -153,7 +183,7 @@ function DashboardTab() {
               <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
                 <div
                   className="h-full rounded-full bg-violet-500 transition-all"
-                  style={{ width: `${profile.engagementScore}%` }}
+                  style={{ width: `${Math.min(100, Number(profile.engagementScore) || 0)}%` }}
                 />
               </div>
             </div>
@@ -1551,7 +1581,7 @@ function ProfileTab() {
               label: "Engagement",
               value:
                 profile.engagementScore != null
-                  ? `${profile.engagementScore}/100`
+                  ? `${Number(profile.engagementScore).toFixed(1)}/100`
                   : "—",
             },
           ].map((s) => (
@@ -1676,6 +1706,783 @@ function ProfileTab() {
   );
 }
 
+// ── Recordings Tab ────────────────────────────────────────────────────────────
+
+const REC_ALLOWED = [".mp3", ".wav", ".m4a", ".aac", ".ogg"];
+const REC_MAX_BYTES = 200 * 1024 * 1024;
+
+function validateAudioFile(file) {
+  const ext = "." + file.name.split(".").pop().toLowerCase();
+  if (!REC_ALLOWED.includes(ext))
+    throw new Error(`النوع ${ext} غير مدعوم. المدعوم: mp3, wav, m4a, aac, ogg`);
+  if (file.type.startsWith("video/"))
+    throw new Error("الفيديوهات غير مدعومة — الصوت فقط");
+  if (file.size > REC_MAX_BYTES)
+    throw new Error("حجم الملف يتجاوز 200 MB");
+}
+
+function recFmtDuration(s) {
+  if (!s) return "--";
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+  return h > 0 ? `${h}س ${m}د` : `${m} دقيقة`;
+}
+function recFmtDate(iso) {
+  if (!iso) return "";
+  return new Date(iso).toLocaleDateString("ar-EG", { day: "numeric", month: "numeric", year: "numeric" });
+}
+function recFmtSize(bytes) {
+  if (!bytes) return "";
+  return bytes >= 1024 * 1024 ? `${(bytes / (1024 * 1024)).toFixed(1)} MB` : `${(bytes / 1024).toFixed(0)} KB`;
+}
+
+const REC_STATUS = {
+  Uploading:    { text: "جاري الرفع",           color: "text-blue-500",   dot: "bg-blue-400",   spin: true  },
+  Transcribing: { text: "جاري النسخ...",         color: "text-amber-500",  dot: "bg-amber-400",  spin: true  },
+  Analyzing:    { text: "جاري التحليل...",       color: "text-amber-500",  dot: "bg-amber-400",  spin: true  },
+  Completed:    { text: "مكتمل",                 color: "text-emerald-600", dot: "bg-emerald-400", spin: false },
+  Failed:       { text: "فشل",                   color: "text-red-500",    dot: "bg-red-400",    spin: false },
+};
+
+function RecStatusBadge({ status }) {
+  const cfg = REC_STATUS[status] ?? REC_STATUS.Analyzing;
+  return (
+    <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${cfg.color}`}>
+      <span className={`h-2 w-2 rounded-full ${cfg.dot} ${cfg.spin ? "animate-pulse" : ""}`} />
+      {cfg.text}
+    </span>
+  );
+}
+
+function RecStatCard({ icon, label, value, color }) {
+  return (
+    <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-100 flex items-center gap-3">
+      <div className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0 text-xl"
+        style={{ background: `${color}18`, border: `1px solid ${color}30` }}>
+        {icon}
+      </div>
+      <div>
+        <p className="text-xl font-bold text-slate-800">{value ?? 0}</p>
+        <p className="text-xs text-slate-500">{label}</p>
+      </div>
+    </div>
+  );
+}
+
+function RecUploadModal({ onClose, onUploaded }) {
+  const [file, setFile] = useState(null);
+  const [error, setError] = useState("");
+  const [progress, setProgress] = useState(0);
+  const [uploading, setUploading] = useState(false);
+  const inputRef = useRef(null);
+
+  function handleFileChange(e) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    try { validateAudioFile(f); setFile(f); setError(""); }
+    catch (err) { setError(err.message); setFile(null); }
+  }
+
+  async function handleUpload() {
+    if (!file) return;
+    setUploading(true); setError("");
+    try {
+      const result = await uploadRecording(file, (evt) => {
+        if (evt.total) setProgress(Math.round((evt.loaded / evt.total) * 100));
+      });
+      onUploaded(result);
+      onClose();
+    } catch { setError("حدث خطأ أثناء الرفع. حاول مرة أخرى."); }
+    finally { setUploading(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl ring-1 ring-slate-100">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-bold text-slate-800">رفع تسجيل محاضرة</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition text-lg">✕</button>
+        </div>
+        <div
+          className="rounded-xl border-2 border-dashed border-slate-200 p-8 text-center cursor-pointer hover:border-violet-400 transition"
+          onClick={() => inputRef.current?.click()}
+        >
+          <p className="text-3xl mb-2">🎙️</p>
+          {file
+            ? <p className="text-sm font-medium text-emerald-600">{file.name}</p>
+            : <>
+                <p className="text-sm text-slate-500">اضغط لاختيار ملف صوتي</p>
+                <p className="text-xs text-slate-400 mt-1">mp3, wav, m4a, aac, ogg — حد أقصى 200 MB</p>
+              </>
+          }
+          <input ref={inputRef} type="file" accept=".mp3,.wav,.m4a,.aac,.ogg,audio/*" className="hidden" onChange={handleFileChange} />
+        </div>
+        {error && <p className="mt-3 text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+        {uploading && (
+          <div className="mt-3">
+            <div className="flex justify-between text-xs text-slate-500 mb-1"><span>جاري الرفع...</span><span>{progress}%</span></div>
+            <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+              <div className="h-full rounded-full bg-violet-500 transition-all" style={{ width: `${progress}%` }} />
+            </div>
+          </div>
+        )}
+        <div className="mt-4 flex gap-3">
+          <button onClick={onClose} disabled={uploading}
+            className="flex-1 rounded-xl py-2 text-sm font-medium text-slate-500 border border-slate-200 hover:bg-slate-50 transition disabled:opacity-40">
+            إلغاء
+          </button>
+          <button onClick={handleUpload} disabled={!file || uploading}
+            className="flex-1 rounded-xl py-2 text-sm font-bold text-white bg-violet-600 hover:bg-violet-700 transition disabled:opacity-40">
+            {uploading ? "جاري الرفع..." : "رفع"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RecDeleteModal({ onConfirm, onCancel, loading }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+      <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl text-center ring-1 ring-slate-100">
+        <p className="text-3xl mb-3">🗑️</p>
+        <h3 className="text-base font-bold text-slate-800 mb-1">حذف التسجيل؟</h3>
+        <p className="text-sm text-slate-500 mb-5">سيتم حذف التسجيل وجميع البيانات المرتبطة به.</p>
+        <div className="flex gap-3">
+          <button onClick={onCancel} className="flex-1 rounded-xl py-2 text-sm text-slate-500 border border-slate-200 hover:bg-slate-50 transition">إلغاء</button>
+          <button onClick={onConfirm} disabled={loading}
+            className="flex-1 rounded-xl py-2 text-sm font-bold text-white bg-red-500 hover:bg-red-600 transition disabled:opacity-40">
+            {loading ? "جاري الحذف..." : "حذف"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── My Subjects helpers ───────────────────────────────────────────────────────
+function getMaterialIcon(contentType) {
+  if (!contentType) return "📁";
+  if (contentType.includes("pdf")) return "📄";
+  if (contentType.includes("word") || contentType.includes("docx")) return "📝";
+  if (contentType.includes("sheet") || contentType.includes("excel") || contentType.includes("xlsx")) return "📊";
+  if (contentType.includes("image")) return "🖼️";
+  if (contentType.includes("csv")) return "📋";
+  if (contentType.includes("text")) return "📃";
+  return "📁";
+}
+
+function matFmtSize(bytes) {
+  if (!bytes) return "";
+  return bytes >= 1024 * 1024
+    ? `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+    : `${(bytes / 1024).toFixed(0)} KB`;
+}
+function matFmtDate(iso) {
+  if (!iso) return "";
+  return new Date(iso).toLocaleDateString("ar-EG", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function validateDocFile(f) {
+  const EXTS = [".pdf", ".docx", ".xlsx", ".csv", ".txt", ".png", ".jpg", ".webp"];
+  const ext = "." + f.name.split(".").pop().toLowerCase();
+  if (!EXTS.includes(ext))
+    throw new Error("نوع الملف غير مدعوم. الأنواع المدعومة: PDF, Word, Excel, CSV, TXT, صور");
+  if (f.size > 100 * 1024 * 1024)
+    throw new Error("حجم الملف يتجاوز 100 MB");
+}
+
+// ── DocUploadModal ────────────────────────────────────────────────────────────
+function DocUploadModal({ onClose, onResult }) {
+  const [file, setFile] = useState(null);
+  const [error, setError] = useState("");
+  const [progress, setProgress] = useState(0);
+  const [uploading, setUploading] = useState(false);
+  const inputRef = useRef(null);
+
+  function handleFileChange(e) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    try { validateDocFile(f); setFile(f); setError(""); }
+    catch (err) { setError(err.message); setFile(null); }
+  }
+
+  async function handleUpload() {
+    if (!file) return;
+    setUploading(true); setError("");
+    try {
+      const result = await explainFile(file, (evt) => {
+        if (evt.total) setProgress(Math.round((evt.loaded / evt.total) * 100));
+      });
+      onResult(result);
+    } catch {
+      setError("حدث خطأ أثناء تحليل الملف. حاول مرة أخرى.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl ring-1 ring-slate-100">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-bold text-slate-800">رفع ملف للشرح بالـ AI</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition text-lg">✕</button>
+        </div>
+        <div
+          className="rounded-xl border-2 border-dashed border-slate-200 p-8 text-center cursor-pointer hover:border-violet-400 transition"
+          onClick={() => inputRef.current?.click()}
+        >
+          <p className="text-3xl mb-2">📎</p>
+          {file
+            ? <p className="text-sm font-medium text-emerald-600">{file.name}</p>
+            : <>
+                <p className="text-sm text-slate-500">اضغط لاختيار ملف</p>
+                <p className="text-xs text-slate-400 mt-1">PDF, Word, Excel, CSV, TXT, صور — حد أقصى 100 MB</p>
+              </>
+          }
+          <input
+            ref={inputRef}
+            type="file"
+            accept=".pdf,.docx,.xlsx,.csv,.txt,.png,.jpg,.webp"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+        </div>
+        {error && <p className="mt-3 text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+        {uploading && (
+          <div className="mt-3">
+            <div className="flex justify-between text-xs text-slate-500 mb-1">
+              <span>جاري التحليل بالذكاء الاصطناعي...</span>
+              <span>{progress}%</span>
+            </div>
+            <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+              <div className="h-full rounded-full bg-violet-500 transition-all" style={{ width: `${progress}%` }} />
+            </div>
+          </div>
+        )}
+        <div className="mt-4 flex gap-3">
+          <button
+            onClick={onClose}
+            disabled={uploading}
+            className="flex-1 rounded-xl py-2 text-sm font-medium text-slate-500 border border-slate-200 hover:bg-slate-50 transition disabled:opacity-40"
+          >
+            إلغاء
+          </button>
+          <button
+            onClick={handleUpload}
+            disabled={!file || uploading}
+            className="flex-1 rounded-xl py-2 text-sm font-bold text-white bg-violet-600 hover:bg-violet-700 transition disabled:opacity-40"
+          >
+            {uploading ? "جاري التحليل..." : "تحليل بالـ AI"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── ExplainResultModal ────────────────────────────────────────────────────────
+function ExplainResultModal({ result, onClose }) {
+  const [flippedIdx, setFlippedIdx] = useState(null);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6">
+      <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl ring-1 ring-slate-100 flex flex-col" style={{ maxHeight: "90vh" }}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
+          <div>
+            <h2 className="text-base font-bold text-slate-800">شرح: {result.filename}</h2>
+            {result.chars_extracted && (
+              <p className="text-xs text-slate-400 mt-0.5">
+                تم قراءة {Number(result.chars_extracted).toLocaleString("ar-EG")} حرف
+              </p>
+            )}
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition text-xl">✕</button>
+        </div>
+
+        <div className="overflow-y-auto flex-1 px-6 py-4 space-y-5">
+          {result.explanation && (
+            <div>
+              <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">الشرح</h3>
+              <div className="rounded-xl bg-violet-50 p-4 text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">
+                {result.explanation}
+              </div>
+            </div>
+          )}
+
+          {result.flashcards?.length > 0 && (
+            <div>
+              <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">
+                فلاشكاردز مولّدة ({result.flashcards.length})
+              </h3>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {result.flashcards.map((card, i) => (
+                  <div
+                    key={card.id ?? i}
+                    className="relative cursor-pointer"
+                    style={{ perspective: 800, height: 120 }}
+                    onClick={() => setFlippedIdx(flippedIdx === i ? null : i)}
+                  >
+                    <div
+                      className="w-full h-full transition-transform duration-500"
+                      style={{ transformStyle: "preserve-3d", transform: flippedIdx === i ? "rotateY(180deg)" : "rotateY(0deg)" }}
+                    >
+                      <div
+                        className="absolute inset-0 rounded-xl bg-violet-100 p-3 flex items-center justify-center text-center text-sm font-medium text-violet-800"
+                        style={{ backfaceVisibility: "hidden" }}
+                      >
+                        {card.front}
+                      </div>
+                      <div
+                        className="absolute inset-0 rounded-xl bg-violet-700 p-3 flex items-center justify-center text-center text-sm text-white"
+                        style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
+                      >
+                        {card.back}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-slate-400 text-center mt-2">اضغط على الكارت لرؤية الإجابة</p>
+            </div>
+          )}
+        </div>
+
+        <div className="px-6 py-4 border-t border-slate-100 shrink-0">
+          <button
+            onClick={onClose}
+            className="w-full rounded-xl py-2.5 text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 transition"
+          >
+            إغلاق
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── My Subjects Tab ───────────────────────────────────────────────────────────
+function MySubjectsTab() {
+  const navigate = useNavigate();
+  const [subjects, setSubjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [selectedSubject, setSelectedSubject] = useState(null);
+  const [materials, setMaterials] = useState([]);
+  const [loadingMaterials, setLoadingMaterials] = useState(false);
+  const [openingChat, setOpeningChat] = useState(null);
+  const [explaining, setExplaining] = useState(null);
+  const [showFileUpload, setShowFileUpload] = useState(false);
+  const [explainResult, setExplainResult] = useState(null);
+
+  useEffect(() => {
+    fetchMySubjects()
+      .then((d) => setSubjects(Array.isArray(d) ? d : []))
+      .catch(() => setError("تعذّر تحميل قائمة المواد"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function handleSelectSubject(subj) {
+    setSelectedSubject(subj);
+    setMaterials([]);
+    setLoadingMaterials(true);
+    try {
+      const res = await fetchMaterialsByOffering(subj.offeringId);
+      const items = res?.items ?? (Array.isArray(res) ? res : []);
+      setMaterials(items);
+    } catch {
+      setMaterials([]);
+    } finally {
+      setLoadingMaterials(false);
+    }
+  }
+
+  async function handleExplainHere(material) {
+    setExplaining(material.id);
+    try {
+      const result = await explainMaterial(material.id);
+      setExplainResult(result);
+    } finally {
+      setExplaining(null);
+    }
+  }
+
+  async function handleDiscussInChat(material) {
+    const name = material.fileName ?? material.title ?? "الملف";
+    setOpeningChat(material.id);
+    try {
+      const conv = await createConversation(`شرح: ${name}`);
+      navigate("/student/chat", {
+        state: {
+          conversationId: conv.id,
+          autoSend: `اشرحلي محتوى الملف: ${name}`,
+        },
+      });
+    } catch {
+      setOpeningChat(null);
+    }
+  }
+
+  return (
+    <div className="space-y-5" dir="rtl">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          {selectedSubject ? (
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={() => { setSelectedSubject(null); setMaterials([]); }}
+                className="flex items-center gap-1 text-xs text-slate-400 hover:text-violet-600 transition"
+              >
+                ← رجوع
+              </button>
+              <span className="text-slate-300">|</span>
+              <p className="text-sm font-semibold text-slate-700">{selectedSubject.subjectName}</p>
+              <span className="text-xs text-slate-400 bg-slate-100 rounded-full px-2 py-0.5">
+                {selectedSubject.subjectCode}
+              </span>
+            </div>
+          ) : (
+            <>
+              <p className="text-sm font-semibold text-slate-700">موادي الدراسية</p>
+              <p className="text-xs text-slate-400">اختر مادة لعرض ملفاتها وشرحها بالذكاء الاصطناعي</p>
+            </>
+          )}
+        </div>
+        <button
+          onClick={() => setShowFileUpload(true)}
+          className="flex items-center gap-1.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white px-3 py-2 text-xs font-semibold transition shrink-0"
+        >
+          <span>📎</span> رفع ملف للشرح
+        </button>
+      </div>
+
+      {/* Error */}
+      {error && !selectedSubject && (
+        <div className="rounded-xl bg-red-50 px-4 py-3 text-xs text-red-600 ring-1 ring-red-100">{error}</div>
+      )}
+
+      {/* Loading subjects */}
+      {loading && !selectedSubject && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {[1, 2, 3, 4].map((k) => (
+            <div key={k} className="h-24 rounded-2xl bg-slate-100 animate-pulse" />
+          ))}
+        </div>
+      )}
+
+      {/* Subjects grid */}
+      {!loading && !selectedSubject && (
+        subjects.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-4xl mb-3">📚</p>
+            <p className="text-sm font-medium text-slate-600 mb-1">لا توجد مواد مسجّلة</p>
+            <p className="text-xs text-slate-400">تأكد من تسجيلك في مواد دراسية لتظهر هنا</p>
+          </div>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {subjects.map((subj) => (
+              <button
+                key={subj.offeringId}
+                onClick={() => handleSelectSubject(subj)}
+                className="text-right rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-100 hover:ring-violet-200 hover:shadow-md transition group"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-violet-50 flex items-center justify-center text-xl shrink-0 ring-1 ring-violet-100">
+                    📖
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-slate-800 group-hover:text-violet-700 transition truncate">
+                      {subj.subjectName}
+                    </p>
+                    <p className="text-xs text-slate-400 mt-0.5">{subj.subjectCode}</p>
+                  </div>
+                  <span className="text-slate-300 group-hover:text-violet-400 transition text-lg leading-none mt-1">›</span>
+                </div>
+                <div className="mt-2 flex items-center gap-2 text-xs text-slate-400 pr-[52px]">
+                  {subj.semesterName && <span>🗓 {subj.semesterName}</span>}
+                  {subj.creditHours && <><span>·</span><span>{subj.creditHours} ساعات</span></>}
+                </div>
+              </button>
+            ))}
+          </div>
+        )
+      )}
+
+      {/* Materials panel */}
+      {selectedSubject && (
+        <div className="space-y-2">
+          {loadingMaterials && (
+            <div className="space-y-2">
+              {[1, 2, 3].map((k) => (
+                <div key={k} className="h-16 rounded-xl bg-slate-100 animate-pulse" />
+              ))}
+            </div>
+          )}
+
+          {!loadingMaterials && materials.length === 0 && (
+            <div className="text-center py-10">
+              <p className="text-3xl mb-2">📂</p>
+              <p className="text-sm text-slate-500">لا توجد ملفات لهذه المادة بعد</p>
+            </div>
+          )}
+
+          {!loadingMaterials &&
+            materials.map((mat) => (
+              <div
+                key={mat.id}
+                className="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-100"
+              >
+                <div className="h-10 w-10 rounded-xl bg-slate-50 flex items-center justify-center text-xl shrink-0 ring-1 ring-slate-100">
+                  {getMaterialIcon(mat.contentType)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-slate-800 truncate">
+                    {mat.title ?? mat.fileName}
+                  </p>
+                  {mat.description && (
+                    <p className="text-xs text-slate-400 truncate mt-0.5">{mat.description}</p>
+                  )}
+                  <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
+                    {mat.fileSize && <span>{matFmtSize(mat.fileSize)}</span>}
+                    {mat.uploadedAt && <span>· {matFmtDate(mat.uploadedAt)}</span>}
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1.5 shrink-0">
+                  <button
+                    onClick={() => handleExplainHere(mat)}
+                    disabled={!!explaining || !!openingChat}
+                    className="flex items-center gap-1 rounded-lg bg-violet-50 hover:bg-violet-100 text-violet-700 px-2.5 py-1.5 text-xs font-medium transition disabled:opacity-50 whitespace-nowrap"
+                  >
+                    {explaining === mat.id
+                      ? "جاري الشرح..."
+                      : <><span>✨</span><span>شرح هنا</span></>
+                    }
+                  </button>
+                  <button
+                    onClick={() => handleDiscussInChat(mat)}
+                    disabled={!!openingChat || !!explaining}
+                    className="flex items-center gap-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 px-2.5 py-1.5 text-xs font-medium transition disabled:opacity-50 whitespace-nowrap"
+                  >
+                    {openingChat === mat.id
+                      ? "جاري الفتح..."
+                      : <><span>💬</span><span>ناقش في الشات</span></>
+                    }
+                  </button>
+                  {mat.fileUrl && (
+                    <a
+                      href={mat.fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-1 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-600 px-2.5 py-1.5 text-xs font-medium transition whitespace-nowrap"
+                    >
+                      <span>⬇️</span><span>تحميل</span>
+                    </a>
+                  )}
+                </div>
+              </div>
+            ))}
+        </div>
+      )}
+
+      {showFileUpload && (
+        <DocUploadModal
+          onClose={() => setShowFileUpload(false)}
+          onResult={(r) => { setShowFileUpload(false); setExplainResult(r); }}
+        />
+      )}
+
+      {explainResult && (
+        <ExplainResultModal result={explainResult} onClose={() => setExplainResult(null)} />
+      )}
+    </div>
+  );
+}
+
+// ── Recordings Tab ────────────────────────────────────────────────────────────
+function RecordingsTab() {
+  const navigate = useNavigate();
+  const [dashboard, setDashboard] = useState(null);
+  const [recordings, setRecordings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [showUpload, setShowUpload] = useState(false);
+  const [deleteId, setDeleteId] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const loadData = useCallback(async () => {
+    setLoading(true); setError("");
+    const [dashResult, listResult] = await Promise.allSettled([
+      fetchRecordingsDashboard(),
+      fetchMyRecordings(),
+    ]);
+    if (dashResult.status === "fulfilled") setDashboard(dashResult.value);
+    if (listResult.status === "fulfilled")
+      setRecordings(Array.isArray(listResult.value) ? listResult.value : []);
+    // 500 = backend feature not deployed yet → show empty state, no error banner
+    // Only surface an error for non-5xx failures (auth, network, etc.)
+    if (dashResult.status === "rejected" && listResult.status === "rejected") {
+      const status = listResult.reason?.response?.status ?? dashResult.reason?.response?.status;
+      if (!status || status < 500) {
+        setError("تعذّر الاتصال بالخادم. تحقق من الاتصال وحاول مجدداً.");
+      }
+      // 5xx: silently show empty state — feature not ready on backend yet
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  useRecordingSignalR({
+    onStatusChanged: ({ recordingId, status, error: errMsg }) => {
+      setRecordings((prev) =>
+        prev.map((r) => r.id === recordingId ? { ...r, status, errorMessage: errMsg ?? r.errorMessage } : r)
+      );
+      if (status === "Completed") loadData();
+    },
+  });
+
+  function handleUploaded(result) {
+    setRecordings((prev) => [{
+      id: result.recordingId,
+      originalFileName: "تسجيل جديد",
+      status: "Transcribing",
+      createdAt: new Date().toISOString(),
+    }, ...prev]);
+  }
+
+  async function handleDelete() {
+    if (!deleteId) return;
+    setDeleting(true);
+    try { await deleteRecording(deleteId); setRecordings((prev) => prev.filter((r) => r.id !== deleteId)); setDeleteId(null); }
+    catch {}
+    finally { setDeleting(false); }
+  }
+
+  const isProcessing = (status) => ["Uploading", "Transcribing", "Analyzing"].includes(status);
+
+  return (
+    <div className="space-y-5" dir="rtl">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-semibold text-slate-700">تسجيلات المحاضرات</p>
+          <p className="text-xs text-slate-400">حوّل محاضراتك لملخصات وفلاشكاردز وكويز بالذكاء الاصطناعي</p>
+        </div>
+        <button
+          onClick={() => setShowUpload(true)}
+          className="flex items-center gap-1.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white px-3 py-2 text-xs font-semibold transition"
+        >
+          <span>🎙️</span> رفع تسجيل
+        </button>
+      </div>
+
+      {/* Stats */}
+      {dashboard && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <RecStatCard icon="🎙️" label="التسجيلات" value={dashboard.totalRecordings} color="#7c3aed" />
+          <RecStatCard icon="⏱" label="ساعات الدراسة" value={dashboard.totalStudyHours} color="#0ea5e9" />
+          <RecStatCard icon="🃏" label="فلاشكاردز" value={dashboard.totalFlashcards} color="#10b981" />
+          <RecStatCard icon="📝" label="أسئلة كويز" value={dashboard.totalQuizQuestions} color="#f59e0b" />
+        </div>
+      )}
+
+      {/* Error */}
+      {error && (
+        <div className="rounded-xl bg-red-50 px-4 py-3 text-xs text-red-600 ring-1 ring-red-100 flex items-center justify-between">
+          <span>{error}</span>
+          <button onClick={loadData} className="font-semibold underline">إعادة المحاولة</button>
+        </div>
+      )}
+
+      {/* Loading */}
+      {loading && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {[1, 2].map((k) => (
+            <div key={k} className="h-36 rounded-2xl bg-slate-100 animate-pulse" />
+          ))}
+        </div>
+      )}
+
+      {/* Empty */}
+      {!loading && !error && recordings.length === 0 && (
+        <div className="text-center py-12">
+          <p className="text-4xl mb-3">🎙️</p>
+          <p className="text-sm font-medium text-slate-600 mb-1">لم تقم برفع أي تسجيلات بعد</p>
+          <p className="text-xs text-slate-400 mb-4">ارفع محاضرة صوتية وسيحولها الذكاء الاصطناعي لمحتوى دراسي</p>
+          <button
+            onClick={() => setShowUpload(true)}
+            className="rounded-xl bg-violet-600 text-white px-5 py-2 text-sm font-semibold"
+          >
+            رفع أول تسجيل
+          </button>
+        </div>
+      )}
+
+      {/* List */}
+      {!loading && recordings.length > 0 && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {recordings.map((rec) => {
+            const done = rec.status === "Completed";
+            return (
+              <div key={rec.id} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-100">
+                {/* File name + delete */}
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-base shrink-0">🎙️</span>
+                    <p className="truncate text-sm font-semibold text-slate-800">{rec.originalFileName}</p>
+                  </div>
+                  <button
+                    onClick={() => setDeleteId(rec.id)}
+                    className="shrink-0 p-1 rounded-lg text-slate-300 hover:text-red-400 hover:bg-red-50 transition"
+                  >🗑️</button>
+                </div>
+
+                {/* Meta */}
+                <div className="flex flex-wrap gap-2 text-xs text-slate-400 mb-2">
+                  <span>⏱ {recFmtDuration(rec.durationSeconds)}</span>
+                  <span>📅 {recFmtDate(rec.createdAt)}</span>
+                  {rec.fileSize ? <span>{recFmtSize(rec.fileSize)}</span> : null}
+                  {rec.transcriptChars ? <span>📄 {rec.transcriptChars.toLocaleString()} حرف</span> : null}
+                </div>
+
+                <RecStatusBadge status={rec.status} />
+
+                {/* Actions */}
+                {done && (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {[
+                      { label: "ملخص",      tab: "summary",    emoji: "📊" },
+                      { label: "فلاشكاردز", tab: "flashcards", emoji: "🃏" },
+                      { label: "كويز",      tab: "quiz",       emoji: "📝" },
+                      { label: "اسأل AI",   tab: "ask",        emoji: "💬" },
+                    ].map(({ label, tab, emoji }) => (
+                      <button
+                        key={tab}
+                        onClick={() => navigate(`/student/recordings/${rec.id}`, { state: { initialTab: tab } })}
+                        className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium text-violet-700 bg-violet-50 hover:bg-violet-100 transition"
+                      >
+                        <span>{emoji}</span><span>{label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {rec.status === "Failed" && rec.errorMessage && (
+                  <p className="mt-2 text-xs text-red-500 bg-red-50 rounded-lg px-2 py-1">{rec.errorMessage}</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {showUpload && <RecUploadModal onClose={() => setShowUpload(false)} onUploaded={handleUploaded} />}
+      {deleteId && <RecDeleteModal onConfirm={handleDelete} onCancel={() => setDeleteId(null)} loading={deleting} />}
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 function StudentCompanionPage() {
   const [activeTab, setActiveTab] = useState(0);
@@ -1689,14 +2496,14 @@ function StudentCompanionPage() {
         </p>
       </div>
 
-      {/* Tab bar */}
-      <div className="flex gap-1 rounded-2xl bg-slate-100 p-1">
+      {/* Tab bar — scrollable so 6 tabs never cramp */}
+      <div className="flex gap-1 rounded-2xl bg-slate-100 p-1 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
         {TABS.map((tab, i) => (
           <button
             key={tab}
             type="button"
             onClick={() => setActiveTab(i)}
-            className={`flex-1 rounded-xl py-2 text-xs font-semibold transition ${
+            className={`shrink-0 rounded-xl px-4 py-2 text-xs font-semibold transition whitespace-nowrap ${
               activeTab === i
                 ? "bg-white text-slate-800 shadow-sm"
                 : "text-slate-500 hover:text-slate-700"
@@ -1713,6 +2520,8 @@ function StudentCompanionPage() {
       {activeTab === 2 && <StudySessionTab />}
       {activeTab === 3 && <InsightsTab />}
       {activeTab === 4 && <ProfileTab />}
+      {activeTab === 5 && <RecordingsTab />}
+      {activeTab === 6 && <MySubjectsTab />}
     </div>
   );
 }

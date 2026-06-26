@@ -1,5 +1,4 @@
 import { useCallback, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { Box, Typography, alpha } from "@mui/material";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";

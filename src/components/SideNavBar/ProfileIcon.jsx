@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
 import profile from "../../assets/imgs/profile.png";
 import ring from "../../assets/imgs/ring.png";
 

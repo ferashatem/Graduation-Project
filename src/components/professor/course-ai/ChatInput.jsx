@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { FiArrowUp } from "react-icons/fi";
 import SpeechRecognition, { useSpeechRecognition } from "react-speech-recognition";
-import i18n from "../../../i18n/config";
 
 function MicIcon() {
   return (

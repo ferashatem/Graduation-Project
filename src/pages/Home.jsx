@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { fetchAdminDashboard, fetchAnalyticsSummary } from "../api/analyticsApi";
 
 function StatCard({ label, value, color = "#1a5fa3" }) {

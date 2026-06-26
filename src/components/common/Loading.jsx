@@ -1,5 +1,4 @@
 import { CircularProgress } from "@mui/material";
-import { useTranslation } from "react-i18next";
 
 function Loading({ label }) {
   return (

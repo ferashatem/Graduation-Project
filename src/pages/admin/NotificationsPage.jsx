@@ -22,8 +22,6 @@ import { fetchAllDepartments } from "../../features/departments/api/departmentsA
 import apiClient from "../../api/apiClient";
 import { getErrorMessage } from "../../utils/errorHelpers";
 
-const breadcrumbs = [{ label: "Analytics & Reports" }, { label: "Send Notifications" }];
-
 const BROADCAST_TARGETS = [
   { value: "All",      label: "All Users"     },
   { value: "Students", label: "All Students"  },

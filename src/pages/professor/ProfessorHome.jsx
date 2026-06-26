@@ -52,7 +52,7 @@ function ProfessorHome() {
       .catch((e) => { if (active) setError(e?.response?.data?.message ?? e?.message ?? t("profHome.failed")); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [doctorCode, profileLoading, refreshKey]);
+  }, [doctorCode, profileLoading, refreshKey, t]);
 
   const profileSummary = useMemo(() => ({
     name: profile?.fullName ?? profile?.Full_Name ?? profile?.name ?? profile?.displayName ?? t("profHome.role"),

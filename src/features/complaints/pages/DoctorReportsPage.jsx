@@ -1,9 +1,8 @@
 import { useMemo, useState } from "react";
 import {
   Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle,
-  MenuItem, Tab, Tabs, TextField, ToggleButton, ToggleButtonGroup,
+  Tab, Tabs, TextField, ToggleButton, ToggleButtonGroup,
 } from "@mui/material";
-import { useTranslation } from "react-i18next";
 import PageHeader from "../../../components/common/PageHeader";
 import Loading from "../../../components/common/Loading";
 import ErrorState from "../../../components/common/ErrorState";

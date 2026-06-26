@@ -3,7 +3,6 @@ import { useOutletContext } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { HiChevronDown, HiChevronUp } from "react-icons/hi";
 import { fetchMySubjects } from "../../features/professor/api/professorBackendApi";
-import PageHeader from "../../components/common/PageHeader";
 import Loading from "../../components/common/Loading";
 import ErrorState from "../../components/common/ErrorState";
 import CourseMaterialsSection from "../../components/professor/CourseMaterialsSection";
@@ -43,7 +42,6 @@ function AddMaterialTrigger({ professorUid, course }) {
 function CourseCard({ subject, professorUid }) {
   const { t } = useTranslation();
   const [materialsOpen, setMaterialsOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
 
   const name = subject.subjectName ?? subject.name ?? subject.courseName ?? t("profCourses.untitled");
   const code = subject.subjectCode ?? subject.code ?? "-";
@@ -76,7 +74,6 @@ function CourseCard({ subject, professorUid }) {
           <div className="relative">
             <button
               type="button"
-              onClick={() => setMenuOpen((o) => !o)}
               className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 transition"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
@@ -150,7 +147,7 @@ function ProfessorCoursesPage() {
       .finally(() => { if (active) setLoading(false); });
 
     return () => { active = false; };
-  }, [doctorCode, profileLoading, refreshKey]);
+  }, [doctorCode, profileLoading, refreshKey, t]);
 
   const handleRetry = useCallback(() => setRefreshKey((k) => k + 1), []);
 

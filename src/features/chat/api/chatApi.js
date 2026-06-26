@@ -3,45 +3,101 @@ import { getStoredAccessToken } from "../../../auth/session";
 
 const STREAM_BASE = "https://universitymanagementsystem-production-e58e.up.railway.app/api";
 
-export const sendMessageStream = async (conversationId, content, { onToken, onMeta, onDone, onError } = {}) => {
+/**
+ * SSE streaming send.
+ * Handles event types: typing | token | completed | error | cancelled
+ * Returns a cancel function — call it to abort mid-stream.
+ */
+export const sendMessageStream = async (
+  conversationId,
+  message,
+  { onTyping, onToken, onCompleted, onCancelled, onError } = {}
+) => {
   const token = getStoredAccessToken();
-  const resp = await fetch(`${STREAM_BASE}/chat/stream`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify({ conversationId, content }),
-  });
+  const controller = new AbortController();
 
-  if (!resp.ok) {
-    const msg = await resp.text().catch(() => `HTTP ${resp.status}`);
-    onError?.(msg);
-    return;
-  }
-
-  const reader = resp.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() ?? "";
-    for (const line of lines) {
-      if (!line.startsWith("data: ")) continue;
-      try {
-        const frame = JSON.parse(line.slice(6));
-        if (frame.type === "token") onToken?.(frame.content);
-        else if (frame.type === "meta") onMeta?.(frame);
-        else if (frame.type === "done") { onDone?.(); return; }
-        else if (frame.type === "error") { onError?.(frame.message); return; }
-      } catch {}
+  const doFetch = async () => {
+    let resp;
+    try {
+      resp = await fetch(`${STREAM_BASE}/chat/stream`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ conversationId, message }),
+        signal: controller.signal,
+      });
+    } catch (err) {
+      if (err.name === "AbortError") { onCancelled?.(); return; }
+      onError?.(err.message ?? "Connection failed");
+      return;
     }
-  }
-  onDone?.();
+
+    if (!resp.ok) {
+      const msg = await resp.text().catch(() => `HTTP ${resp.status}`);
+      onError?.(msg);
+      return;
+    }
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const raw = line.slice(6).trim();
+          if (!raw) continue;
+
+          let frame;
+          try { frame = JSON.parse(raw); } catch { continue; }
+
+          switch (frame.type) {
+            case "typing":
+              onTyping?.();
+              break;
+            case "token":
+              onToken?.(frame.content ?? "");
+              break;
+            // legacy "done" event (kept for backward compat)
+            case "done":
+              onCompleted?.({});
+              return;
+            case "completed":
+              onCompleted?.(frame);
+              return;
+            case "error":
+              onError?.(frame.message ?? "Stream error");
+              return;
+            case "cancelled":
+              onCancelled?.(frame.message);
+              return;
+            // legacy "meta" — treat as completion metadata
+            case "meta":
+              if (frame.suggestions) onCompleted?.({ suggestions: frame.suggestions });
+              break;
+            default:
+              break;
+          }
+        }
+      }
+    } catch (err) {
+      if (err.name === "AbortError") { onCancelled?.(); }
+      else { onError?.(err.message ?? "Stream interrupted"); }
+    }
+  };
+
+  doFetch();
+  return () => controller.abort();
 };
 
 export const sendMessage = async (conversationId, content) => {

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import PageHeader from "../../components/common/PageHeader";
 import Loading from "../../components/common/Loading";
 import ErrorState from "../../components/common/ErrorState";
 import { fetchMySchedule, fetchMyToday } from "../../api/scheduleApi";
@@ -132,12 +131,11 @@ function ProfessorSchedulePage() {
     } finally {
       setLoading(false);
     }
-  }, [mode]);
+  }, [mode, t]);
 
   useEffect(() => { loadSchedule(); }, [loadSchedule]);
 
   const todayNumber = new Date().getDay();
-  const todayLabel = DAYS.find((d) => d.number === todayNumber)?.label ?? "";
 
   return (
     <div className="space-y-5">

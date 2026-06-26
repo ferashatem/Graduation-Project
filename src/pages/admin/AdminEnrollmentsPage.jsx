@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Alert, Button, Chip, CircularProgress, Dialog, DialogActions,
-  DialogContent, DialogTitle, InputAdornment, List, ListItemButton,
+  DialogContent, DialogTitle, List, ListItemButton,
   ListItemText,
 } from "@mui/material";
 import { HiSearch, HiUserAdd, HiTrash, HiChevronDown, HiChevronUp } from "react-icons/hi";
@@ -14,8 +14,6 @@ import { fetchYears } from "../../features/years/api/yearsApi";
 import { fetchSemestersByYear } from "../../features/semesters/api/semestersApi";
 import { fetchOfferingsBySemester } from "../../features/subjectOfferings/api/subjectOfferingsApi";
 import { getErrorMessage } from "../../utils/errorHelpers";
-
-const breadcrumbs = [{ label: "Subjects & Registration" }, { label: "Enrollments" }];
 
 // ── Step selector ─────────────────────────────────────────────────────────────
 function StepSelect({ label, value, onChange, options, disabled, placeholder }) {

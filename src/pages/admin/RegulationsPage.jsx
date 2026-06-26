@@ -19,8 +19,6 @@ import {
 import { getErrorMessage } from "../../utils/errorHelpers";
 import apiClient from "../../api/apiClient";
 
-const breadcrumbs = [{ label: "Settings & Reports" }, { label: "Regulations" }];
-
 const emptyForm = { title: "", content: "", type: 0, isActive: true, departmentId: "", subjectsJson: "" };
 
 const ALLOWED_TYPES = ".pdf,.doc,.docx,.xls,.xlsx";

@@ -43,7 +43,7 @@ function ProfessorNotificationsPage() {
     } finally {
       setSending(false);
     }
-  }, [form]);
+  }, [form, t]);
 
   return (
     <div className="space-y-6">

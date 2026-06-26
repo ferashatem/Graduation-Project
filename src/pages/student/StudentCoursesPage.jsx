@@ -43,7 +43,7 @@ function MaterialsList({ offeringId }) {
       })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [offeringId]);
+  }, [offeringId, t]);
 
   const handleDownload = useCallback(async (materialId) => {
     setDownloading(materialId);
@@ -173,7 +173,7 @@ function AvailableOfferingsSection({ enrolledIds, onEnrolled }) {
     } finally {
       setEnrolling(null);
     }
-  }, [onEnrolled]);
+  }, [onEnrolled, t]);
 
   const available = offerings.filter((o) => !enrolledIds.has(o.id));
 
@@ -249,7 +249,6 @@ function StudentCoursesPage() {
     setEnrollmentsLoading(true);
     fetchMyEnrollments()
       .then((data) => {
-        console.log("📚 [enrollments] sample item:", data[0]);
         setEnrollments(data);
       })
       .catch(() => setEnrollments([]))

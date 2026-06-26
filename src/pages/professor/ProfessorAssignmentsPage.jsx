@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
 import {
   HiPlus, HiTrash, HiPencil,
   HiCheckCircle, HiClock, HiSparkles, HiRefresh, HiDocumentDownload,

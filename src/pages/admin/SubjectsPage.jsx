@@ -24,8 +24,6 @@ import { fetchDepartmentsByCollege } from "../../features/departments/api/depart
 import { fetchBatchesByDepartment } from "../../features/batches/api/batchesApi";
 import { getErrorMessage } from "../../utils/errorHelpers";
 
-const breadcrumbs = [{ label: "Subjects & Registration" }, { label: "Subjects" }];
-
 const emptyForm = { name: "", code: "", creditHours: 3 };
 
 // ─── Subject Form Dialog ──────────────────────────────────────────────────────

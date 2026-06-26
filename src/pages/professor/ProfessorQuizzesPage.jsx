@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { Link, useOutletContext } from "react-router-dom";
 import { HiBookOpen, HiPencil, HiPlus, HiTrash, HiX } from "react-icons/hi";
 import {

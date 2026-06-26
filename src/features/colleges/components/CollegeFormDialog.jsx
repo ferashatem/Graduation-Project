@@ -11,7 +11,6 @@ import {
   CircularProgress,
   InputAdornment,
 } from "@mui/material";
-import { useTranslation } from "react-i18next";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import { fetchUniversities } from "../api/collegesApi";
 

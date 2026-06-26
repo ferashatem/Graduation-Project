@@ -7,7 +7,6 @@ import {
   DialogContent,
   DialogTitle,
 } from "@mui/material";
-import { useTranslation } from "react-i18next";
 import { createAssignmentMaterial } from "../../firebase/assignmentMaterialsApi";
 import { getErrorMessage } from "../../utils/errorHelpers";
 
