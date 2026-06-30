@@ -25,14 +25,16 @@ const refreshOffering = (offeringId) =>
 
 // ── Risk badge ────────────────────────────────────────────────────────────────
 function RiskBadge({ level }) {
+  const normalized = level ? level.charAt(0).toUpperCase() + level.slice(1).toLowerCase() : null;
   const cfg = {
-    High:   "bg-red-100 text-red-700",
-    Medium: "bg-amber-100 text-amber-700",
-    Low:    "bg-emerald-100 text-emerald-700",
+    Critical: "bg-red-200 text-red-800",
+    High:     "bg-red-100 text-red-700",
+    Medium:   "bg-amber-100 text-amber-700",
+    Low:      "bg-emerald-100 text-emerald-700",
   };
   return (
-    <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${cfg[level] ?? "bg-slate-100 text-slate-500"}`}>
-      {level ?? "—"}
+    <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${cfg[normalized] ?? "bg-slate-100 text-slate-500"}`}>
+      {normalized ?? "—"}
     </span>
   );
 }
@@ -51,17 +53,17 @@ function OfferingDrawer({ offering, onClose }) {
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    if (!offering?.id) return;
-    fetchOfferingAnalytics(offering.id)
+    if (!offering?.offeringId) return;
+    fetchOfferingAnalytics(offering.offeringId)
       .then(setData)
       .catch(() => setError("Failed to load analytics for this offering."))
       .finally(() => setLoading(false));
-  }, [offering?.id]);
+  }, [offering?.offeringId]);
 
   const handleLoadTopics = () => {
     if (topics || topicsLoading) return;
     setTopicsLoading(true);
-    fetchOfferingTopics(offering.id)
+    fetchOfferingTopics(offering.offeringId)
       .then(setTopics)
       .catch(() => {})
       .finally(() => setTopicsLoading(false));
@@ -70,7 +72,7 @@ function OfferingDrawer({ offering, onClose }) {
   const handleLoadStudents = () => {
     if (students || studentsLoading) return;
     setStudentsLoading(true);
-    apiClient.get(`/teaching-intelligence/offerings/${offering.id}/students`, {
+    apiClient.get(`/teaching-intelligence/offerings/${offering.offeringId}/students`, {
       params: { page: 1, pageSize: 50, sortBy: "RiskScore", sortDir: "desc" },
     }).then((res) => {
       const d = res.data?.data ?? res.data;
@@ -81,12 +83,12 @@ function OfferingDrawer({ offering, onClose }) {
   const handleExport = async () => {
     setExporting(true);
     try {
-      const result = await fetchOfferingExport(offering.id);
-      const rows = result?.rows ?? result?.data ?? [];
+      const result = await fetchOfferingExport(offering.offeringId);
+      const columns = result?.columns ?? [];
+      const rows = result?.rows ?? [];
       if (rows.length === 0) { alert("No data to export."); return; }
-      // Simple CSV export (no SheetJS dependency)
-      const headers = Object.keys(rows[0]);
-      const csv = [headers.join(","), ...rows.map((r) => headers.map((h) => `"${r[h] ?? ""}"`).join(","))].join("\n");
+      // API returns { columns: string[], rows: any[][] }
+      const csv = [columns.join(","), ...rows.map((r) => columns.map((_, idx) => `"${r[idx] ?? ""}"`).join(","))].join("\n");
       const blob = new Blob([csv], { type: "text/csv" });
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement("a");
@@ -98,7 +100,7 @@ function OfferingDrawer({ offering, onClose }) {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    try { await refreshOffering(offering.id); }
+    try { await refreshOffering(offering.offeringId); }
     catch { /* 202 accepted — ignore */ }
     finally { setRefreshing(false); }
   };
@@ -257,22 +259,26 @@ function OfferingDrawer({ offering, onClose }) {
           {drawerTab === 0 && !loading && data && (
             <>
               {/* Grade distribution */}
-              {data.gradeDistribution?.length > 0 && (
+              {data.gradeDistribution?.histogram?.length > 0 && (
                 <div>
                   <h3 className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500">Grade Distribution</h3>
                   <div className="space-y-2">
-                    {data.gradeDistribution.map((g, i) => (
-                      <div key={i} className="flex items-center gap-3">
-                        <span className="w-8 text-xs font-bold text-slate-600 text-right shrink-0">{g.grade ?? g.gradeLetter}</span>
-                        <div className="flex-1 h-2.5 rounded-full bg-slate-100 overflow-hidden">
-                          <div
-                            className="h-full rounded-full bg-[#0b2c4a] transition-all"
-                            style={{ width: `${g.percentage ?? 0}%` }}
-                          />
+                    {data.gradeDistribution.histogram.map((g, i) => {
+                      const total = data.gradeDistribution.histogram.reduce((s, x) => s + (x.count ?? 0), 0);
+                      const pct = total > 0 ? ((g.count ?? 0) / total) * 100 : 0;
+                      return (
+                        <div key={i} className="flex items-center gap-3">
+                          <span className="w-12 text-xs font-bold text-slate-600 text-right shrink-0">{g.range}</span>
+                          <div className="flex-1 h-2.5 rounded-full bg-slate-100 overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-[#0b2c4a] transition-all"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <span className="text-xs text-slate-400 shrink-0">{g.count ?? 0}</span>
                         </div>
-                        <span className="text-xs text-slate-400 shrink-0">{g.count ?? 0} ({(g.percentage ?? 0).toFixed(0)}%)</span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -295,13 +301,13 @@ function OfferingDrawer({ offering, onClose }) {
               )}
 
               {/* Students */}
-              {data.students?.length > 0 && (
+              {(data.students?.items ?? data.students ?? []).length > 0 && (
                 <div>
                   <h3 className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500">
-                    Students ({data.students.length})
+                    Students ({data.students?.totalCount ?? (data.students?.items ?? data.students ?? []).length})
                   </h3>
                   <div className="space-y-2">
-                    {data.students.slice(0, 20).map((s, i) => (
+                    {(data.students?.items ?? data.students ?? []).slice(0, 20).map((s, i) => (
                       <div key={s.studentId ?? i} className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
                         <div>
                           <p className="text-sm font-semibold text-slate-800">{s.studentName ?? "Student"}</p>
