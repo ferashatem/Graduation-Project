@@ -208,15 +208,25 @@ function AppRoutes() {
           }
         >
           <Route path="home" element={<Home />} />
-          <Route
-            path="create-admin"
-            element={
-              <RequireRole role="super_admin">
-                <CreateAdminUser />
-              </RequireRole>
-            }
-          />
+          <Route path="create-admin" element={<CreateAdminUser />} />
           <Route path="bulk-import-users" element={<BulkImportUsersPage />} />
+
+          {/* ── People ── */}
+          <Route path="students" element={<StudentsPage />} />
+          <Route path="doctors" element={<DoctorsPage />} />
+          <Route path="admins" element={<AdminsManagementPage />} />
+
+          {/* ── Complaints ── */}
+          <Route path="complaints" element={<AdminComplaintsPage />} />
+
+          {/* ── Analytics ── */}
+          <Route path="analytics" element={<AnalyticsDashboardPage />} />
+          <Route path="notifications" element={<NotificationsPage />} />
+          <Route path="audit-logs" element={<AuditLogsPage />} />
+
+          {/* ── Chat & Settings ── */}
+          <Route path="chat" element={<ChatPage />} />
+          <Route path="change-password" element={<ForceChangePassword />} />
         </Route>
 
         {/* Professor Routes */}

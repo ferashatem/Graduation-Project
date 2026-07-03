@@ -782,7 +782,7 @@ export default function RecordingDetailsPage() {
       <div className="flex items-center gap-3">
         <button
           onClick={() => navigate("/student/companion")}
-          className="rounded-xl p-2 text-white/50 hover:text-white hover:bg-white/10 transition"
+          className="rounded-xl p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
         >
           →
         </button>
@@ -801,17 +801,17 @@ export default function RecordingDetailsPage() {
 
       {/* Tabs */}
       <div
-        className="flex gap-1 overflow-x-auto pb-1"
-        style={{ scrollbarWidth: "none" }}
+        className="flex gap-1 overflow-x-auto rounded-xl p-1"
+        style={{ background: "rgba(0,0,0,0.06)", scrollbarWidth: "none" }}
       >
         {TABS.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`shrink-0 flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-medium transition ${
+            className={`shrink-0 flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition ${
               activeTab === tab.id
-                ? "bg-[#2e86ab] text-white"
-                : "text-white/50 hover:text-white hover:bg-white/5"
+                ? "bg-[#2e86ab] text-white shadow-sm"
+                : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
             }`}
           >
             <span>{tab.icon}</span>

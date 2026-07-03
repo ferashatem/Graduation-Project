@@ -101,8 +101,36 @@ const SUPER_ADMIN_SECTIONS = [
   {
     id: "users", label: "adminNav.secUsers", icon: HiUsers,
     items: [
-      { label: "adminNav.createAdmin", to: "/super_admin/create-admin",    icon: HiUsers  },
-      { label: "adminNav.bulkImport",  to: "/super_admin/bulk-import-users",icon: HiUpload },
+      { label: "adminNav.createAdmin",   to: "/super_admin/create-admin",     icon: HiUsers  },
+      { label: "adminNav.bulkImport",    to: "/super_admin/bulk-import-users", icon: HiUpload },
+      { label: "adminNav.adminsManagement", to: "/super_admin/admins",        icon: HiCog    },
+    ],
+  },
+  {
+    id: "students", label: "adminNav.secStudents", icon: HiUserGroup,
+    items: [
+      { label: "adminNav.allStudents",  to: "/super_admin/students", icon: HiUsers       },
+      { label: "adminNav.doctors",      to: "/super_admin/doctors",  icon: HiAcademicCap },
+    ],
+  },
+  {
+    id: "complaints", label: "adminNav.secComplaints", icon: HiClipboardList,
+    items: [
+      { label: "adminNav.allComplaints", to: "/super_admin/complaints", icon: HiClipboardList },
+    ],
+  },
+  {
+    id: "analytics", label: "adminNav.secAnalytics", icon: HiChartBar,
+    items: [
+      { label: "adminNav.analyticsDashboard", to: "/super_admin/analytics",     icon: HiChartBar      },
+      { label: "adminNav.sendNotifications",  to: "/super_admin/notifications", icon: HiBell          },
+      { label: "adminNav.auditLogs",          to: "/super_admin/audit-logs",    icon: HiClipboardList },
+    ],
+  },
+  {
+    id: "settings", label: "adminNav.secSettings", icon: HiCog,
+    items: [
+      { label: "adminNav.changePassword", to: "/super_admin/change-password", icon: HiCog },
     ],
   },
 ];
@@ -289,10 +317,10 @@ function AdminSidebar({ open = false, onClose, onNavigate, profile, user, role =
         </nav>
 
         {/* ── AI Chat link ── */}
-        {role === "admin" && (
+        {(role === "admin" || role === "super_admin") && (
           <div className="px-3 pb-2">
             <NavLink
-              to="/admin/chat"
+              to={role === "super_admin" ? "/super_admin/chat" : "/admin/chat"}
               onClick={handleNavigate}
               className={({ isActive }) =>
                 `flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium transition border-l-[2px] ${

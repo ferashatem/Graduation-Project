@@ -16,7 +16,7 @@ import {
 } from "@mui/material";
 import { fetchDoctorOptions } from "../api/complaintsApi";
 
-const TARGET_TYPES = ["Doctor", "Exam", "Grade", "SubjectOffering", "Other"];
+const TARGET_TYPES = ["Doctor", "Subject", "Administration", "Technical"];
 
 const defaultForm = { title: "", message: "", targetType: "Doctor", targetId: "", doctorOption: null };
 
@@ -80,16 +80,20 @@ function ComplaintFormDialog({ open, onClose, onSubmit, error }) {
           multiline
           minRows={4}
           inputProps={{ maxLength: 2000 }}
-          helperText={form.message.trim().length > 0 && form.message.trim().length < 5 ? "Message must be at least 5 characters" : ""}
+          helperText={
+            form.message.trim().length > 0 && form.message.trim().length < 5
+              ? "Message must be at least 5 characters"
+              : `${form.message.length} / 2000`
+          }
           error={form.message.trim().length > 0 && form.message.trim().length < 5}
         />
 
         <FormControl fullWidth>
-          <InputLabel>Complaint Type</InputLabel>
+          <InputLabel>Who is this complaint about?</InputLabel>
           <Select
             value={form.targetType}
             onChange={(e) => setForm({ ...defaultForm, targetType: e.target.value })}
-            label="Complaint Type"
+            label="Who is this complaint about?"
           >
             {TARGET_TYPES.map((t) => (
               <MenuItem key={t} value={t}>{t}</MenuItem>
@@ -128,15 +132,7 @@ function ComplaintFormDialog({ open, onClose, onSubmit, error }) {
           />
         )}
 
-        {form.targetType !== "Other" && form.targetType !== "Doctor" && (
-          <TextField
-            label="Target ID (optional)"
-            value={form.targetId}
-            onChange={handleChange("targetId")}
-            fullWidth
-            helperText="Leave blank if you don't have the exact ID"
-          />
-        )}
+        {/* No targetId field needed — Doctor uses autocomplete; Subject/Administration/Technical don't require one */}
       </DialogContent>
       <DialogActions>
         <Button onClick={handleClose} disabled={submitting}>Cancel</Button>

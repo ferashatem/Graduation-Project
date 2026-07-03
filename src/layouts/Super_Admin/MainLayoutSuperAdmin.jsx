@@ -14,10 +14,19 @@ function MainLayoutSuperAdmin() {
 
   const PAGE_TITLES = useMemo(() => [
     ["/super_admin/bulk-import-users", t("pageTitles.bulkImportUsers")],
-    ["/super_admin/create-admin", t("pageTitles.userManagement")],
-    ["/super_admin/home", t("pageTitles.home")],
-    ["/super_admin", t("pageTitles.superAdminDashboard")],
-    ["/sessions", t("pageTitles.sessions")],
+    ["/super_admin/create-admin",      t("pageTitles.userManagement")],
+    ["/super_admin/students",          t("pageTitles.students")],
+    ["/super_admin/doctors",           t("pageTitles.doctors")],
+    ["/super_admin/admins",            "Admins Management"],
+    ["/super_admin/complaints",        t("complaints.title")],
+    ["/super_admin/analytics",         t("analytics.title")],
+    ["/super_admin/notifications",     "Notifications"],
+    ["/super_admin/audit-logs",        "Audit Logs"],
+    ["/super_admin/chat",              "AI Assistant"],
+    ["/super_admin/change-password",   t("pageTitles.changePassword")],
+    ["/super_admin/home",              t("pageTitles.home")],
+    ["/super_admin",                   t("pageTitles.superAdminDashboard")],
+    ["/sessions",                      t("pageTitles.sessions")],
   ], [t]);
 
   const pageTitle = useMemo(() => {

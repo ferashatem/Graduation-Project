@@ -95,3 +95,8 @@ export const fetchStudentPerformance = async (studentId) => {
   const payload = unwrap(res);
   return Array.isArray(payload) ? payload : [];
 };
+
+export const triggerRiskAnalysis = async () => {
+  const res = await apiClient.post("/risk/analyze/trigger");
+  return unwrap(res);
+};

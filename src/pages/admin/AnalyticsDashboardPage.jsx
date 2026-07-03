@@ -3,12 +3,14 @@ import { useTranslation } from "react-i18next";
 import {
   Alert,
   Box,
+  Button,
   Card,
   CardContent,
   Chip,
   CircularProgress,
   Grid,
   Paper,
+  Snackbar,
   Table,
   TableBody,
   TableCell,
@@ -37,6 +39,7 @@ import {
   fetchAdminDashboard,
   fetchAtRiskStudents,
   fetchDepartmentComparison,
+  triggerRiskAnalysis,
 } from "../../api/analyticsApi";
 import { getErrorMessage } from "../../utils/errorHelpers";
 
@@ -87,8 +90,22 @@ function AnalyticsDashboardPage() {
   const [deptComparison, setDeptComparison] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [riskTriggering, setRiskTriggering] = useState(false);
+  const [riskSnack, setRiskSnack] = useState("");
   const { t } = useTranslation();
   const breadcrumbs = [{ label: t("analytics.title") }];
+
+  const handleTriggerRisk = async () => {
+    setRiskTriggering(true);
+    try {
+      await triggerRiskAnalysis();
+      setRiskSnack("Risk analysis triggered successfully. Results will update within a few minutes.");
+    } catch {
+      setRiskSnack("Failed to trigger risk analysis. Please try again.");
+    } finally {
+      setRiskTriggering(false);
+    }
+  };
 
   useEffect(() => {
     async function load() {
@@ -132,7 +149,29 @@ function AnalyticsDashboardPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title={t("analytics.title")} breadcrumbs={breadcrumbs} />
+      <PageHeader
+        title={t("analytics.title")}
+        breadcrumbs={breadcrumbs}
+        action={
+          <Button
+            size="small"
+            variant="outlined"
+            color="warning"
+            startIcon={<HiShieldExclamation />}
+            disabled={riskTriggering}
+            onClick={handleTriggerRisk}
+          >
+            {riskTriggering ? "Triggering…" : "Trigger Risk Analysis"}
+          </Button>
+        }
+      />
+      <Snackbar
+        open={Boolean(riskSnack)}
+        autoHideDuration={5000}
+        onClose={() => setRiskSnack("")}
+        message={riskSnack}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      />
 
       {/* Summary Cards */}
       <Grid container spacing={2}>

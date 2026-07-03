@@ -83,12 +83,26 @@ function OfferingDrawer({ offering, onClose }) {
   const handleExport = async () => {
     setExporting(true);
     try {
-      const result = await fetchOfferingExport(offering.offeringId);
-      const columns = result?.columns ?? [];
-      const rows = result?.rows ?? [];
+      const meta = await fetchOfferingExport(offering.offeringId);
+      const rows = meta?.rows ?? [];
       if (rows.length === 0) { alert("No data to export."); return; }
-      // API returns { columns: string[], rows: any[][] }
-      const csv = [columns.join(","), ...rows.map((r) => columns.map((_, idx) => `"${r[idx] ?? ""}"`).join(","))].join("\n");
+      const columns = [
+        "University ID","Name","Batch","Group","Department","College","Subject",
+        "Final Score","Midterm","Coursework","Final Exam","Grade",
+        "Total Assignments","Submitted","Missing","Completion %",
+        "Total Exams","Avg Exam Score","Avg Quiz Score",
+        "Risk Score","Risk Level","Risk Factors",
+        "AI Sessions","Study Minutes","Streak Days",
+      ];
+      const toRow = (r) => [
+        r.universityId, r.studentName, r.batchName, r.groupName, r.departmentName, r.collegeName, r.subjectName,
+        r.finalScore ?? "", r.midtermScore ?? "", r.courseworkScore ?? "", r.finalExamScore ?? "", r.gradeCategory,
+        r.totalAssignments, r.submittedAssignments, r.missingAssignments, r.assignmentCompletionRate,
+        r.totalExams, r.avgExamScore ?? "", r.avgQuizScore ?? "",
+        r.riskScore, r.riskLevel, r.riskFactors,
+        r.aiSessions, r.studyMinutes, r.streakDays,
+      ];
+      const csv = [columns.join(","), ...rows.map((r) => toRow(r).map((v) => `"${v ?? ""}"`).join(","))].join("\n");
       const blob = new Blob([csv], { type: "text/csv" });
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement("a");
@@ -186,10 +200,10 @@ function OfferingDrawer({ offering, onClose }) {
                       <h3 className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500">Weak Topics</h3>
                       <div className="space-y-2">
                         {topics.weakTopics.map((t, i) => (
-                          <div key={i} className="flex items-center justify-between rounded-xl bg-red-50 px-4 py-3">
-                            <p className="text-sm font-medium text-red-800">{t.topicName ?? t.topic}</p>
-                            {t.averageScore != null && (
-                              <span className="text-xs font-bold text-red-600">{t.averageScore.toFixed(0)}%</span>
+                          <div key={i} className="rounded-xl bg-red-50 px-4 py-3">
+                            <p className="text-sm font-medium text-red-800">{typeof t === "string" ? t : (t.topicName ?? t.topic)}</p>
+                            {t.avgScore != null && (
+                              <span className="text-xs font-bold text-red-600">{t.avgScore.toFixed(0)}%</span>
                             )}
                           </div>
                         ))}
@@ -201,17 +215,30 @@ function OfferingDrawer({ offering, onClose }) {
                       <h3 className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500">Strong Topics</h3>
                       <div className="space-y-2">
                         {topics.strongTopics.map((t, i) => (
-                          <div key={i} className="flex items-center justify-between rounded-xl bg-emerald-50 px-4 py-3">
-                            <p className="text-sm font-medium text-emerald-800">{t.topicName ?? t.topic}</p>
-                            {t.averageScore != null && (
-                              <span className="text-xs font-bold text-emerald-600">{t.averageScore.toFixed(0)}%</span>
-                            )}
+                          <div key={i} className="rounded-xl bg-emerald-50 px-4 py-3">
+                            <p className="text-sm font-medium text-emerald-800">{typeof t === "string" ? t : (t.topicName ?? t.topic)}</p>
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
-                  {!topics.weakTopics?.length && !topics.strongTopics?.length && (
+                  {topics.questionBreakdown?.length > 0 && (
+                    <div>
+                      <h3 className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500">Question Performance</h3>
+                      <div className="space-y-2">
+                        {topics.questionBreakdown.map((q, i) => (
+                          <div key={i} className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
+                            <p className="text-sm font-medium text-slate-700">{q.topic}</p>
+                            <div className="flex items-center gap-3 shrink-0">
+                              <span className="text-xs text-slate-400">{q.totalAttempts} attempts</span>
+                              <span className="text-xs font-bold text-slate-700">{q.averageScore?.toFixed(0)}%</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {!topics.weakTopics?.length && !topics.strongTopics?.length && !topics.questionBreakdown?.length && (
                     <p className="text-sm text-slate-400 py-6 text-center">No topic analytics available yet.</p>
                   )}
                 </div>
@@ -236,13 +263,16 @@ function OfferingDrawer({ offering, onClose }) {
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-semibold text-slate-800 truncate">{s.studentName ?? "Student"}</p>
                         <p className="text-xs text-slate-400 mt-0.5">
-                          {s.universityStudentId ?? ""}
-                          {s.attendanceRate != null ? ` · ${s.attendanceRate}% attendance` : ""}
+                          {s.studentUniversityId ?? ""}
+                          {s.riskScore != null ? ` · Risk: ${s.riskScore.toFixed(0)}` : ""}
                         </p>
+                        {s.riskFactors?.length > 0 && (
+                          <p className="text-[10px] text-slate-400 mt-0.5 truncate">{s.riskFactors[0]}</p>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        {s.overallScore != null && (
-                          <span className="text-xs font-bold text-slate-700">{s.overallScore.toFixed(1)}%</span>
+                        {s.finalScore != null && (
+                          <span className="text-xs font-bold text-slate-700">{s.finalScore.toFixed(1)}%</span>
                         )}
                         <RiskBadge level={s.riskLevel} />
                       </div>
@@ -259,12 +289,12 @@ function OfferingDrawer({ offering, onClose }) {
           {drawerTab === 0 && !loading && data && (
             <>
               {/* Grade distribution */}
-              {data.gradeDistribution?.histogram?.length > 0 && (
+              {data.gradeDistribution?.length > 0 && (
                 <div>
                   <h3 className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500">Grade Distribution</h3>
                   <div className="space-y-2">
-                    {data.gradeDistribution.histogram.map((g, i) => {
-                      const total = data.gradeDistribution.histogram.reduce((s, x) => s + (x.count ?? 0), 0);
+                    {data.gradeDistribution.map((g, i) => {
+                      const total = data.gradeDistribution.reduce((s, x) => s + (x.count ?? 0), 0);
                       const pct = total > 0 ? ((g.count ?? 0) / total) * 100 : 0;
                       return (
                         <div key={i} className="flex items-center gap-3">
@@ -311,11 +341,11 @@ function OfferingDrawer({ offering, onClose }) {
                       <div key={s.studentId ?? i} className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
                         <div>
                           <p className="text-sm font-semibold text-slate-800">{s.studentName ?? "Student"}</p>
-                          <p className="text-xs text-slate-400">{s.universityStudentId ?? ""}</p>
+                          <p className="text-xs text-slate-400">{s.studentUniversityId ?? ""}</p>
                         </div>
                         <div className="flex items-center gap-2">
-                          {s.overallScore != null && (
-                            <span className="text-xs font-bold text-slate-700">{s.overallScore.toFixed(1)}%</span>
+                          {s.finalScore != null && (
+                            <span className="text-xs font-bold text-slate-700">{s.finalScore.toFixed(1)}%</span>
                           )}
                           <RiskBadge level={s.riskLevel} />
                         </div>
@@ -390,10 +420,10 @@ function TeachingIntelligencePage() {
       {Object.keys(stats).length > 0 && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { label: "Avg Attendance",  value: stats.averageAttendance != null ? `${stats.averageAttendance.toFixed(0)}%` : "—",  color: "#059669" },
-            { label: "Avg Grade",       value: stats.averageGrade != null      ? `${stats.averageGrade.toFixed(1)}%`      : "—",  color: "#1a5fa3" },
+            { label: "Total Students",  value: stats.totalStudents ?? "—",                                                        color: "#1a5fa3" },
+            { label: "Avg Risk Score",  value: stats.avgRiskScore != null ? stats.avgRiskScore.toFixed(1) : "—",                  color: "#d97706" },
             { label: "At-Risk Students",value: stats.atRiskCount ?? atRisk.length,                                                color: "#ef4444" },
-            { label: "Submissions Due", value: stats.pendingSubmissions ?? "—",                                                   color: "#d97706" },
+            { label: "Offerings",       value: (dashboard?.offerings?.length ?? 0),                                               color: "#059669" },
           ].map((s) => (
             <div key={s.label} className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
               <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">{s.label}</p>
@@ -416,9 +446,10 @@ function TeachingIntelligencePage() {
               {offerings.map((o, i) => {
                 const risk = o.atRiskCount ?? 0;
                 const avg  = o.averageScore ?? o.averageGrade;
+                const noData = (o.totalStudents === 0) || o.overallHealth === "unknown";
                 return (
                   <div
-                    key={o.id ?? i}
+                    key={o.offeringId ?? i}
                     className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100 cursor-pointer hover:ring-blue-200 transition"
                     onClick={() => setSelected(o)}
                   >
@@ -427,19 +458,46 @@ function TeachingIntelligencePage() {
                         <h3 className="text-sm font-bold text-slate-800">{o.subjectName ?? o.name ?? "Offering"}</h3>
                         <p className="text-xs text-slate-400 mt-0.5">
                           {o.subjectCode ?? ""}
-                          {o.enrolledCount != null ? ` · ${o.enrolledCount} students` : ""}
+                          {o.totalStudents != null ? ` · ${o.totalStudents} students` : ""}
+                          {o.semesterName ? ` · ${o.semesterName}` : ""}
+                        </p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">
+                          {o.groupName ?? ""}{o.batchName ? ` · ${o.batchName}` : ""}
+                          {(o.lastRefreshedAt ?? o.snapshotDate ?? o.refreshedAt) && (
+                            <span className="ml-1">
+                              · Refreshed {new Date(o.lastRefreshedAt ?? o.snapshotDate ?? o.refreshedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                          )}
                         </p>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {risk > 0 && (
-                          <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700">
-                            {risk} at-risk
+                      <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+                        {noData ? (
+                          <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-400">
+                            No students enrolled yet
                           </span>
+                        ) : (
+                          <>
+                            {o.overallHealth && (
+                              <span className={{
+                                excellent:  "rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700",
+                                good:       "rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-700",
+                                concerning: "rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700",
+                                critical:   "rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700",
+                              }[o.overallHealth] ?? "rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-500"}>
+                                {o.overallHealth}
+                              </span>
+                            )}
+                            {risk > 0 && (
+                              <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700">
+                                {risk} at-risk
+                              </span>
+                            )}
+                          </>
                         )}
                         <span className="text-xs font-semibold text-blue-600 hover:underline">View →</span>
                       </div>
                     </div>
-                    {avg != null && (
+                    {!noData && avg != null && (
                       <div className="mt-3 flex items-center gap-3">
                         <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
                           <div
@@ -498,8 +556,8 @@ function TeachingIntelligencePage() {
             </div>
           )}
 
-          {/* AI Recommendations */}
-          {aiRec.length > 0 && (
+          {/* AI Recommendations — only shown when there's actual student data */}
+          {aiRec.length > 0 && (stats.totalStudents ?? 0) > 0 && (
             <div>
               <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500">AI Recommendations</h2>
               <div className="space-y-2">

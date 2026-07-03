@@ -3,10 +3,14 @@ import { getErrorMessage } from "../../../utils/errorHelpers";
 import {
   createComplaint,
   fetchAllComplaints,
+  fetchClusterDetail,
   fetchClusters,
+  fetchComplaintDashboard,
   fetchMyComplaints,
   fetchMyReports,
+  replyToCluster,
   replyToComplaint,
+  updateClusterStatus,
 } from "../api/complaintsApi";
 
 const normalizeList = (payload) => {
@@ -53,9 +57,9 @@ export const useDoctorReports = () => {
   const [data, setData] = useState({ items: [], totalCount: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [query, setQuery] = useState({ page: 1, pageSize: 20 });
 
-  const load = useCallback(async (q = {}) => {
+  const load = useCallback(async (q = query) => {
     setLoading(true);
     setError("");
     try {
@@ -66,9 +70,15 @@ export const useDoctorReports = () => {
     } finally {
       setLoading(false);
     }
+  }, [query]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const setStatusFilter = useCallback((status) => {
+    setQuery((prev) => ({ ...prev, page: 1, status: status || undefined }));
   }, []);
 
-  useEffect(() => { load(statusFilter ? { status: statusFilter } : {}); }, [load, statusFilter]);
+  const statusFilter = query.status ?? "";
 
   const reply = useCallback(async (id, replyText) => {
     try {
@@ -85,7 +95,7 @@ export const useDoctorReports = () => {
 
   const pendingCount = data.items.filter((c) => c.status === "Pending").length;
 
-  return { complaints: data.items, totalCount: data.totalCount, loading, error, reload: load, reply, statusFilter, setStatusFilter, pendingCount };
+  return { complaints: data.items, totalCount: data.totalCount, loading, error, reload: load, reply, statusFilter, setStatusFilter, setQuery, page: query.page, pageSize: query.pageSize, pendingCount };
 };
 
 export const usePendingComplaintsCount = () => {
@@ -147,5 +157,72 @@ export const useComplaintClusters = ({ targetType, targetId } = {}) => {
 
   useEffect(() => { load(); }, [load]);
 
-  return { clusters, loading, error, reload: load };
+  const replyCluster = useCallback(async (clusterId, message) => {
+    try {
+      const result = await replyToCluster(clusterId, message);
+      setClusters((prev) => prev.map((c) => c.id === clusterId ? { ...c, status: "Resolved" } : c));
+      return { ok: true, data: result };
+    } catch (err) {
+      return { ok: false, error: getErrorMessage(err) };
+    }
+  }, []);
+
+  const changeClusterStatus = useCallback(async (clusterId, status, reason) => {
+    try {
+      await updateClusterStatus(clusterId, status, reason);
+      setClusters((prev) => prev.map((c) => c.id === clusterId ? { ...c, status } : c));
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: getErrorMessage(err) };
+    }
+  }, []);
+
+  return { clusters, loading, error, reload: load, replyCluster, changeClusterStatus };
+};
+
+export const useComplaintDashboard = () => {
+  const [dashboard, setDashboard] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const data = await fetchComplaintDashboard();
+      setDashboard(data);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  return { dashboard, loading, error, reload: load };
+};
+
+export const useClusterDetail = (clusterId) => {
+  const [detail, setDetail] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const load = useCallback(async () => {
+    if (!clusterId) return;
+    setLoading(true);
+    setError("");
+    try {
+      const data = await fetchClusterDetail(clusterId);
+      setDetail(data);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  }, [clusterId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  return { detail, loading, error, reload: load };
 };
